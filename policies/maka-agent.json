@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "name": "maka-agent-shadow-v1",
+  "commands": {
+    "docsOnly": [
+      {
+        "id": "root:format-check",
+        "argv": ["npm", "run", "format:check"]
+      }
+    ],
+    "fast": [
+      {
+        "id": "root:format-check",
+        "argv": ["npm", "run", "format:check"]
+      },
+      {
+        "id": "root:typecheck",
+        "argv": ["npm", "run", "typecheck"]
+      }
+    ],
+    "affectedFallback": [
+      {
+        "id": "root:typecheck",
+        "argv": ["npm", "run", "typecheck"]
+      }
+    ],
+    "full": [
+      {
+        "id": "root:test",
+        "argv": ["npm", "test"]
+      }
+    ]
+  },
+  "rules": {
+    "docsOnly": [
+      "**/*.md",
+      "**/*.mdx",
+      "docs/**"
+    ],
+    "full": [
+      ".github/**",
+      "package.json",
+      "package-lock.json",
+      "patches/**",
+      "scripts/**",
+      "**/package.json",
+      "**/tsconfig*.json",
+      "**/*test*config.*",
+      "**/fixtures/**"
+    ],
+    "highRisk": [
+      "**/migrations/**",
+      "**/*auth*",
+      "**/*billing*",
+      "**/*concurrency*",
+      "**/*permission*",
+      "**/*protocol*",
+      "packages/storage/**"
+    ]
+  },
+  "workspace": {
+    "includeDependents": true,
+    "testCommand": {
+      "idTemplate": "workspace:{workspace}:test",
+      "argvTemplate": ["npm", "--workspace", "{workspace}", "test"]
+    }
+  }
+}

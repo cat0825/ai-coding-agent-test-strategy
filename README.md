@@ -4,14 +4,16 @@
 
 ## 当前进度
 
-**研究与可发布 PDF 已完成，实验方案已定义；可执行策略工具尚未开始实现。**
+**研究、可发布 PDF、shadow 验证器和 Maka pilot 准备已完成；正式评测尚未开始。**
 
 - 已完成 Google、OpenAI Codex、Aider、Claude Code、GitHub Copilot、Meta 等实践的横向比较。
 - 已提炼四档验证强度：`off`、`smoke`、`standard`、`thorough`。
 - 已形成 Agent 验证状态机、测试预算、停止规则和可直接放入 `AGENTS.md` 的策略模板。
 - 已修复 PDF 代码块裁切并提供可复现构建入口。
 - 已定义 pilot 指标、预算校准、保守 fallback、命令归一化和 override 审计方案。
-- 尚未实现 `verify.sh`、受影响测试发现、命令拦截 hook、低价值测试检测或验证账本。
+- 已实现 `verify.sh`、受影响 workspace 发现、unknown fallback、命令存在性校验和 JSONL 验证账本。
+- 已在 Maka `origin/main@938487ea` 的独立 worktree 完成 dry-run；未改动 Maka 源码。
+- baseline 观测已开始：`format:check` 通过；`typecheck` 和 `npm test` 暂因环境/上游接口问题失败，详见 [STATUS.md](STATUS.md)。
 
 ## 核心结论
 
@@ -39,15 +41,21 @@
 
 打印源位于 `report/ai-coding-agent-test-strategy.html`，输出固定写入 `output/pdf/`。
 
-## 计划中的实现
+## 已实现的工具
+
+```sh
+./scripts/verify.sh affected --repo /path/to/repo --policy policies/maka-agent.json
+```
+
+默认是 plan-only shadow 模式；加 `--execute --mode baseline` 才会执行并把每条命令的耗时、退出码写入 JSONL 账本。
+
+## 后续评测
 
 下一阶段按以下顺序推进：
 
-1. 为仓库提供确定性的 `verify.sh fast|affected|full` 入口。
-2. 根据 diff、依赖关系、测试标签和历史失败发现受影响测试，并保留无法识别时的全量 fallback。
-3. 为测试执行次数、即时耗时和新增测试规模增加预算状态机。
-4. 在支持 hook/permission 的 Agent 中拦截无目标全量测试、第三次重复执行和失败后的无效扩张。
-5. 记录验证命令、耗时、退出码、未运行项目和 flaky 风险，形成可审计的验证账本。
+1. 修复或确认 Maka `origin/main@938487ea` 的 workspace 构建基线，并完成包含 postinstall 的干净安装。
+2. 采集至少 30 个基线任务和 30 个 shadow 任务，比较命令数、耗时、失败漏检和 fallback 比例。
+3. 依据数据校准预算和停止规则，再决定是否在 Agent hook/permission 层启用有限强制。
 
 ## 研究时间
 
