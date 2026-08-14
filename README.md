@@ -4,11 +4,13 @@
 
 ## 当前进度
 
-**研究阶段已完成；可执行工具尚未开始实现。**
+**研究与可发布 PDF 已完成，实验方案已定义；可执行策略工具尚未开始实现。**
 
 - 已完成 Google、OpenAI Codex、Aider、Claude Code、GitHub Copilot、Meta 等实践的横向比较。
 - 已提炼四档验证强度：`off`、`smoke`、`standard`、`thorough`。
 - 已形成 Agent 验证状态机、测试预算、停止规则和可直接放入 `AGENTS.md` 的策略模板。
+- 已修复 PDF 代码块裁切并提供可复现构建入口。
+- 已定义 pilot 指标、预算校准、保守 fallback、命令归一化和 override 审计方案。
 - 尚未实现 `verify.sh`、受影响测试发现、命令拦截 hook、低价值测试检测或验证账本。
 
 ## 核心结论
@@ -23,7 +25,19 @@
 ## 文档
 
 - [完整研究报告](docs/ai-coding-agent-test-strategy.md)：纵向演进、成熟团队案例、状态机、落地顺序和参考资料。
+- [PDF 报告](output/pdf/ai-coding-agent-test-strategy.pdf)：适合阅读和分发的 16 页版本。
+- [实验与校准方案](docs/experiment-and-calibration.md)：pilot 设计、指标、fallback 和审计契约。
 - [当前状态与下一步](STATUS.md)：明确已完成、未完成和下一阶段实现边界。
+
+## 构建 PDF
+
+安装 WeasyPrint 后执行：
+
+```sh
+./scripts/build-pdf.sh
+```
+
+打印源位于 `report/ai-coding-agent-test-strategy.html`，输出固定写入 `output/pdf/`。
 
 ## 计划中的实现
 
