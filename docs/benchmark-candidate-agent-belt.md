@@ -22,11 +22,12 @@ The default proxy environment produced one classified infrastructure failure: th
 
 - Real baseline VerifyTrace tasks: 0/30
 - Candidate paired comparisons: 0/30
-- Eligible oracle failures: 0/10
+- Independent editing-task oracle results: 4 passed, 0 failed
+- Eligible oracle failures for safety calibration: 0/10
 - Agent authentication and scenario execution: verified by a five-scenario exploratory pilot
 
 ## Exploratory pilot result
 
 Codex CLI 0.147.0 completed the five tasktracker scenarios in isolated git worktrees. All 5 scenarios and 32/32 rules checks passed in 489.63 seconds. The deterministic audit observed 63 shell invocations, including 10 test-runner invocations with 6 non-zero results. Three scenarios changed one test file each: one was explicitly tagged `test-required`, while two were unspecified by scenario tags. `unspecified` is not an assertion that those regression tests were unnecessary.
 
-The sanitized evidence is [agent-belt-pilot-report.json](../fixtures/benchmark/agent-belt-pilot-report.json), and its contract is [Agent-belt pilot audit v1](agent-belt-pilot-audit-v1.md). The pilot decision is `go`, but it remains exploratory: complete baseline VerifyTrace, independent oracle evidence, and paired candidate runs are still missing. Hard enforcement and efficiency claims remain disabled.
+The sanitized evidence is [agent-belt-pilot-report.json](../fixtures/benchmark/agent-belt-pilot-report.json), and its contract is [Agent-belt pilot audit v1](agent-belt-pilot-audit-v1.md). Separate independent functional oracles now pass for all four editing tasks; see [Agent-belt independent oracles v1](agent-belt-independent-oracles-v1.md). The read-only task remains excluded, and complete baseline VerifyTrace plus paired candidate runs are still missing. Hard enforcement and efficiency claims remain disabled.

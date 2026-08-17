@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "evidence_class": "independent_oracle",
+  "task_id": "l3_add_json_format",
+  "oracle": {
+    "id": "agent-belt-tasktracker-l3_add_json_format",
+    "version": 1,
+    "definition_sha256": "cdf7e0f2f452c65f088081fc26d4c9dcf8254aaa2e79a8b4ff5ef267cc960a69"
+  },
+  "environment": {
+    "benchmark_id": "coding-agent-agent-belt-pilot",
+    "repository_identity": "jfrog/agent-belt",
+    "repository_revision": "90bd105b172adc41394f458e33b653dda2b199b0",
+    "manifest_digest": "0a9f5458397cc40211ebe10e43bdee59fec4d47334b8ef1b3d75bdc920cc4165",
+    "source_sha256": "00aaacf941ecbe46937f59f40740d127e92e45cd805a19858a6a537f86fd457b"
+  },
+  "workspace": {
+    "source_tree_sha256": "cd65176f8d498fe0bc67da844a3680c015e46d5a9f1e0daf53d16ecf5d1bba6d",
+    "source_file_count": 5
+  },
+  "execution": {
+    "sandbox": "host",
+    "explicit_host_opt_in": true,
+    "environment_policy": "minimal"
+  },
+  "result": {
+    "failure_signatures": [],
+    "status": "passed"
+  },
+  "eligibility": {
+    "baseline_quality_claim_eligible": false,
+    "reasons": [
+      "complete_baseline_verifytrace_missing"
+    ]
+  }
+}
