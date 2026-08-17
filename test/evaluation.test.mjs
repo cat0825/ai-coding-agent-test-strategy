@@ -37,6 +37,10 @@ test("canonical evaluation is deterministic and refuses a positive claim", async
   assert.equal(first.metrics.verification_cost.median_duration_reduction, 0.25);
   assert.equal(first.metrics.verification_cost.median_command_reduction, 0.25);
   assert.equal(first.metrics.verification_cost.command_reduction_denominator, 4);
+  assert.equal(first.metrics.quality_claim.verification_cost.comparison_count, 0);
+  assert.equal(first.metrics.quality_claim.verification_cost.median_duration_reduction, null);
+  assert.equal(first.gates.find((gate) => gate.id === "duration_reduction").status, "evidence_insufficient");
+  assert.equal(first.gates.find((gate) => gate.id === "quality_claim_failure_recall").status, "evidence_insufficient");
   assert.equal(first.metrics.evidence_sufficiency.eligible_comparisons, 0);
   assert.equal(first.metrics.evidence_sufficiency.oracle_failures, 0);
   assert.equal(first.metrics.evidence_sufficiency.calibration_oracle_failures, 3);
@@ -74,6 +78,29 @@ test("positive claims require explicit observed evidence and passing gates", asy
   assert.equal(report.gates.every((gate) => gate.status === "pass"), true);
   assert.equal(report.conclusion.status, "eligible");
   assert.equal(report.conclusion.efficiency_claim, "supported");
+});
+
+test("ineligible calibration comparisons cannot inflate quality-claim gates", async () => {
+  const { cohort, traces } = await loadCohort();
+  cohort.evidence_class = "observed_benchmark";
+  cohort.thresholds.minimum_quality_claim_comparisons = 1;
+  cohort.thresholds.minimum_oracle_failures = 1;
+  cohort.thresholds.minimum_command_reduction = 0.25;
+  for (const comparison of cohort.comparisons) comparison.quality_claim_eligible = false;
+  cohort.comparisons.find((comparison) => comparison.id === "necessary-revalidation").quality_claim_eligible = true;
+
+  const report = evaluateCohort(cohort, traces);
+
+  assert.equal(report.metrics.verification_cost.median_duration_reduction, 0.25);
+  assert.equal(report.metrics.quality_claim.verification_cost.median_duration_reduction, 0);
+  assert.equal(report.metrics.quality_claim.verification_cost.median_command_reduction, 0);
+  assert.equal(report.gates.find((gate) => gate.id === "quality_claim_integrity").status, "pass");
+  assert.equal(report.gates.find((gate) => gate.id === "quality_claim_final_oracle_match").status, "pass");
+  assert.equal(report.gates.find((gate) => gate.id === "quality_claim_failure_recall").status, "pass");
+  assert.equal(report.gates.find((gate) => gate.id === "duration_reduction").status, "fail");
+  assert.equal(report.gates.find((gate) => gate.id === "command_reduction").status, "fail");
+  assert.equal(report.conclusion.status, "adjust");
+  assert.equal(report.conclusion.efficiency_claim, "not_supported");
 });
 
 test("evaluation CLI writes a versioned report in one command", async (t) => {

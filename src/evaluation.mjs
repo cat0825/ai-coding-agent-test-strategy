@@ -148,6 +148,59 @@ function traceCost(trace) {
   };
 }
 
+function comparisonMetrics(comparisons, scope) {
+  const oracleFailureCount = comparisons.reduce(
+    (total, comparison) => total + comparison.oracle.failure_signatures.length,
+    0,
+  );
+  const baselineFailuresCaught = comparisons.reduce(
+    (total, comparison) => total + comparison.baseline_failures_caught,
+    0,
+  );
+  const candidateFailuresCaught = comparisons.reduce(
+    (total, comparison) => total + comparison.candidate_failures_caught,
+    0,
+  );
+  const durationReductions = comparisons.map((comparison) => comparison.duration_reduction);
+  const commandReductions = comparisons.map((comparison) => comparison.command_reduction);
+
+  return {
+    comparison_integrity: metric(
+      `${scope} whose baseline and candidate task ids match the declared task id`,
+      comparisons.filter((comparison) => comparison.comparison_integrity).length,
+      comparisons.length,
+    ),
+    final_oracle_match: metric(
+      `${scope} whose candidate final status matches the independent oracle`,
+      comparisons.filter((comparison) => comparison.final_oracle_match).length,
+      comparisons.length,
+    ),
+    baseline_failure_recall: metric(
+      `Independent oracle failure signatures observed by baseline traces in ${scope.toLowerCase()}`,
+      baselineFailuresCaught,
+      oracleFailureCount,
+    ),
+    candidate_failure_recall: metric(
+      `Independent oracle failure signatures observed by candidate traces in ${scope.toLowerCase()}`,
+      candidateFailuresCaught,
+      oracleFailureCount,
+    ),
+    failure_recall_delta: {
+      definition: `Candidate failure recall minus baseline failure recall in ${scope.toLowerCase()}`,
+      value: oracleFailureCount === 0 ? null : rounded((candidateFailuresCaught - baselineFailuresCaught) / oracleFailureCount),
+    },
+    verification_cost: {
+      definition: `Median per-task reduction from observed baseline to candidate results in ${scope.toLowerCase()}`,
+      comparison_count: comparisons.length,
+      duration_reduction_denominator: durationReductions.filter((value) => value !== null).length,
+      command_reduction_denominator: commandReductions.filter((value) => value !== null).length,
+      median_duration_reduction: median(durationReductions),
+      median_command_reduction: median(commandReductions),
+    },
+    oracle_failure_count: oracleFailureCount,
+  };
+}
+
 function gate(id, category, value, threshold, definition) {
   const status = value === null ? "evidence_insufficient" : value >= threshold ? "pass" : "fail";
   return { id, category, definition, value, comparator: ">=", threshold, status };
@@ -224,7 +277,6 @@ export function evaluateCohort(cohort, tracesInput) {
   let finalOracleMatches = 0;
   let comparisonIntegrityMatches = 0;
   let oracleFailureCount = 0;
-  let eligibleOracleFailureCount = 0;
   let baselineFailuresCaught = 0;
   let candidateFailuresCaught = 0;
   const durationReductions = [];
@@ -246,7 +298,6 @@ export function evaluateCohort(cohort, tracesInput) {
     const baselineCaught = expectedFailures.filter((signature) => baselineFailures.has(signature)).length;
     const candidateCaught = expectedFailures.filter((signature) => candidateFailures.has(signature)).length;
     oracleFailureCount += expectedFailures.length;
-    if (comparison.quality_claim_eligible) eligibleOracleFailureCount += expectedFailures.length;
     baselineFailuresCaught += baselineCaught;
     candidateFailuresCaught += candidateCaught;
 
@@ -274,6 +325,8 @@ export function evaluateCohort(cohort, tracesInput) {
       command_reduction: commandReduction,
     };
   });
+  const qualityClaimComparisons = comparisonReports.filter((comparison) => comparison.quality_claim_eligible);
+  const qualityClaimMetrics = comparisonMetrics(qualityClaimComparisons, "Quality-claim-eligible comparisons");
 
   const metrics = {
     event_completeness: metric(
@@ -335,11 +388,12 @@ export function evaluateCohort(cohort, tracesInput) {
       median_duration_reduction: median(durationReductions),
       median_command_reduction: median(commandReductions),
     },
+    quality_claim: qualityClaimMetrics,
     evidence_sufficiency: {
       definition: "Quality-claim-eligible comparisons and independent oracle failures available for safety claims",
-      eligible_comparisons: cohort.comparisons.filter((comparison) => comparison.quality_claim_eligible === true).length,
+      eligible_comparisons: qualityClaimComparisons.length,
       required_comparisons: cohort.thresholds.minimum_quality_claim_comparisons,
-      oracle_failures: eligibleOracleFailureCount,
+      oracle_failures: qualityClaimMetrics.oracle_failure_count,
       required_oracle_failures: cohort.thresholds.minimum_oracle_failures,
       calibration_oracle_failures: oracleFailureCount,
       evidence_class: cohort.evidence_class,
@@ -354,21 +408,30 @@ export function evaluateCohort(cohort, tracesInput) {
     gate("comparison_integrity", "structural", metrics.comparison_integrity.value, cohort.thresholds.comparison_integrity, metrics.comparison_integrity.definition),
     gate("final_oracle_match", "safety", metrics.final_oracle_match.value, cohort.thresholds.final_oracle_match, metrics.final_oracle_match.definition),
     gate("failure_recall", "safety", metrics.candidate_failure_recall.value, cohort.thresholds.failure_recall, metrics.candidate_failure_recall.definition),
-    gate("duration_reduction", "efficiency", metrics.verification_cost.median_duration_reduction, cohort.thresholds.minimum_duration_reduction, "Median per-task reduction in cumulative test-result duration"),
-    gate("command_reduction", "efficiency", metrics.verification_cost.median_command_reduction, cohort.thresholds.minimum_command_reduction, "Median per-task reduction in normalized test-result executions"),
+    gate("quality_claim_integrity", "safety", metrics.quality_claim.comparison_integrity.value, cohort.thresholds.comparison_integrity, metrics.quality_claim.comparison_integrity.definition),
+    gate("quality_claim_final_oracle_match", "safety", metrics.quality_claim.final_oracle_match.value, cohort.thresholds.final_oracle_match, metrics.quality_claim.final_oracle_match.definition),
+    gate("quality_claim_failure_recall", "safety", metrics.quality_claim.candidate_failure_recall.value, cohort.thresholds.failure_recall, metrics.quality_claim.candidate_failure_recall.definition),
+    gate("duration_reduction", "efficiency", metrics.quality_claim.verification_cost.median_duration_reduction, cohort.thresholds.minimum_duration_reduction, "Median per-task reduction in cumulative test-result duration for quality-claim-eligible comparisons"),
+    gate("command_reduction", "efficiency", metrics.quality_claim.verification_cost.median_command_reduction, cohort.thresholds.minimum_command_reduction, "Median per-task reduction in normalized test-result executions for quality-claim-eligible comparisons"),
   ];
-  const recallGate = gates.find((item) => item.id === "failure_recall");
-  recallGate.definition = `${recallGate.definition}; candidate recall must not regress from baseline`;
-  recallGate.non_regression_delta = metrics.failure_recall_delta.value;
-  recallGate.non_regression_comparator = ">=";
-  recallGate.non_regression_threshold = 0;
-  if (metrics.failure_recall_delta.value === null) recallGate.status = "evidence_insufficient";
-  else if (metrics.failure_recall_delta.value < 0) recallGate.status = "fail";
+  for (const [gateId, recallMetrics] of [
+    ["failure_recall", metrics],
+    ["quality_claim_failure_recall", metrics.quality_claim],
+  ]) {
+    const recallGate = gates.find((item) => item.id === gateId);
+    recallGate.definition = `${recallGate.definition}; candidate recall must not regress from baseline`;
+    recallGate.non_regression_delta = recallMetrics.failure_recall_delta.value;
+    recallGate.non_regression_comparator = ">=";
+    recallGate.non_regression_threshold = 0;
+    if (recallMetrics.failure_recall_delta.value === null) recallGate.status = "evidence_insufficient";
+    else if (recallMetrics.failure_recall_delta.value < 0) recallGate.status = "fail";
+  }
 
   const failedSafetyGates = gates.filter((item) => item.category === "safety" && item.status === "fail");
   const insufficientSafetyGates = gates.filter((item) => item.category === "safety" && item.status === "evidence_insufficient");
   const failedStructuralGates = gates.filter((item) => item.category === "structural" && item.status !== "pass");
-  const failedEfficiencyGates = gates.filter((item) => item.category === "efficiency" && item.status !== "pass");
+  const failedEfficiencyGates = gates.filter((item) => item.category === "efficiency" && item.status === "fail");
+  const insufficientEfficiencyGates = gates.filter((item) => item.category === "efficiency" && item.status === "evidence_insufficient");
   const sufficientComparisons = metrics.evidence_sufficiency.eligible_comparisons >= metrics.evidence_sufficiency.required_comparisons;
   const sufficientFailures = metrics.evidence_sufficiency.oracle_failures >= metrics.evidence_sufficiency.required_oracle_failures;
   const claimEligibleEvidence = cohort.evidence_class === "observed_benchmark";
@@ -378,7 +441,7 @@ export function evaluateCohort(cohort, tracesInput) {
   if (failedSafetyGates.length > 0) {
     status = "rejected";
     efficiencyClaim = "blocked";
-  } else if (insufficientSafetyGates.length > 0 || !sufficientComparisons || !sufficientFailures || !claimEligibleEvidence) {
+  } else if (insufficientSafetyGates.length > 0 || insufficientEfficiencyGates.length > 0 || !sufficientComparisons || !sufficientFailures || !claimEligibleEvidence) {
     status = "evidence_insufficient";
     efficiencyClaim = "not_supported";
   } else if (failedStructuralGates.length > 0 || failedEfficiencyGates.length > 0) {
@@ -394,6 +457,7 @@ export function evaluateCohort(cohort, tracesInput) {
     ...insufficientSafetyGates.map((item) => `insufficient_safety_gate:${item.id}`),
     ...failedStructuralGates.map((item) => `failed_structural_gate:${item.id}`),
     ...failedEfficiencyGates.map((item) => `failed_efficiency_gate:${item.id}`),
+    ...insufficientEfficiencyGates.map((item) => `insufficient_efficiency_gate:${item.id}`),
     ...(!sufficientComparisons ? ["insufficient_quality_claim_comparisons"] : []),
     ...(!sufficientFailures ? ["insufficient_oracle_failures"] : []),
     ...(!claimEligibleEvidence ? ["canonical_fixtures_are_not_benchmark_evidence"] : []),

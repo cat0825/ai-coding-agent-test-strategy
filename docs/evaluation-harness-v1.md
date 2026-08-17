@@ -10,6 +10,8 @@ The command writes `output/evaluation/mvp-evaluation-v1.json`. The report is det
 
 The local cohort is deliberately marked `canonical_fixture`, has zero quality-claim-eligible comparisons, and defers external P1/P2 benchmarks. Calibration failures are reported separately from eligible oracle-failure evidence. Its expected result is `evidence_insufficient`, even when structural checks or a small paired comparison pass. A failed final-oracle or candidate failure-recall gate takes precedence and produces `rejected` with `efficiency_claim: blocked`; no positive efficiency claim can be emitted in that state.
 
+The report retains metrics across all declared comparisons for calibration, but those values never authorize a claim. The `quality_claim` metrics recompute pair integrity, final-oracle match, failure recall, and verification cost from comparisons explicitly marked `quality_claim_eligible`; the corresponding safety and efficiency gates use only that eligible subset. An ineligible fixture therefore cannot inflate or mask a claim metric.
+
 Quality gates:
 
 - event completeness, canonical command normalization, diagnostic precision, replay correctness, and task-pair integrity;
