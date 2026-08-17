@@ -1,4 +1,4 @@
-# Handoff 2026-08-17
+# Handoff 2026-08-18
 
 ## 目标
 
@@ -15,9 +15,10 @@
 - 路线图与任务：Issue #1-#8 均已进入 `Observatory MVP` Milestone。
 - PR #9：范围、状态与任务集研究；PR #10：CI 与贡献闸门。
 - PR #11-#15：VerifyTrace v1、确定性诊断、HTML 回放、推荐模式与 evaluation gate。
-- `npm run check`：37/37 tests 通过；PR #9-#15 的 Node 20/24 CI 已通过。
+- `npm run check`：38/38 tests 通过；PR #9-#15 的 Node 20/24 CI 已通过。
 - `npm run evaluate`：报告为 `evidence_insufficient`，`efficiency_claim` 为 `not_supported`；canonical fixture 仅用于结构校准。
 - 合并前审计已隔离 calibration 与 quality-claim 指标；不合格 comparison 不再影响声明 gate。
+- VerifyTrace 现在拒绝缺失或类型错误的 `test_selection.data.affected_workspaces`；修复已从 PR #11 传播到 #12-#15。
 
 ## 未完成
 
