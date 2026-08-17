@@ -30,6 +30,17 @@
 - [PDF 报告](output/pdf/ai-coding-agent-test-strategy.pdf)：适合阅读和分发的 16 页版本。
 - [实验与校准方案](docs/experiment-and-calibration.md)：pilot 设计、指标、fallback 和审计契约。
 - [当前状态与下一步](STATUS.md)：明确已完成、未完成和下一阶段实现边界。
+- [贡献指南](CONTRIBUTING.md)：Issue/PR 边界、验证命令和证据要求。
+
+## 开发检查
+
+提交前执行：
+
+```sh
+npm run check
+```
+
+该命令执行 JavaScript/shell 语法检查和完整单元测试；Pull Request 会在最低支持 Node 20 与当前 Node 24 上执行同一闸门。
 
 ## 构建 PDF
 
