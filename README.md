@@ -4,7 +4,7 @@
 
 ## 当前进度
 
-**研究、可发布 PDF、shadow 验证器和 Maka pilot 准备已完成；正式评测尚未开始。**
+**Observatory MVP 代码和本地 calibration 已完成；真实 benchmark 尚未开始，当前证据不足以支持效率或质量声明。**
 
 - 已完成 Google、OpenAI Codex、Aider、Claude Code、GitHub Copilot、Meta 等实践的横向比较。
 - 已提炼四档验证强度：`off`、`smoke`、`standard`、`thorough`。
@@ -64,6 +64,14 @@ npm run recommend -- expert fixtures/diagnostics/exact-repeat.json
 ```
 
 安全边界和决定记录格式见 [推荐模式 v1](docs/recommendation-modes-v1.md)。
+
+运行本地 calibration cohort 评测并生成版本化报告：
+
+```sh
+npm run evaluate
+```
+
+评测报告会明确区分 `evidence_insufficient`、`rejected` 和可支持效率声明的状态；外部 P1/P2 benchmark 不在 MVP 内。
 
 ## 后续评测
 
