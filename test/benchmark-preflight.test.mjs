@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { generateBenchmarkManifest, stableJson } from "../src/benchmark-preflight.mjs";
+import { generateBenchmarkManifest, stableJson, validateBenchmarkSpec } from "../src/benchmark-preflight.mjs";
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -78,6 +78,52 @@ test("produces a deterministic eligible manifest without absolute paths", async 
   assert.equal(first.install.artifacts[0].file, path.basename(artifactPath));
   assert.doesNotMatch(stableJson(first), new RegExp(root.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.doesNotMatch(stableJson(first), new RegExp(path.dirname(artifactPath).replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+});
+
+test("supports generic runtime probes without Node/npm-specific fields or raw output", async (t) => {
+  const { root, artifactPath, spec } = await fixture(t);
+  const runtimeSecret = "runtime-secret-that-must-not-be-recorded";
+  spec.runtime = {
+    platform: os.platform(),
+    arch: os.arch(),
+    tools: [
+      { id: "python-compatible", argv: [process.execPath, "-e", `process.stdout.write('Python 3.12.2 ${runtimeSecret}')`], major: 3 },
+      { id: "uv-compatible", argv: [process.execPath, "-e", "process.stdout.write('uv 0.11.17')"], major: 0 },
+    ],
+  };
+  const manifest = await generateBenchmarkManifest({ repoRoot: root, spec });
+  assert.equal(manifest.conclusion.status, "eligible");
+  assert.deepEqual(manifest.runtime.observed.tools, [
+    { id: "python-compatible", status: "passed", major: 3 },
+    { id: "uv-compatible", status: "passed", major: 0 },
+  ]);
+  assert.equal(manifest.runtime.observed.node_version, undefined);
+  assert.equal(manifest.runtime.observed.npm_version, undefined);
+  assert.doesNotMatch(stableJson(manifest), new RegExp(runtimeSecret));
+  assert.doesNotMatch(stableJson(manifest), new RegExp(artifactPath.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+});
+
+test("blocks install when a declared generic runtime probe is unavailable", async (t) => {
+  const { root, spec } = await fixture(t);
+  spec.runtime = {
+    platform: os.platform(),
+    arch: os.arch(),
+    tools: [{ id: "missing-runtime", argv: ["benchmark-runtime-command-that-does-not-exist"], major: 1 }],
+  };
+  const manifest = await generateBenchmarkManifest({ repoRoot: root, spec });
+  assert.equal(manifest.conclusion.status, "ineligible");
+  assert.equal(manifest.install.status, "blocked");
+  assert.ok(manifest.conclusion.reasons.includes("runtime_tool_unavailable:missing-runtime"));
+  assert.deepEqual(manifest.runtime.observed.tools, [{ id: "missing-runtime", status: "failed", major: null }]);
+});
+
+test("requires either generic runtime tools or the legacy Node/npm pair", async (t) => {
+  const { spec } = await fixture(t);
+  delete spec.runtime.node_major;
+  delete spec.runtime.npm_major;
+  assert.throws(() => validateBenchmarkSpec(spec), /runtime\.node_major/);
+  spec.runtime.tools = [];
+  assert.throws(() => validateBenchmarkSpec(spec), /runtime\.tools must be a non-empty array/);
 });
 
 test("CLI writes an eligible manifest in one command", async (t) => {

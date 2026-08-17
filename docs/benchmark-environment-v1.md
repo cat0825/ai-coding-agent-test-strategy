@@ -7,7 +7,7 @@
 preflight spec 固定以下事实：
 
 - 仓库身份、40 位 Git commit 与 clean worktree 要求；
-- OS、CPU architecture、Node major 与 npm major；
+- OS、CPU architecture 和声明式 runtime probes；Node/npm 旧 spec 仍兼容，Python/uv、Go、Rust 等项目应在 `runtime.tools` 中声明自己的版本探针；
 - 依赖安装命令、lockfile、必需安装路径和可选外部 artifact 的 SHA-256；
 - command gate 的命令与前置依赖，例如冷启动时必须先通过 `build:test`，再执行 `typecheck`。
 
@@ -20,7 +20,14 @@ preflight spec 固定以下事实：
   "schema_version": 1,
   "benchmark_id": "coding-agent-pilot",
   "repository": { "identity": "owner/project", "expected_revision": "0000000000000000000000000000000000000000", "require_clean": true },
-  "runtime": { "platform": "darwin", "arch": "arm64", "node_major": 26, "npm_major": 11 },
+  "runtime": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "tools": [
+      { "id": "node", "argv": ["node", "--version"], "major": 26 },
+      { "id": "npm", "argv": ["npm", "--version"], "major": 11 }
+    ]
+  },
   "install": {
     "command": { "argv": ["npm", "ci"], "timeout_ms": 600000 },
     "lockfile": { "path": "package-lock.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" },
@@ -47,6 +54,6 @@ npm run benchmark:preflight -- \
 
 ## Fail-closed 规则
 
-以下任一情况都会使环境不具备质量声明资格：revision 不一致、worktree 非 clean、runtime major/平台不匹配、安装未通过、lockfile/必需路径缺失、artifact 哈希不匹配、required command 未通过，或 command 的前置 gate 未通过。基础环境不合格时安装与 command 均不执行；安装失败、安装证据不完整或安装改变 revision/cleanliness 时，command 保持 `blocked`。
+以下任一情况都会使环境不具备质量声明资格：revision 不一致、worktree 非 clean、runtime probe 不可执行或 major/平台不匹配、安装未通过、lockfile/必需路径缺失、artifact 哈希不匹配、required command 未通过，或 command 的前置 gate 未通过。基础环境不合格时安装与 command 均不执行；安装失败、安装证据不完整或安装改变 revision/cleanliness 时，command 保持 `blocked`。runtime probe 的 argv 只存在于 spec，manifest 仅保存稳定的工具 ID、状态和 major，不保存 argv 或原始输出。
 
 manifest 不包含时间戳和耗时；同一现场与同一 spec 应生成字节一致的 JSON。任务耗时和 oracle 结果继续由 VerifyTrace/evaluation cohort 记录。
