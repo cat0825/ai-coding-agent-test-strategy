@@ -30,7 +30,7 @@ test("canonical fixtures validate and preserve their intended lifecycle", async 
     fixtures.map((fixture) => fixture.events.map((event) => event.event_type)),
     [
       ["diff", "risk", "test_selection", "test_result", "stop"],
-      ["diff", "risk", "test_selection", "test_result", "retry", "test_selection", "test_result", "stop"],
+      ["diff", "risk", "test_selection", "test_result", "retry", "diff", "risk", "test_selection", "test_result", "stop"],
       ["diff", "risk", "test_selection", "test_result", "expand", "test_selection", "test_result", "stop"],
     ],
   );

@@ -31,11 +31,11 @@ Each event has `event_index` starting at zero, a UTC `timestamp`, type-specific 
 
 | Event | Required evidence |
 | --- | --- |
-| `diff` | `changed_files`, optional repository commit |
+| `diff` | `changed_files`, optional repository commit/state id, observed change kinds |
 | `risk` | `risk_level`, reasons, fallback flag |
 | `test_selection` | requested/selected phase, affected workspaces, canonical commands |
-| `test_result` | canonical command id, argv, duration, exit code, failure class |
-| `retry` | reason and earlier source event index |
+| `test_result` | canonical command id, argv, duration, exit code, nullable failure signature/class |
+| `retry` | reason, attribution flag, and earlier source event index |
 | `expand` | reason and earlier source event index |
 | `stop` | status and reason |
 
@@ -44,7 +44,8 @@ The valid lifecycle is:
 ```text
 diff -> risk -> test_selection -> test_result
                                   -> test_result
-                                  -> retry -> test_selection
+                                  -> retry -> diff -> risk -> test_selection
+                                           -> test_selection
                                   -> expand -> test_selection
                                   -> stop
 ```

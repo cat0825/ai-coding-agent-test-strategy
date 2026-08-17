@@ -21,7 +21,7 @@ const NEXT_EVENT_TYPES = Object.freeze({
   risk: new Set(["test_selection"]),
   test_selection: new Set(["test_result"]),
   test_result: new Set(["test_result", "retry", "expand", "stop"]),
-  retry: new Set(["test_selection"]),
+  retry: new Set(["diff", "test_selection"]),
   expand: new Set(["test_selection"]),
   stop: new Set(),
 });
@@ -80,6 +80,12 @@ function validateEventData(errors, event) {
     if (!Array.isArray(event.data.changed_files) || event.data.changed_files.some((file) => typeof file !== "string")) {
       addError(errors, `${path}.changed_files`, "must be an array of strings");
     }
+    if (event.data.state_id !== null && !nonEmptyString(event.data.state_id)) {
+      addError(errors, `${path}.state_id`, "must be null or a non-empty string");
+    }
+    if (!Array.isArray(event.data.change_kinds) || event.data.change_kinds.some((kind) => typeof kind !== "string")) {
+      addError(errors, `${path}.change_kinds`, "must be an array of strings");
+    }
   } else if (event.event_type === "risk") {
     if (!RISK_LEVELS.has(event.data.risk_level)) addError(errors, `${path}.risk_level`, "must be a supported risk level");
     if (!Array.isArray(event.data.reasons) || event.data.reasons.some((reason) => typeof reason !== "string")) {
@@ -103,6 +109,9 @@ function validateEventData(errors, event) {
       addError(errors, `${path}.duration_ms`, "must be a non-negative number");
     }
     if (!Number.isInteger(event.data.exit_code)) addError(errors, `${path}.exit_code`, "must be an integer");
+    if (event.data.failure_signature !== null && !nonEmptyString(event.data.failure_signature)) {
+      addError(errors, `${path}.failure_signature`, "must be null or a non-empty string");
+    }
     if (event.data.failure_class !== null && !nonEmptyString(event.data.failure_class)) {
       addError(errors, `${path}.failure_class`, "must be null or a non-empty string");
     }
@@ -112,6 +121,9 @@ function validateEventData(errors, event) {
       addError(errors, `${path}.from_event_index`, "must be a non-negative event index");
     } else if (event.data.from_event_index >= event.event_index) {
       addError(errors, `${path}.from_event_index`, "must refer to an earlier event");
+    }
+    if (event.event_type === "retry" && typeof event.data.attributed !== "boolean") {
+      addError(errors, `${path}.attributed`, "must be a boolean");
     }
   } else if (event.event_type === "stop") {
     addRequiredString(errors, event.data.status, `${path}.status`);
@@ -244,6 +256,8 @@ export function convertLedgerToTrace(ledger, { sourceRef = null, taskId = null }
   events.push(eventFromLedger(plan, planEntry.line, "diff", plan.created_at, {
     changed_files: Array.isArray(plan.changed_files) ? [...plan.changed_files] : [],
     repository_commit: plan.repository_commit ?? null,
+    state_id: null,
+    change_kinds: [],
   }, sourceRef));
   events.push(eventFromLedger(plan, planEntry.line, "risk", plan.created_at, {
     risk_level: plan.risk_level,
@@ -264,10 +278,11 @@ export function convertLedgerToTrace(ledger, { sourceRef = null, taskId = null }
       events.push(eventFromLedger(record, line, "test_result", record.started_at, {
         canonical_command_id: record.canonical_command_id,
         command: Array.isArray(record.command) ? [...record.command] : [],
-        duration_ms: record.duration_ms,
-        exit_code: record.exit_code,
-        signal: record.signal ?? null,
-        failure_class: record.failure_class ?? null,
+      duration_ms: record.duration_ms,
+      exit_code: record.exit_code,
+      signal: record.signal ?? null,
+      failure_signature: record.failure_signature ?? null,
+      failure_class: record.failure_class ?? null,
         override: record.override ?? null,
       }, sourceRef));
       return;
