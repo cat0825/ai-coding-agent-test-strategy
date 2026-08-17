@@ -37,6 +37,8 @@ Each event has `event_index` starting at zero, a UTC `timestamp`, type-specific 
 | `test_result` | canonical command id, argv, duration, exit code, nullable failure signature/class |
 | `retry` | reason, attribution flag, and earlier source event index |
 | `expand` | reason and earlier source event index |
+| `recommendation` | recommendation id, diagnostic labels/reason codes, candidate/action, mode, risk, confidence, diagnostic/recommendation rule versions, and evidence indexes |
+| `decision` | recommendation id, outcome, actor, and reason |
 | `stop` | status and reason |
 
 The valid lifecycle is:
@@ -47,10 +49,13 @@ diff -> risk -> test_selection -> test_result
                                   -> retry -> diff -> risk -> test_selection
                                            -> test_selection
                                   -> expand -> test_selection
+                                  -> recommendation -> decision -> retry|expand|test_selection
                                   -> stop
 ```
 
 `retry` and `expand` always reference an earlier event. Multiple `test_result` events are allowed for one selection because a plan can contain several commands.
+
+`recommendation` and `decision` events are optional audit records emitted by the recommendation modes. A recommendation must reference earlier diagnostic evidence. A decision must refer to an earlier recommendation, and can be made by `system` only when the simplified mode marks the action as automatic-eligible; expert and confirmation-required recommendations remain auditable until a `user` decision is recorded.
 
 ## Conversion rule
 

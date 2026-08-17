@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
+import { appendRecommendationAudit, evaluateRecommendations } from "../src/recommendations.mjs";
 import { renderTraceReplay } from "../src/replay.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -70,6 +71,20 @@ test("diagnostic replay links the first waste point and all evidence", async () 
   assert.match(html, /Exact repeat/);
   assert.match(html, /Unattributed retry/);
   for (const index of [3, 4, 5, 6]) assert.match(html, new RegExp(`href="#event-${index}"`));
+});
+
+test("audited recommendation and decision events remain replayable", async () => {
+  const trace = await fixture("diagnostics", "exact-repeat.json");
+  trace.events.find((event) => event.event_type === "risk").data.risk_level = "smoke";
+  const evaluation = evaluateRecommendations(trace, { mode: "simplified" });
+  const audited = appendRecommendationAudit(trace, evaluation);
+  const html = renderTraceReplay(audited);
+
+  assert.match(html, /Recommendation issued/);
+  assert.match(html, /Decision recorded/);
+  assert.match(html, /automatic_low_risk_rule/);
+  assert.equal((html.match(/data-event-index=/g) ?? []).length, audited.events.length);
+  for (const event of audited.events) assert.ok(html.includes(escapedJson(event)));
 });
 
 test("partial traces surface missing stop evidence", async () => {
