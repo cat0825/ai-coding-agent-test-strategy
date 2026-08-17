@@ -1,4 +1,4 @@
-# Handoff 2026-08-17
+# Handoff 2026-08-18
 
 ## 目标
 
@@ -6,8 +6,8 @@
 
 ## 进度
 
-- 百分比：MVP 实现与本地 calibration 100%；benchmark 环境资格审查 100%；baseline/candidate cohort 0%。
-- 检查点：Issue #18 已由 PR #19 实现；preflight 已通过真实仓库样本验证，下一执行项为通用 coding-agent baseline Issue #16。
+- 百分比：MVP 实现与本地 calibration 100%；benchmark 环境资格审查 100%；baseline 审计闸门 100%；真实 baseline/candidate cohort 0%。
+- 检查点：Issue #20 已由 PR #21 实现；下一执行项仍是通用 coding-agent baseline Issue #16 的真实 0/30 数据采集。
 
 ## 已完成（含证据）
 
@@ -16,7 +16,8 @@
 - Milestone `Real Benchmark Pilot`：Issue #18 -> #16 -> #17，依次为环境资格、通用 coding-agent baseline cohort、paired candidate cohort/evaluation gates。
 - PR #19：`https://github.com/cat0825/ai-coding-agent-test-strategy/pull/19`，base `codex/evaluation-gates`，`Fixes #18`，Node 20/24 CI 成功，未合并。
 - 通用化提交 `8c66d43` 已推送：Issue #16 已更名并加入仓库准入标准，Issue #17 已改为相同 coding-agent 仓库/任务集的配对比较，PR #19 已声明实现仓库无关且 Maka 仅为验证样本。
-- `npm run check`：44/44 tests 通过；覆盖 CLI、determinism、fail-closed、真实命令状态、依赖环、路径逃逸与脱敏。
+- `npm run check`：51/51 tests 通过；覆盖 CLI、determinism、fail-closed、真实命令状态、依赖环、路径逃逸、脱敏和 baseline cohort 资格推导。
+- Issue #20 / PR #21：`https://github.com/cat0825/ai-coding-agent-test-strategy/pull/21`；实现 repository identity 绑定、baseline cohort 审计、调用方 eligibility 拒绝、30-task 最低门槛和显式 evidence deficit。
 - 仓库无关选择标准：公开 coding-agent 项目、固定 CI-green revision、可重复 install/build/test、独立 clean worktree；manifest 必须记录仓库身份与 revision。
 - Maka clean detached worktree（仅作为验证样本）：`/Users/qianyuhe/Documents/GitHub/maka-agent-test-strategy-pilot-latest`，revision `5d9ce0d2020b641b37eccbc89e25416358db2d55`，官方 CI green。
 - Maka 样本真实 preflight：包含 postinstall 的 `npm ci`、`format:check`、`build:test`、`typecheck` 均 exit 0；manifest 为 `eligible`，不含 home path、proxy、token、argv/env 或命令输出。
@@ -24,15 +25,15 @@
 
 ## 未完成
 
-- PR #9-#15、#19 尚待审阅与合并；Issue 由对应 PR 合并流程关闭。
+- PR #9-#15、#19、#21 尚待审阅与合并；Issue 由对应 PR 合并流程关闭。
 - Issue #16 尚未按通用选择标准确定最终仓库/任务集，也未采集 30 个 quality-claim-eligible baseline tasks；Issue #17 尚无 30 个 paired comparisons / 10 个 oracle failures。
 - Maka 样本的完整 `npm test` 仍有 PTY timeout、macOS `/var` 路径规范化、authenticated websocket 本机能力等已知失败；这些只能作为样本环境证据，不能限制 #16/#17 的仓库范围，也不能算作 candidate regression。
 - 没有证据支持真实效率提升、质量保持或 hard enforcement。
 
 ## 下一步（可直接执行）
 
-1. 审阅并合并 PR #19 后关闭 #18；保留仓库无关 preflight 契约，Maka manifest 仅作为已执行验证样本。
-2. 从 `codex/benchmark-preflight` 建立 #16 feature 分支，按通用标准选择 coding-agent 仓库/任务集，定义稳定 task ids，采集 baseline VerifyTrace，并明确报告 30-task deficit。
+1. 按依赖顺序审阅 PR #19，再审阅 PR #21；不主动合并。
+2. 继续 #16：按通用标准选择 coding-agent 仓库/任务集，定义稳定 task ids，用 PR #21 的审计器采集 baseline VerifyTrace；当前真实 deficit 为 30。
 3. #16 完成后推进 #17 的 paired candidate cohort 与 safety gates；证据不足时保持 `evidence_insufficient`。
 
 ## 风险/红线
