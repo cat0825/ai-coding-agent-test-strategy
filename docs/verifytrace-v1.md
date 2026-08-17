@@ -1,0 +1,62 @@
+# VerifyTrace v1
+
+VerifyTrace is the replay contract for the Observatory. It represents observed verification behavior as an ordered event stream. The converter must preserve source evidence and must not infer a retry, expansion, or stop decision that is absent from the ledger.
+
+## Envelope
+
+```json
+{
+  "schema_version": 1,
+  "trace_id": "trace-<content hash>",
+  "task_id": "stable task id",
+  "run_id": "run id or null",
+  "harness": "codex|maka|opencode or null",
+  "model": "fixed model id or null",
+  "repository": "repository reference or null",
+  "repository_commit": "git sha or null",
+  "policy": {"name": "policy name", "version": "policy hash"},
+  "mode": "shadow|baseline",
+  "completeness": "partial|complete",
+  "source": {"format": "ledger-jsonl|fixture", "source_ref": "optional ref", "record_count": 0},
+  "warnings": [],
+  "events": []
+}
+```
+
+`partial` is required when source evidence ends before an explicit `stop` event. Consumers must surface `missing_stop_event`; they must not treat it as a successful stop. A `complete` trace must end with `stop`.
+
+## Event stream
+
+Each event has `event_index` starting at zero, a UTC `timestamp`, type-specific `data`, and a `raw_event_ref` containing the source kind, source line, and source event name.
+
+| Event | Required evidence |
+| --- | --- |
+| `diff` | `changed_files`, optional repository commit |
+| `risk` | `risk_level`, reasons, fallback flag |
+| `test_selection` | requested/selected phase, affected workspaces, canonical commands |
+| `test_result` | canonical command id, argv, duration, exit code, failure class |
+| `retry` | reason and earlier source event index |
+| `expand` | reason and earlier source event index |
+| `stop` | status and reason |
+
+The valid lifecycle is:
+
+```text
+diff -> risk -> test_selection -> test_result
+                                  -> test_result
+                                  -> retry -> test_selection
+                                  -> expand -> test_selection
+                                  -> stop
+```
+
+`retry` and `expand` always reference an earlier event. Multiple `test_result` events are allowed for one selection because a plan can contain several commands.
+
+## Conversion rule
+
+The existing JSONL ledger contains `plan` and `command` records. Conversion expands one `plan` into `diff`, `risk`, and `test_selection` events, and maps each `command` to `test_result`. It retains the original JSONL line in `raw_event_ref`. If one JSONL file contains multiple task ids, the caller must select one with `taskId`; conversion never merges tasks implicitly. If the selected task has no explicit stop, the result is partial and carries `missing_stop_event`; no synthetic lifecycle decision is added.
+
+Canonical regression fixtures live in `fixtures/traces/`:
+
+- `success.json`
+- `failed-retry.json`
+- `conservative-escalation.json`

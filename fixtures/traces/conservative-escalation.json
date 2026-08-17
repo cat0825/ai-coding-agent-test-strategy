@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "trace_id": "trace-conservative-escalation-v1",
+  "task_id": "fixture-conservative-escalation",
+  "run_id": "run-conservative-escalation-01",
+  "harness": "codex",
+  "model": "fixed-model-v1",
+  "repository": "fixture-repository",
+  "repository_commit": "fed4321",
+  "policy": {"name": "fixture-policy", "version": "policy-v1"},
+  "mode": "baseline",
+  "completeness": "complete",
+  "source": {"format": "fixture", "source_ref": "fixtures/traces/conservative-escalation.json", "record_count": 8},
+  "warnings": [],
+  "events": [
+    {"event_index": 0, "event_type": "diff", "timestamp": "2026-08-17T10:20:00.000Z", "data": {"changed_files": ["packages/storage/migration.sql"], "repository_commit": "fed4321"}, "raw_event_ref": {"kind": "fixture", "line": 1, "event": "diff"}},
+    {"event_index": 1, "event_type": "risk", "timestamp": "2026-08-17T10:20:01.000Z", "data": {"risk_level": "thorough", "reasons": ["high_risk_rule"], "fallback": true}, "raw_event_ref": {"kind": "fixture", "line": 2, "event": "risk"}},
+    {"event_index": 2, "event_type": "test_selection", "timestamp": "2026-08-17T10:20:02.000Z", "data": {"requested_phase": "affected", "selected_phase": "affected", "affected_workspaces": ["fixture-storage"], "commands": [{"id": "fixture-storage:test", "argv": ["npm", "test"]}]}, "raw_event_ref": {"kind": "fixture", "line": 3, "event": "test_selection"}},
+    {"event_index": 3, "event_type": "test_result", "timestamp": "2026-08-17T10:20:04.000Z", "data": {"canonical_command_id": "fixture-storage:test", "command": ["npm", "test"], "duration_ms": 2000, "exit_code": 1, "signal": null, "failure_class": "unclassified", "override": null}, "raw_event_ref": {"kind": "fixture", "line": 4, "event": "test_result"}},
+    {"event_index": 4, "event_type": "expand", "timestamp": "2026-08-17T10:20:05.000Z", "data": {"reason": "high_risk_fallback", "from_event_index": 3}, "raw_event_ref": {"kind": "fixture", "line": 5, "event": "expand"}},
+    {"event_index": 5, "event_type": "test_selection", "timestamp": "2026-08-17T10:20:06.000Z", "data": {"requested_phase": "affected", "selected_phase": "full", "affected_workspaces": [], "commands": [{"id": "root:test", "argv": ["npm", "test"]}]}, "raw_event_ref": {"kind": "fixture", "line": 6, "event": "test_selection"}},
+    {"event_index": 6, "event_type": "test_result", "timestamp": "2026-08-17T10:20:10.000Z", "data": {"canonical_command_id": "root:test", "command": ["npm", "test"], "duration_ms": 4000, "exit_code": 0, "signal": null, "failure_class": null, "override": null}, "raw_event_ref": {"kind": "fixture", "line": 7, "event": "test_result"}},
+    {"event_index": 7, "event_type": "stop", "timestamp": "2026-08-17T10:20:11.000Z", "data": {"status": "passed", "reason": "conservative_full_verification"}, "raw_event_ref": {"kind": "fixture", "line": 8, "event": "stop"}}
+  ]
+}
