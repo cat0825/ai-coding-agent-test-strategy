@@ -18,7 +18,7 @@ preflight spec 固定以下事实：
 ```json
 {
   "schema_version": 1,
-  "benchmark_id": "maka-pilot",
+  "benchmark_id": "coding-agent-pilot",
   "repository": { "expected_revision": "0000000000000000000000000000000000000000", "require_clean": true },
   "runtime": { "platform": "darwin", "arch": "arm64", "node_major": 26, "npm_major": 11 },
   "install": {

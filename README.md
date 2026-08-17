@@ -12,8 +12,8 @@
 - 已修复 PDF 代码块裁切并提供可复现构建入口。
 - 已定义 pilot 指标、预算校准、保守 fallback、命令归一化和 override 审计方案。
 - 已实现 `verify.sh`、受影响 workspace 发现、unknown fallback、命令存在性校验和 JSONL 验证账本。
-- 已在 Maka `origin/main@938487ea` 的独立 worktree 完成 dry-run；未改动 Maka 源码。
-- baseline 观测已开始：`format:check` 通过；`typecheck` 和 `npm test` 暂因环境/上游接口问题失败，详见 [STATUS.md](STATUS.md)。
+- 已用 Maka 的固定 CI-green revision 完成一次真实 preflight，作为仓库无关实现的验证样本；未改动 Maka 源码。
+- 通用 coding-agent baseline cohort 尚未采集；当前证据不足以支持效率或质量声明，详见 [STATUS.md](STATUS.md)。
 
 ## 核心结论
 
@@ -58,7 +58,7 @@ npm run check
 ./scripts/verify.sh affected --repo /path/to/repo --policy policies/maka-agent.json
 ```
 
-默认是 plan-only shadow 模式；加 `--execute --mode baseline` 才会执行并把每条命令的耗时、退出码写入 JSONL 账本。
+这里的 Maka policy 是仓库适配示例，不是产品边界。默认是 plan-only shadow 模式；加 `--execute --mode baseline` 才会执行并把每条命令的耗时、退出码写入 JSONL 账本。
 
 将已验证的 VerifyTrace 生成为无需服务器或网络的静态回放：
 
@@ -96,8 +96,8 @@ npm run benchmark:preflight -- --repo /path/to/worktree --spec /path/to/spec.jso
 
 下一阶段按以下顺序推进：
 
-1. 由 preflight 固定一个 CI-green Maka revision，并完成包含 postinstall 的干净安装。
-2. 采集至少 30 个基线任务和 30 个 shadow 任务，比较命令数、耗时、失败漏检和 fallback 比例。
+1. 按公开 coding-agent 项目、CI-green 固定 revision、可重复 install/build/test、独立 clean worktree 的标准选择仓库与任务集，并由 preflight 固定环境。
+2. 在同一合格仓库/任务集上采集至少 30 个基线任务和 30 个 shadow 任务，比较命令数、耗时、失败漏检和 fallback 比例。
 3. 依据数据校准预算和停止规则，再决定是否在 Agent hook/permission 层启用有限强制。
 
 ## 研究时间
