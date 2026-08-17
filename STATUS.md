@@ -1,6 +1,6 @@
 # 项目状态
 
-状态：**Observatory MVP、baseline 审计闸门与通用 runtime preflight 已实现 / agent-belt 环境合格 / 真实 benchmark 证据 0/30**
+状态：**Observatory MVP、baseline 审计闸门与通用 runtime preflight 已实现 / agent-belt 5-task pilot 可继续 / 真实 benchmark 证据仍为 0/30**
 
 ## 已完成
 
@@ -22,11 +22,13 @@
 - 实现 fail-closed baseline cohort 审计器：任务资格只能由合格环境、固定 revision、完整 baseline VerifyTrace 和失败分类推导，调用方不能自报合格，也不能把 30-task 门槛调低。
 - 将 preflight 从 Node/npm 专用 runtime 扩展为声明式工具探针，兼容 Python/uv、Go、Rust 等工具链；manifest 不保存 probe argv 或原始输出。
 - 首个通用候选 `jfrog/agent-belt@90bd105b` 已通过无代理真实 preflight：`uv sync --locked`、lint、pytest 与 build 全部通过，官方同 revision CI green；脱敏 manifest 已落盘。
+- Codex CLI 0.147.0 已完成 agent-belt 的 5 个隔离场景：5/5 场景、32/32 rules checks 通过；脱敏审计记录 63 个 shell 调用、10 次测试 runner、6 次非零结果，pilot decision 为 `go`。
+- 实现 fail-closed pilot outcome 审计器：绑定环境 revision、场景定义哈希和结构化输出，拒绝缺失/畸形/自报资格证据，不保存原始命令、输出、绝对路径或认证信息。
 
 ## 未完成
 
-- 尚未按通用选择标准确定最终 coding-agent 仓库/任务集；真实 quality-claim-eligible baseline tasks 为 0/30，审计工具通过不等于效果已经证明。
-- agent-belt 的 Agent 认证与真实场景尚未执行；当前只证明环境可复现，不能证明少写测试、少跑测试或质量不下降。
+- agent-belt 已通过探索性 go/no-go，但 5 个任务没有完整 baseline VerifyTrace、独立 oracle 或配对 candidate run；真实 quality-claim-eligible baseline tasks 仍为 0/30。
+- 两个未显式标记 `test-required` 的场景新增了测试，这只是 `unspecified` 观察，不能据此断言测试无价值；当前能确认的是 2 个任务超过两次即时测试预算。
 - Maka 固定 CI-green revision 已通过 `npm ci`、`format:check`、`build:test`、`typecheck` 的真实 preflight，但完整 `npm test` 仍含 PTY、macOS 路径规范化和本机认证能力相关失败；只作为验证样本和环境分类证据。
 - 没有完整真实仓库 cohort，不能声称已经减少测试耗时或 CI 成本；也没有启用 Agent hook/permission 强制。
 - Observatory MVP 的 Issue/PR 仍需按依赖顺序审阅和合并；本地 canonical fixture 不能替代真实 P1/P2 benchmark。
@@ -34,5 +36,5 @@
 ## 下一阶段
 
 1. 按 stacked 依赖顺序审阅 PR #19、PR #21、PR #24 和 PR #25；不主动合并。
-2. 在 agent-belt 上先执行 5 个真实任务的 go/no-go pilot，验证 Agent 认证、任务复位、trace 完整性和独立 oracle；失败则停止扩到 30。
-3. pilot 通过后采集至少 30 个合格 baseline tasks，再完成 candidate 配对和 oracle safety gates；在此之前保持 shadow，不启用强制或效率宣传。
+2. 为 agent-belt pilot 任务建立独立 oracle 和完整 baseline VerifyTrace，只有 cohort auditor 判定合格后才把任务从 0/30 向上计数。
+3. 采集至少 30 个合格 baseline tasks，再运行 candidate 配对和 oracle safety gates；在此之前保持 shadow，不启用强制或效率宣传。

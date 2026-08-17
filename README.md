@@ -103,11 +103,22 @@ npm run benchmark:cohort -- \
 
 审计器会校验仓库身份、固定 revision、环境清单摘要、安装/构建/测试证据和完整 baseline VerifyTrace，并明确输出距 30 个质量声明任务的证据缺口。结果为 `evidence_insufficient` 时退出码为 2；这不是失败伪装成成功。字段与资格规则见 [Baseline cohort v1](docs/baseline-cohort-v1.md)。
 
+对 agent-belt 真实 run 做脱敏的探索性 pilot 审计：
+
+```sh
+npm run benchmark:pilot -- \
+  --run /path/to/agent-belt-outcomes/run-id \
+  --environment fixtures/benchmark/agent-belt-environment.json \
+  --output output/benchmark/agent-belt-pilot-report.json
+```
+
+该命令从结构化 outcome 统计测试文件改动、测试 runner 次数、非零次数和预算观察，不保留原始命令、输出、绝对路径或认证信息。`pilot_decision: go` 只允许继续采集，不会把探索性任务计入 baseline；契约与首个 5-task 结果见 [Agent-belt pilot audit v1](docs/agent-belt-pilot-audit-v1.md)。
+
 ## 后续评测
 
 下一阶段按以下顺序推进：
 
-1. 按公开 coding-agent 项目、CI-green 固定 revision、可重复 install/build/test、独立 clean worktree 的标准选择仓库与任务集，并由 preflight 固定环境。
+1. 为 agent-belt pilot 任务绑定独立 oracle 并采集完整 baseline VerifyTrace；在此之前保持 0/30。
 2. 在同一合格仓库/任务集上采集至少 30 个基线任务和 30 个 shadow 任务，比较命令数、耗时、失败漏检和 fallback 比例。
 3. 依据数据校准预算和停止规则，再决定是否在 Agent hook/permission 层启用有限强制。
 
