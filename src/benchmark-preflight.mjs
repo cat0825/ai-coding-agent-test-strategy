@@ -82,6 +82,7 @@ export function validateBenchmarkSpec(spec) {
   if (spec.schema_version !== 1) throw new Error("Benchmark preflight spec schema_version must be 1");
   assertNonEmptyString(spec.benchmark_id, "benchmark_id");
   assertObject(spec.repository, "repository");
+  assertNonEmptyString(spec.repository.identity, "repository.identity");
   if (!/^[0-9a-f]{40}$/i.test(spec.repository.expected_revision ?? "")) {
     throw new Error("repository.expected_revision must be a 40-character Git revision");
   }
@@ -343,6 +344,7 @@ export async function generateBenchmarkManifest({ repoRoot, spec }) {
     evidence_class: "benchmark_environment",
     benchmark_id: spec.benchmark_id,
     repository: {
+      identity: spec.repository.identity,
       expected_revision: expectedRevision,
       observed_revision: finalRevision?.toLowerCase() ?? null,
       clean: finalWorktreeStatus === "",

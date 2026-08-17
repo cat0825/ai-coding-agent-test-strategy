@@ -6,7 +6,7 @@
 
 preflight spec 固定以下事实：
 
-- 40 位 Git commit 与 clean worktree 要求；
+- 仓库身份、40 位 Git commit 与 clean worktree 要求；
 - OS、CPU architecture、Node major 与 npm major；
 - 依赖安装命令、lockfile、必需安装路径和可选外部 artifact 的 SHA-256；
 - command gate 的命令与前置依赖，例如冷启动时必须先通过 `build:test`，再执行 `typecheck`。
@@ -19,7 +19,7 @@ preflight spec 固定以下事实：
 {
   "schema_version": 1,
   "benchmark_id": "coding-agent-pilot",
-  "repository": { "expected_revision": "0000000000000000000000000000000000000000", "require_clean": true },
+  "repository": { "identity": "owner/project", "expected_revision": "0000000000000000000000000000000000000000", "require_clean": true },
   "runtime": { "platform": "darwin", "arch": "arm64", "node_major": 26, "npm_major": 11 },
   "install": {
     "command": { "argv": ["npm", "ci"], "timeout_ms": 600000 },

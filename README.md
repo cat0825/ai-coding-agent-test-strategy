@@ -92,6 +92,17 @@ npm run benchmark:preflight -- --repo /path/to/worktree --spec /path/to/spec.jso
 
 契约与 fail-closed 规则见 [Benchmark environment manifest v1](docs/benchmark-environment-v1.md)。
 
+环境合格后，用 baseline cohort 审计器计算真实任务证据，不接受输入文件直接声明任务合格：
+
+```sh
+npm run benchmark:cohort -- \
+  --cohort /path/to/baseline-cohort.json \
+  --environment /path/to/environment.json \
+  --output output/benchmark/baseline-report.json
+```
+
+审计器会校验仓库身份、固定 revision、环境清单摘要、安装/构建/测试证据和完整 baseline VerifyTrace，并明确输出距 30 个质量声明任务的证据缺口。结果为 `evidence_insufficient` 时退出码为 2；这不是失败伪装成成功。字段与资格规则见 [Baseline cohort v1](docs/baseline-cohort-v1.md)。
+
 ## 后续评测
 
 下一阶段按以下顺序推进：
