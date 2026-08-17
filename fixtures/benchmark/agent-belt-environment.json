@@ -1,0 +1,67 @@
+{
+  "benchmark_id": "coding-agent-agent-belt-pilot",
+  "commands": [
+    {
+      "definition_sha256": "6e50b6c191c39318462298e2f4f6f99b465ddaace5567cda46d2e98419ff6ebd",
+      "exit_code": 0,
+      "id": "lint",
+      "prerequisites": [],
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "definition_sha256": "da369c215ddeada2854f416f38e82129d4ab6816cca3b3009c9ed13693f3db33",
+      "exit_code": 0,
+      "id": "test",
+      "prerequisites": [],
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "definition_sha256": "84919611bf63b68a2f3ad14d24bd8c02ec2e37202763591a4585a13fef78274f",
+      "exit_code": 0,
+      "id": "build",
+      "prerequisites": ["lint", "test"],
+      "required": true,
+      "status": "passed"
+    }
+  ],
+  "conclusion": { "reasons": [], "status": "eligible" },
+  "evidence_class": "benchmark_environment",
+  "install": {
+    "artifacts": [],
+    "definition_sha256": "25d0ae03e214ea9b7acba4857ca4f512280c5b20b33fe8065b4e1580dac470d7",
+    "exit_code": 0,
+    "lockfile": {
+      "checksum_match": true,
+      "expected_sha256": "a8e83d8bc6223229e1f142f12aa21fd72c8bfd13e7ced1b6645b40022dc85a3f",
+      "file": "uv.lock",
+      "present": true,
+      "sha256": "a8e83d8bc6223229e1f142f12aa21fd72c8bfd13e7ced1b6645b40022dc85a3f"
+    },
+    "required_paths": [{ "path": ".venv/bin/python", "present": true }],
+    "status": "passed"
+  },
+  "repository": {
+    "clean": true,
+    "expected_revision": "90bd105b172adc41394f458e33b653dda2b199b0",
+    "identity": "jfrog/agent-belt",
+    "observed_revision": "90bd105b172adc41394f458e33b653dda2b199b0"
+  },
+  "runtime": {
+    "expected": {
+      "arch": "arm64",
+      "platform": "darwin",
+      "tools": [{ "id": "python", "major": 3 }, { "id": "uv", "major": 0 }]
+    },
+    "observed": {
+      "arch": "arm64",
+      "platform": "darwin",
+      "tools": [
+        { "id": "python", "major": 3, "status": "passed" },
+        { "id": "uv", "major": 0, "status": "passed" }
+      ]
+    }
+  },
+  "schema_version": 1
+}
