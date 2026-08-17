@@ -113,6 +113,19 @@ test("invalid fields and event order produce actionable errors", async () => {
   });
 });
 
+test("test selections require an affected workspace array", async () => {
+  const fixture = await readFixture("success.json");
+  const invalid = structuredClone(fixture);
+  delete invalid.events[2].data.affected_workspaces;
+
+  const result = validateTrace(invalid);
+  assert.equal(result.valid, false);
+  assert.deepEqual(result.errors, [{
+    path: "events[2].data.affected_workspaces",
+    message: "must be an array of strings",
+  }]);
+});
+
 test("complete traces require an explicit stop event", async () => {
   const fixture = await readFixture("success.json");
   const incomplete = structuredClone(fixture);
