@@ -15,6 +15,7 @@
 - Milestone `Observatory MVP`：Issue #1-#8；PR #9-#15 均为 OPEN/CLEAN，Node 20/24 CI 成功。
 - Milestone `Real Benchmark Pilot`：Issue #18 -> #16 -> #17，依次为环境资格、通用 coding-agent baseline cohort、paired candidate cohort/evaluation gates。
 - PR #19：`https://github.com/cat0825/ai-coding-agent-test-strategy/pull/19`，base `codex/evaluation-gates`，`Fixes #18`，Node 20/24 CI 成功，未合并。
+- 通用化提交 `8c66d43` 已推送：Issue #16 已更名并加入仓库准入标准，Issue #17 已改为相同 coding-agent 仓库/任务集的配对比较，PR #19 已声明实现仓库无关且 Maka 仅为验证样本。
 - `npm run check`：44/44 tests 通过；覆盖 CLI、determinism、fail-closed、真实命令状态、依赖环、路径逃逸与脱敏。
 - 仓库无关选择标准：公开 coding-agent 项目、固定 CI-green revision、可重复 install/build/test、独立 clean worktree；manifest 必须记录仓库身份与 revision。
 - Maka clean detached worktree（仅作为验证样本）：`/Users/qianyuhe/Documents/GitHub/maka-agent-test-strategy-pilot-latest`，revision `5d9ce0d2020b641b37eccbc89e25416358db2d55`，官方 CI green。
