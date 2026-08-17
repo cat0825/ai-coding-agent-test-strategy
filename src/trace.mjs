@@ -95,6 +95,9 @@ function validateEventData(errors, event) {
   } else if (event.event_type === "test_selection") {
     if (!PHASES.has(event.data.requested_phase)) addError(errors, `${path}.requested_phase`, "must be fast, affected, or full");
     if (!PHASES.has(event.data.selected_phase)) addError(errors, `${path}.selected_phase`, "must be fast, affected, or full");
+    if (!Array.isArray(event.data.affected_workspaces) || event.data.affected_workspaces.some((workspace) => typeof workspace !== "string")) {
+      addError(errors, `${path}.affected_workspaces`, "must be an array of strings");
+    }
     if (!Array.isArray(event.data.commands)) {
       addError(errors, `${path}.commands`, "must be an array");
     } else {
