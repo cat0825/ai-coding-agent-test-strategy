@@ -18,8 +18,8 @@
 - 通用化提交 `8c66d43` 已推送：Issue #16 已更名并加入仓库准入标准，Issue #17 已改为相同 coding-agent 仓库/任务集的配对比较，PR #19 已声明实现仓库无关且 Maka 仅为验证样本。
 - `npm run check`：54/54 tests 通过；覆盖 CLI、determinism、fail-closed、真实命令状态、依赖环、路径逃逸、脱敏、baseline cohort 资格推导和通用 runtime probes。
 - Issue #20 / PR #21：`https://github.com/cat0825/ai-coding-agent-test-strategy/pull/21`；实现 repository identity 绑定、baseline cohort 审计、调用方 eligibility 拒绝、30-task 最低门槛和显式 evidence deficit。
-- Issue #22 / 分支 `codex/generic-runtime-probes`：提交 `61235a1` 已推送；实现声明式 runtime probes、Node/npm 兼容与 argv/raw output 脱敏。GitHub 创建 PR 接口持续 503，PR 尚未创建。
-- Issue #23 / 分支 `codex/agent-belt-environment`：提交 `ea18cdf` 已推送；候选资格记录位于 `docs/benchmark-candidate-agent-belt.md`，preflight spec/manifest 位于 `fixtures/benchmark/`。GitHub 创建 PR 接口持续 503，PR 尚未创建。
+- Issue #22 / PR #24：`https://github.com/cat0825/ai-coding-agent-test-strategy/pull/24`；实现声明式 runtime probes、Node/npm 兼容与 argv/raw output 脱敏，base 为 PR #21 分支。
+- Issue #23 / PR #25：`https://github.com/cat0825/ai-coding-agent-test-strategy/pull/25`；候选资格记录位于 `docs/benchmark-candidate-agent-belt.md`，preflight spec/manifest 位于 `fixtures/benchmark/`，base 为 PR #24 分支。
 - agent-belt 资格证据：公开 Apache-2.0 仓库，revision `90bd105b172adc41394f458e33b653dda2b199b0`，官方 Build & Test run `30529568299` 成功；无代理 preflight 的 install/lint/test/build 均通过且 worktree clean。
 - 默认代理环境的完整 pytest 为 3211 passed、1 failed、45 skipped；唯一失败是本机 Ollama 检查经代理返回 HTTP 502。清除 HTTP/HTTPS/ALL proxy 后 isolated provider tests 4/4 通过，完整 preflight 为 `eligible`，因此该失败归类为环境干扰。
 - 仓库无关选择标准：公开 coding-agent 项目、固定 CI-green revision、可重复 install/build/test、独立 clean worktree；manifest 必须记录仓库身份与 revision。
@@ -29,14 +29,14 @@
 
 ## 未完成
 
-- PR #9-#15、#19、#21 尚待审阅与合并；Issue #22/#23 的分支已推送但 PR 因 GitHub 503 尚未创建。
+- PR #9-#15、#19、#21、#24、#25 尚待审阅与合并；Issue 由对应 PR 合并流程关闭。
 - Issue #16 尚未按通用选择标准确定最终仓库/任务集，也未采集 30 个 quality-claim-eligible baseline tasks；Issue #17 尚无 30 个 paired comparisons / 10 个 oracle failures。
 - Maka 样本的完整 `npm test` 仍有 PTY timeout、macOS `/var` 路径规范化、authenticated websocket 本机能力等已知失败；这些只能作为样本环境证据，不能限制 #16/#17 的仓库范围，也不能算作 candidate regression。
 - 没有证据支持真实效率提升、质量保持或 hard enforcement。
 
 ## 下一步（可直接执行）
 
-1. GitHub 写接口恢复后，为 `codex/generic-runtime-probes` 创建关闭 #22 的 stacked PR（base PR #21），再为 `codex/agent-belt-environment` 创建关闭 #23 的 stacked PR。
+1. 按依赖顺序审阅 PR #19、#21、#24、#25；不主动合并。
 2. 继续 #16：在 agent-belt 上选 5 个不会依赖 LLM judge 的真实场景，验证 Agent 认证、独立 worktree、稳定 task ids、baseline VerifyTrace 与 oracle；当前真实 deficit 为 30。
 3. 5-task pilot 通过后再扩到 30，并推进 #17 的 paired candidate cohort 与 safety gates；证据不足时保持 `evidence_insufficient`。
 

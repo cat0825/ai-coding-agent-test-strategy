@@ -33,6 +33,6 @@
 
 ## 下一阶段
 
-1. 按 stacked 依赖顺序审阅 PR #19、PR #21 及通用 runtime/agent-belt 资格分支；不主动合并。
+1. 按 stacked 依赖顺序审阅 PR #19、PR #21、PR #24 和 PR #25；不主动合并。
 2. 在 agent-belt 上先执行 5 个真实任务的 go/no-go pilot，验证 Agent 认证、任务复位、trace 完整性和独立 oracle；失败则停止扩到 30。
 3. pilot 通过后采集至少 30 个合格 baseline tasks，再完成 candidate 配对和 oracle safety gates；在此之前保持 shadow，不启用强制或效率宣传。
