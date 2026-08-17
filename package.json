@@ -7,7 +7,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "check": "node --check src/verifier.mjs && node --check src/cli.mjs && bash -n scripts/verify.sh && npm test",
+    "check": "node --check src/verifier.mjs && node --check src/cli.mjs && node --check src/benchmark-preflight.mjs && node --check src/benchmark-preflight-cli.mjs && bash -n scripts/verify.sh && npm test",
+    "benchmark:preflight": "node src/benchmark-preflight-cli.mjs",
     "evaluate": "node src/evaluate-cli.mjs",
     "recommend": "node src/recommend-cli.mjs",
     "test": "node --test test/*.test.mjs",

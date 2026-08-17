@@ -84,11 +84,19 @@ npm run evaluate
 
 评测报告会明确区分 `evidence_insufficient`、`rejected` 和可支持效率声明的状态；外部 P1/P2 benchmark 不在 MVP 内。
 
+真实 benchmark 开始前，先对 pinned worktree、runtime、安装证据和 command 前置关系生成脱敏环境清单：
+
+```sh
+npm run benchmark:preflight -- --repo /path/to/worktree --spec /path/to/spec.json --output output/benchmark/environment.json
+```
+
+契约与 fail-closed 规则见 [Benchmark environment manifest v1](docs/benchmark-environment-v1.md)。
+
 ## 后续评测
 
 下一阶段按以下顺序推进：
 
-1. 修复或确认 Maka `origin/main@938487ea` 的 workspace 构建基线，并完成包含 postinstall 的干净安装。
+1. 由 preflight 固定一个 CI-green Maka revision，并完成包含 postinstall 的干净安装。
 2. 采集至少 30 个基线任务和 30 个 shadow 任务，比较命令数、耗时、失败漏检和 fallback 比例。
 3. 依据数据校准预算和停止规则，再决定是否在 Agent hook/permission 层启用有限强制。
 
