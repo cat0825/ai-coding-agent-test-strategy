@@ -1,4 +1,4 @@
-# Handoff 2026-08-18 18:50 CST（Verification Policy 单题 smoke 链路检查点）
+# Handoff 2026-08-18 18:58 CST（Verification Policy 单题 smoke 链路检查点）
 
 ## 目标与方向
 
@@ -17,10 +17,10 @@
 
 - 仓库：`/Users/qianyuhe/Documents/ChatGPT/llm test`。
 - 分支：`codex/issue-30-qualify-baseline-tasks`，基于 `codex/issue-33-state-aware-verifytrace@29eec10`。
-- 本轮核心实现提交为 `90ad5ed feat: add verification policy benchmark pilot`；CI 修复提交为 `6bce414 ci: fetch benchmark source history`，均已推送。
+- pilot 核心提交为 `90ad5ed`；direct-Codex trace 与 smoke 证据提交为 `2b03a6e`，均已推送。
 - GitHub：[Issue #30](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/30)；[draft PR #35](https://github.com/cat0825/ai-coding-agent-test-strategy/pull/35)，base 为 Issue #33 的分支。
 - [Issue #36](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/36) 的旧 Tasktracker oracle 批次暂停，不能按原方向执行。
-- PR #35 在上一提交的 Node 20/24 CI 通过；本轮 direct-Codex trace 适配尚未提交，本地全量 `npm run check` 99/99 通过。
+- PR #35 最新 Node 20/24 CI 均通过；本地全量 `npm run check` 99/99 通过。
 
 ## 本轮已完成
 
@@ -52,7 +52,7 @@
 ## 下一步（可直接执行）
 
 1. 人工审阅 PR #34、#35；仍不主动 merge。
-2. 提交并推送本轮 direct-Codex trace 适配，更新 PR #35 并检查 Node 20/24 CI。
+2. 人工审阅 PR #34、#35；不主动 merge。
 3. workspace 额度恢复后，只重跑 `vp_local_correct_stop` 的显式模型 baseline；合格后才复制到其余五题和 candidate。
 
 ## 风险与红线
