@@ -39,7 +39,9 @@ async function main() {
     scenario_definition_sha256: task.scenario_definition_sha256,
     workspace: materialized.workspace,
     workspace_revision: materialized.workspace_revision,
+    workspace_state_sha256: materialized.workspace_state_sha256,
     changed_files: materialized.changed_files,
+    changed_file_sha256: materialized.changed_file_sha256,
   }, null, 2)}\n`);
 }
 

@@ -64,15 +64,43 @@ npm run benchmark:verification:prepare -- \
   --output-parent /tmp/verification-policy-workspaces
 ```
 
-命令返回任务说明、公开定义摘要、临时工作区和稳定的单提交 revision。工作区不包含隐藏 oracle，也不包含原仓库历史；后续 collector 必须绑定返回的 `task_id`、`scenario_definition_sha256` 和 `workspace_revision`。
+命令返回任务说明、公开定义摘要、临时工作区、稳定的单提交 revision 和初始 diff 摘要。工作区不包含隐藏 oracle，也不包含原仓库历史；后续 collector 必须绑定返回的 `task_id`、`scenario_definition_sha256`、`workspace_revision` 和 `workspace_state_sha256`。
+
+真实 run 完成后，把 Codex JSONL 和 lifecycle sidecar 转成脱敏 VerifyTrace：
+
+```sh
+npm run benchmark:verification:trace -- \
+  --plan fixtures/benchmark/verification-policy-pilot-plan.json \
+  --task-manifest /private/run/task.json \
+  --stream /private/run/stream.ndjson \
+  --lifecycle /private/run/lifecycle/codex-run.ndjson \
+  --collector /private/run/collector.json \
+  --run-id baseline-vp-local-correct-stop \
+  --harness codex-cli@0.147.0 \
+  --model gpt-5.6-sol \
+  --output /private/run/traces/vp_local_correct_stop.json
+```
+
+转换器会校验题目摘要、工作区 revision、初始/最终 diff、collector 摘要和事件配对。模型名必须显式传入；不能用未知默认模型充当正式配对数据。
+
+## 单题链路试跑
+
+`vp_local_correct_stop` 已完成一次端到端试跑，脱敏结果在 [`verification-policy-smoke-report.json`](../fixtures/benchmark/verification-policy-smoke-report.json)：
+
+- trace 完整且无 warning，工作区未被 Agent 修改；
+- 独立相关测试 6/6 通过，正确性没有问题；
+- Agent 共执行 6 个 shell 命令，并在额外内存断言后执行了项目级 `npm run check`；
+- 该题的最小充分证据是相关测试，隐藏合同要求避免全量，因此这次确实出现了验证范围扩张。
+
+这仍不是正式 baseline：试跑没有显式固定模型。随后固定 `gpt-5.6-sol` 的正式尝试在任何 Agent 命令执行前因 workspace 额度耗尽而失败，已归类为环境失败，不能计入 1/6。
 
 ## 不能声称什么
 
-`fixture_ready` 只证明六个题目现场和隐藏判分可复现。当前还没有在这六题上采集同一 Agent 的 baseline/candidate 配对 VerifyTrace，因此：
+`fixture_ready` 和单题 smoke 只证明题目现场、隐藏判分及采集链可复现。当前还没有在这六题上采集同一 Agent/模型的 baseline/candidate 配对 VerifyTrace，因此：
 
 - 不能声称策略已经节省时间；
 - 不能声称故障发现率没有下降；
 - 不能把这六题计入正式 30-task 质量样本；
 - 不能把原来的 Calculator/Tasktracker 26 题继续扩写成正式 benchmark。
 
-下一步只运行这六题的配对实验。配对成立后，再从多个真实 JS/TS 仓库扩展正式任务，受控题只保留为校准和故障分类检查。
+下一步先在额度恢复后重跑这一题的显式模型 baseline；它合格后再复制到剩余五题。六题配对成立后，才从多个真实 JS/TS 仓库扩展正式任务。

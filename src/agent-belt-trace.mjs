@@ -36,6 +36,24 @@ function validateBinding(binding) {
   for (const field of ["scenarioDefinitionSha256", "collectorSha256"]) {
     if (!/^[a-f0-9]{64}$/i.test(binding[field])) throw new Error(`Trace binding ${field} must be a SHA-256 digest`);
   }
+  if (binding.initialStateSha256 !== undefined && !/^[a-f0-9]{64}$/i.test(binding.initialStateSha256)) {
+    throw new Error("Trace binding initialStateSha256 must be a SHA-256 digest");
+  }
+  if (binding.finalStateSha256 !== undefined && !/^[a-f0-9]{64}$/i.test(binding.finalStateSha256)) {
+    throw new Error("Trace binding finalStateSha256 must be a SHA-256 digest");
+  }
+  if (binding.workspaceStateChanged !== undefined && typeof binding.workspaceStateChanged !== "boolean") {
+    throw new Error("Trace binding workspaceStateChanged must be a boolean");
+  }
+  if (binding.sourceFormat !== undefined && !nonEmptyString(binding.sourceFormat)) {
+    throw new Error("Trace binding sourceFormat must be a non-empty string");
+  }
+  if (binding.initialChangedFiles !== undefined) {
+    if (!Array.isArray(binding.initialChangedFiles)) throw new Error("Trace binding initialChangedFiles must be an array");
+    const normalized = binding.initialChangedFiles.map(normalizedChangedFile);
+    if (normalized.some((file) => file === null)) throw new Error("Trace binding initialChangedFiles contains an unsafe path");
+    if (new Set(normalized).size !== normalized.length) throw new Error("Trace binding initialChangedFiles must be unique");
+  }
 }
 
 export function parseNdjson(contents, label = "NDJSON") {
@@ -56,9 +74,9 @@ export function parseNdjson(contents, label = "NDJSON") {
   return records;
 }
 
-function rawReference(entry, sourceRef, event = entry.record.event) {
+function rawReference(entry, sourceRef, event = entry.record.event, kind = "agent-belt-lifecycle") {
   return {
-    kind: "agent-belt-lifecycle",
+    kind,
     line: entry.line,
     event,
     source_ref: sourceRef,
@@ -309,6 +327,10 @@ export function convertAgentBeltLifecycleToTrace({
       changes: sanitized,
     });
   }
+  if (binding.workspaceStateChanged === true
+    && !pairedFileChanges.some(({ status, changes }) => status === "completed" && changes.length > 0)) {
+    warnState("workspace_state_changed_without_observed_file_change");
+  }
 
   let outcomeFileCount = 0;
   let ignoredGeneratedFileCount = 0;
@@ -385,19 +407,28 @@ export function convertAgentBeltLifecycleToTrace({
     })
     .sort((left, right) => left.entry.record.monotonic_ns - right.entry.record.monotonic_ns);
 
+  const initialChangedFiles = [...(binding.initialChangedFiles ?? [])].sort();
+  const rawEventKind = binding.sourceFormat === "codex-cli-lifecycle-v2"
+    ? "codex-cli-lifecycle"
+    : "agent-belt-lifecycle";
+  const initialStateId = sha256(JSON.stringify({
+    repository_commit: binding.repositoryCommit,
+    changed_files: initialChangedFiles,
+    workspace_state_sha256: binding.initialStateSha256 ?? null,
+  }));
   const events = [
     {
       event_index: 0,
       event_type: "diff",
       timestamp: bootstrap.record.observed_at,
       data: {
-        changed_files: [],
+        changed_files: initialChangedFiles,
         repository_commit: binding.repositoryCommit,
-        state_id: sha256(JSON.stringify({ repository_commit: binding.repositoryCommit })),
-        change_kinds: [],
-        observation: "pinned_repository_state",
+        state_id: initialStateId,
+        change_kinds: [...new Set(initialChangedFiles.map(changeKindForPath))].sort(),
+        observation: initialChangedFiles.length === 0 ? "pinned_repository_state" : "materialized_task_state",
       },
-      raw_event_ref: rawReference(bootstrap, lifecycleSourceRef, bootstrap.record.event),
+      raw_event_ref: rawReference(bootstrap, lifecycleSourceRef, bootstrap.record.event, rawEventKind),
     },
     {
       event_index: 1,
@@ -408,7 +439,7 @@ export function convertAgentBeltLifecycleToTrace({
         reasons: ["baseline_unmanaged_agent"],
         fallback: true,
       },
-      raw_event_ref: rawReference(bootstrap, lifecycleSourceRef, bootstrap.record.event),
+      raw_event_ref: rawReference(bootstrap, lifecycleSourceRef, bootstrap.record.event, rawEventKind),
     },
     {
       event_index: 2,
@@ -419,9 +450,11 @@ export function convertAgentBeltLifecycleToTrace({
         selected_phase: "affected",
         affected_workspaces: [],
         commands: commandList(usableResults),
-        selection_source: "observed_test_runner_calls",
+        selection_source: binding.sourceFormat === "codex-cli-lifecycle-v2"
+          ? "observed_verification_calls"
+          : "observed_test_runner_calls",
       },
-      raw_event_ref: rawReference(bootstrap, lifecycleSourceRef, bootstrap.record.event),
+      raw_event_ref: rawReference(bootstrap, lifecycleSourceRef, bootstrap.record.event, rawEventKind),
     },
   ];
 
@@ -472,7 +505,7 @@ export function convertAgentBeltLifecycleToTrace({
           observation: "completed_file_change",
         },
         raw_event_ref: {
-          ...rawReference(change.entry, lifecycleSourceRef),
+          ...rawReference(change.entry, lifecycleSourceRef, change.entry.record.event, rawEventKind),
           call_id: change.callId,
           stream_source_ref: streamSourceRef,
           stream_completion_line: change.streamEntry.line,
@@ -495,7 +528,7 @@ export function convertAgentBeltLifecycleToTrace({
           observation: "unknown_after_non_test_command",
         },
         raw_event_ref: {
-          ...rawReference(command.completion, lifecycleSourceRef),
+          ...rawReference(command.completion, lifecycleSourceRef, command.completion.record.event, rawEventKind),
           call_id: command.callId,
           stream_source_ref: streamSourceRef,
           stream_start_line: command.rawStart.line,
@@ -522,7 +555,7 @@ export function convertAgentBeltLifecycleToTrace({
         override: null,
       },
       raw_event_ref: {
-        ...rawReference(result.completion, lifecycleSourceRef),
+        ...rawReference(result.completion, lifecycleSourceRef, result.completion.record.event, rawEventKind),
         call_id: result.callId,
         start_line: result.start.line,
         stream_source_ref: streamSourceRef,
@@ -541,7 +574,7 @@ export function convertAgentBeltLifecycleToTrace({
         status: terminal.record.event === "turn.completed" ? "completed" : "failed",
         reason: terminal.record.event === "turn.completed" ? "observed_turn_completed" : "observed_turn_failed",
       },
-      raw_event_ref: rawReference(terminal, lifecycleSourceRef),
+      raw_event_ref: rawReference(terminal, lifecycleSourceRef, terminal.record.event, rawEventKind),
     });
   }
 
@@ -563,7 +596,7 @@ export function convertAgentBeltLifecycleToTrace({
     mode: "baseline",
     completeness: complete ? "complete" : "partial",
     source: {
-      format: "agent-belt-codex-lifecycle-v2",
+      format: binding.sourceFormat ?? "agent-belt-codex-lifecycle-v2",
       record_count: lifecycle.length + stream.length,
       lifecycle_source_ref: lifecycleSourceRef,
       lifecycle_sha256: lifecycleDigest,
@@ -572,6 +605,10 @@ export function convertAgentBeltLifecycleToTrace({
       outcome_sha256: outcomeSha256,
       scenario_definition_sha256: binding.scenarioDefinitionSha256,
       collector_sha256: binding.collectorSha256,
+      initial_workspace_state_sha256: binding.initialStateSha256 ?? null,
+      final_workspace_state_sha256: binding.finalStateSha256 ?? null,
+      workspace_state_changed: binding.workspaceStateChanged ?? null,
+      initial_changed_files: initialChangedFiles.length,
       state_evidence_complete: stateWarnings.size === 0,
       outcome_files_modified: outcomeFileCount,
       ignored_generated_files: ignoredGeneratedFileCount,

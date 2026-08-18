@@ -39,6 +39,13 @@ test("shell wrapper parsing keeps raw values out of semantic evidence", () => {
   assert.doesNotMatch(JSON.stringify(analysis), /secret|private|TOKEN|PYTHONPATH/);
 });
 
+test("project check scripts count as verification commands", () => {
+  const analysis = analyzeTestRunnerCommand("/bin/zsh -lc 'npm run check'", { cwdSha256 });
+
+  assert.deepEqual(analysis.command, ["npm", "run", "check"]);
+  assert.equal(analysis.semantics.complete, true);
+});
+
 test("missing cwd and ambiguous command chains fail closed", () => {
   const missingCwd = analyzeTestRunnerCommand("pytest");
   const ambiguous = analyzeTestRunnerCommand("pytest && pytest", { cwdSha256 });

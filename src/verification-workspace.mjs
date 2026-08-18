@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
-import { appendFile, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { appendFile, lstat, mkdir, mkdtemp, readFile, readlink, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -107,12 +108,62 @@ test("intermittent benchmark fixture", async () => {
   throw new Error(`Unsupported controlled setup: ${setupId}`);
 }
 
-async function changedFiles(workspace) {
-  const result = await run(["git", "status", "--porcelain", "--untracked-files=all"], workspace);
-  if (result.exit_code !== 0) throw new Error("Git status failed while checking the task workspace");
-  const output = result.stdout.trimEnd();
-  if (!output) return [];
-  return output.split(/\r?\n/).map((line) => line.slice(3).replaceAll("\\", "/")).sort();
+export async function verificationWorkspaceChangedFiles(workspace) {
+  const tracked = await run(["git", "diff", "--name-only", "--no-renames", "-z"], workspace);
+  if (tracked.exit_code !== 0) throw new Error("Git diff failed while listing changed task files");
+  const untracked = await run(["git", "ls-files", "--others", "--exclude-standard", "-z"], workspace);
+  if (untracked.exit_code !== 0) throw new Error("Git ls-files failed while listing changed task files");
+  return [...new Set(`${tracked.stdout}${untracked.stdout}`.split("\0").filter(Boolean))].sort();
+}
+
+export async function verificationWorkspaceFileSha256(workspace, files) {
+  const result = {};
+  for (const relativePath of [...files].sort()) {
+    if (path.isAbsolute(relativePath) || relativePath.split(/[\\/]+/).includes("..")) {
+      throw new Error("Cannot hash a task file outside the workspace");
+    }
+    const filePath = path.join(workspace, relativePath);
+    let stats;
+    try {
+      stats = await lstat(filePath);
+    } catch (error) {
+      if (error.code === "ENOENT") {
+        result[relativePath] = null;
+        continue;
+      }
+      throw error;
+    }
+    const hash = createHash("sha256");
+    if (stats.isSymbolicLink()) hash.update("symlink\0").update(await readlink(filePath));
+    else if (stats.isFile()) hash.update("file\0").update(await readFile(filePath));
+    else hash.update("other");
+    result[relativePath] = hash.digest("hex");
+  }
+  return result;
+}
+
+export async function verificationWorkspaceStateSha256(workspace) {
+  const result = await run(["git", "diff", "--binary", "--no-ext-diff"], workspace);
+  if (result.exit_code !== 0) throw new Error("Git diff failed while hashing the task workspace");
+  const untracked = await run(["git", "ls-files", "--others", "--exclude-standard", "-z"], workspace);
+  if (untracked.exit_code !== 0) throw new Error("Git ls-files failed while hashing the task workspace");
+  const hash = createHash("sha256").update("tracked-diff\0").update(result.stdout);
+  for (const relativePath of untracked.stdout.split("\0").filter(Boolean).sort()) {
+    if (path.isAbsolute(relativePath) || relativePath.split(/[\\/]+/).includes("..")) {
+      throw new Error("Git reported an unsafe untracked path while hashing the task workspace");
+    }
+    const filePath = path.join(workspace, relativePath);
+    const stats = await lstat(filePath);
+    hash.update("\0untracked\0").update(relativePath).update("\0");
+    if (stats.isSymbolicLink()) {
+      hash.update("symlink\0").update(await readlink(filePath));
+    } else if (stats.isFile()) {
+      hash.update("file\0").update(await readFile(filePath));
+    } else {
+      hash.update("other");
+    }
+  }
+  return hash.digest("hex");
 }
 
 async function initializeIsolatedHistory(workspace) {
@@ -159,7 +210,7 @@ export async function materializeVerificationTask({
       } else {
         await applyControlledSetup(source.setup_id, workspace);
       }
-      const observedFiles = await changedFiles(workspace);
+      const observedFiles = await verificationWorkspaceChangedFiles(workspace);
       const expectedFiles = [...task.definition.changed_files].sort();
       if (JSON.stringify(observedFiles) !== JSON.stringify(expectedFiles)) {
         throw new Error(`Materialized changed files do not match task definition: expected ${expectedFiles.join(",")}; observed ${observedFiles.join(",")}`);
@@ -171,7 +222,12 @@ export async function materializeVerificationTask({
       container_root: containerRoot,
       base_revision: source.base_revision,
       workspace_revision: await git(["rev-parse", "HEAD"], workspace),
-      changed_files: applyChange ? await changedFiles(workspace) : [],
+      changed_files: applyChange ? await verificationWorkspaceChangedFiles(workspace) : [],
+      changed_file_sha256: await verificationWorkspaceFileSha256(
+        workspace,
+        applyChange ? task.definition.changed_files : [],
+      ),
+      workspace_state_sha256: await verificationWorkspaceStateSha256(workspace),
       cleanup: () => rm(containerRoot, { recursive: true, force: true }),
     };
   } catch (error) {

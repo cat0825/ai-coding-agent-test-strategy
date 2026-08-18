@@ -1,6 +1,6 @@
 # 项目状态
 
-状态：**Observatory MVP 与 state-aware collector v2 已实现 / Verification Policy pilot 工作区 6/6 合格 / 配对 trace 仍为 0/6**
+状态：**Observatory MVP 与 state-aware collector v2 已实现 / Verification Policy pilot 工作区 6/6 合格 / 单题 smoke 链路已通 / 正式配对仍为 0/6**
 
 ## 已完成
 
@@ -35,7 +35,9 @@
 - 已实现 6 题 Verification Policy pilot：5 个 `verify_only`、1 个 `test_decision`，分别覆盖局部通过、相关回归、全量兜底、通过后停止、flaky 单次重试和必要回归测试。
 - 实现临时工作区物化器：从固定 revision 创建 clone，移除原始 Git 历史并只保留一条基线提交，再应用公开代码状态；Agent 无法通过原仓库 commit 找到答案。
 - 6/6 工作区通过真实资格检查：正确题通过、回归题失败、全量兜底题只在完整门禁失败、flaky 题结果为失败后通过、隐藏参考测试在新实现通过且在旧实现失败。
-- 全仓库 `npm run check` 通过，94/94 tests passed；设计报告仍标记 `quality_claim_eligible: false`。
+- 新增单题 direct-Codex trace 转换入口，绑定公开题目摘要、collector、模型、初始/最终工作区状态；Agent 未被观察到的文件改动会让 trace fail closed。
+- `vp_local_correct_stop` 链路 smoke 已完成：完整 trace、6 个 shell 调用、1 个项目级 `npm run check`、Agent 零文件改动、独立相关测试 6/6 通过；该结果显示验证范围超过最小证据。
+- 全仓库 `npm run check` 通过；设计与 smoke 报告仍标记 `quality_claim_eligible: false`。
 
 ## 未完成
 
@@ -46,10 +48,11 @@
 - 没有完整真实仓库 cohort，不能声称已经减少测试耗时或 CI 成本；也没有启用 Agent hook/permission 强制。
 - Observatory MVP 的 Issue/PR 仍需按依赖顺序审阅和合并；本地 canonical fixture 不能替代真实 P1/P2 benchmark。
 - 6 题 pilot 还没有采集同一 Agent/模型的策略关闭与开启配对 VerifyTrace，因此不能声称测试时间或命令数量已经下降。
+- smoke run 未显式固定模型，只能证明链路和现象；固定 `gpt-5.6-sol` 的正式 run 在执行任何 Agent 命令前因 workspace 额度耗尽而失败，正式 baseline 仍为 0/6。
 - 当前 6 题都来自本仓库历史或受控故障，只用于隔离测评合同；正式 30 题仍需从多个真实 JS/TS 仓库选取。
 
 ## 下一阶段
 
-1. 用相同 Agent、模型和六个固定工作区采集策略关闭 baseline trace。
-2. 接入当前推荐策略，以相同任务采集 candidate trace，并先检查 6 对是否漏故障。
+1. workspace 额度恢复后，只重跑 `vp_local_correct_stop` 的显式模型 baseline，先确认正式证据链合格。
+2. 第一题合格后复制到剩余五题，再接当前推荐策略采集 candidate，并先检查 6 对是否漏故障。
 3. 六题配对成立后再从多个真实 JS/TS 仓库扩展正式 30 题；同步按 stacked 依赖顺序审阅现有 PR，不主动合并。

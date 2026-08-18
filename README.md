@@ -4,7 +4,7 @@
 
 ## 当前进度
 
-**Observatory MVP 与 state-aware collector 已完成；专用 Verification Policy Benchmark 的 6 题 pilot 已完成工作区资格检查，但还没有 baseline/candidate 配对 trace，当前不足以支持效率或质量声明。**
+**Observatory MVP 与 state-aware collector 已完成；Verification Policy pilot 工作区 6/6 合格，单题采集链 smoke 已跑通，但正式 baseline/candidate 仍为 0/6。**
 
 - 已完成 Google、OpenAI Codex、Aider、Claude Code、GitHub Copilot、Meta 等实践的横向比较。
 - 已提炼四档验证强度：`off`、`smoke`、`standard`、`thorough`。
@@ -16,6 +16,7 @@
 - 通用 baseline cohort 已采集 4 个 editing task；cohort auditor 输出 `4/30`、`evidence_insufficient`，详见 [STATUS.md](STATUS.md) 与 [agent-belt-baseline-report.json](fixtures/benchmark/agent-belt-baseline-report.json)。
 - 原 Issue #30 的 Calculator/Tasktracker 30-task 清单已降级为历史规划审计，不再继续扩写 oracle。
 - 已建立与产品目标直接对应的 6 题 Verification Policy pilot；隔离工作区和隐藏 oracle 资格检查为 6/6，详见 [Verification Policy Benchmark v0.1](docs/verification-policy-benchmark-v0.1.md)。
+- `vp_local_correct_stop` 已产出一条完整脱敏 smoke trace：正确性与不改文件均通过，但观察到 6 个 shell 调用和项目级 `npm run check`；因模型未显式绑定，不计入正式 baseline。
 
 ## 核心结论
 
@@ -159,7 +160,7 @@ npm run benchmark:verification:qualify -- \
 
 前者检查任务结构和隐藏答案隔离；后者从固定 revision 创建临时工作区并实际验证六种退出模式。当前结果为 `fixture_ready: 6/6`，仍不等于配对实验完成。
 
-单题 Agent run 使用 `npm run benchmark:verification:prepare` 创建无原始 Git 历史的工作区；参数与绑定要求见 [Verification Policy Benchmark v0.1](docs/verification-policy-benchmark-v0.1.md)。
+单题 Agent run 使用 `npm run benchmark:verification:prepare` 创建无原始 Git 历史的工作区，再用 `npm run benchmark:verification:trace` 转换 lifecycle；参数、模型绑定和当前 smoke 边界见 [Verification Policy Benchmark v0.1](docs/verification-policy-benchmark-v0.1.md)。
 
 为新的 agent-belt run 采集带 UTC/monotonic 时间的 Codex shell lifecycle sidecar，并生成 fail-closed VerifyTrace：
 
