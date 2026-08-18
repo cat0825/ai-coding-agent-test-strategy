@@ -11,14 +11,14 @@
 - Issue #33 当前实现与真实 5-task 验收：100%。
 - 真实 baseline：4/30（13.3%）；还缺 26 个不同任务。
 - Candidate paired cohort：0/30；eligible oracle failures：0/10。
-- 默认分支集成：仍为 0/14 旧 PR；Issue #33 尚未提交 PR。
+- 默认分支集成：仍为 0/14 旧 PR；Issue #33 已提交为 draft PR #34，尚未合并。
 
 ## 当前真相
 
 - 仓库：`/Users/qianyuhe/Documents/ChatGPT/llm test`。
 - 分支：`codex/issue-33-state-aware-verifytrace`，基于 `codex/agent-belt-timestamped-trace@1d11fa3`。
-- GitHub：[Issue #33](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/33) 已创建；当前仍有 14 个 stacked PR 待集成。
-- 本分支已修改代码、测试、文档和真实 evidence fixtures，尚未 commit/push/open PR。
+- GitHub：[Issue #33](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/33)；[draft PR #34](https://github.com/cat0825/ai-coding-agent-test-strategy/pull/34) 以 `codex/agent-belt-timestamped-trace` 为 base，Node 20/24 CI 已通过。
+- 主实现提交：`aa47c02 feat: make agent-belt traces state-aware`。
 - 最新全量检查：`npm run check` 83/83 通过；`git diff --check` 与 fixture 隐私扫描通过。
 
 ## Issue #33 已完成
@@ -49,15 +49,15 @@
 
 ## 未完成
 
-1. 审查 diff，commit、push，并为 Issue #33 开 PR；等待 Node 20/24 CI。不要直接推默认分支。
+1. PR #34 等待人工 review/merge；不要直接推或合并默认分支。
 2. Issue #30：审计 41 个现有场景，规划至少 30 个不同、可独立 oracle 的任务；当前还缺 26 个。
 3. Candidate/shadow adapter 尚无独立 Issue，也未实现；完成 30 个 baseline 后再做。
 4. 隔离执行 provider、stacked PR 集成治理仍未写成独立 Issue。
 
 ## 下一步
 
-1. 完成 Issue #33 的最终检查与 PR。
-2. #33 CI 通过后继续 #30，不再重跑这 5 个任务。
+1. 等待 PR #34 人工 review/merge；Issue #33 不再新增功能。
+2. 继续 #30，不再重跑这 5 个任务。
 3. 30 个 baseline 完成后，实现 candidate/shadow adapter，再执行 30 对比较与 10 个 oracle-failure gate。
 4. 只有 paired 数据和 safety gate 通过后，才讨论有限强制；当前保持 observation/shadow。
 
