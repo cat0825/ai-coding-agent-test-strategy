@@ -41,10 +41,19 @@ function sameObservedFailure(previous, current) {
   );
 }
 
+function commandSemanticsComplete(event, { explicit = false } = {}) {
+  if (event.data.command_semantics === undefined) return !explicit;
+  return event.data.command_semantics?.complete === true;
+}
+
 export function diagnoseTrace(trace) {
   assertValidTrace(trace, { allowPartial: trace?.completeness === "partial" });
   const findings = [];
   const previousResults = new Map();
+  const agentBeltLifecycle = trace.source?.format?.startsWith("agent-belt-codex-lifecycle-") === true;
+  const stateEvidenceComplete = agentBeltLifecycle
+    ? trace.source?.state_evidence_complete === true
+    : trace.source?.state_evidence_complete !== false;
 
   for (const event of trace.events) {
     if (event.event_type !== "test_result") continue;
@@ -61,7 +70,10 @@ export function diagnoseTrace(trace) {
           between,
           "relevant_state_changed",
         ));
-      } else if (changes.unknown.length === 0) {
+      } else if (stateEvidenceComplete
+        && commandSemanticsComplete(previous, { explicit: agentBeltLifecycle })
+        && commandSemanticsComplete(event, { explicit: agentBeltLifecycle })
+        && changes.unknown.length === 0) {
         findings.push(finding(
           "exact_repeat",
           event,

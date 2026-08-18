@@ -96,6 +96,22 @@ test("audits the real five-scenario pilot shape without granting a quality claim
   assert.doesNotMatch(JSON.stringify(report), /\/bin\/zsh|PYTHONPATH|auth\.json/);
 });
 
+test("generated runtime caches do not inflate changed-test budgets", () => {
+  const auditInput = input();
+  auditInput.outcomes.get("l2_add_completed_at").files_modified.push(
+    "src/__pycache__/models.cpython-312.pyc",
+    "tests/__pycache__/test_models.cpython-312-pytest.pyc",
+  );
+  const report = auditAgentBeltPilot(auditInput);
+  const scenario = report.scenarios.find(({ scenario_name }) => scenario_name === "l2_add_completed_at");
+
+  assert.equal(report.counts.ignored_generated_files, 2);
+  assert.equal(scenario.ignored_generated_files, 2);
+  assert.equal(scenario.test_files_modified.length, 0);
+  assert.equal(scenario.budgets.test_file_exceeded, false);
+  assert.doesNotMatch(JSON.stringify(report), /__pycache__|\.pyc/);
+});
+
 test("fails closed on missing or malformed scenario output", () => {
   const missing = input();
   missing.outcomes.delete("l2_fix_formatter_bug");

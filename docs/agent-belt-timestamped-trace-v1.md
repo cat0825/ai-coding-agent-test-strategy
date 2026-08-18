@@ -1,4 +1,4 @@
-# Agent-belt timestamped VerifyTrace collection v1
+# Agent-belt timestamped VerifyTrace collection
 
 Issue #28 requires observed shell lifecycle evidence. Agent-belt 0.2.1 retains Codex NDJSON events, but its `TurnOutput` and `turn_N_stream.ndjson` do not retain the arrival time of each `item.started`, `item.completed`, or terminal event. Existing outcomes therefore cannot be upgraded after the fact.
 
@@ -43,14 +43,20 @@ Lifecycle files are matched to scenario streams by the observed Codex thread id.
 
 ## Evidence boundary
 
-The sidecar retains only collector version/digest, sequence number, UTC observation time, monotonic elapsed nanoseconds, lifecycle event type, command call id, status, and exit code. It does not retain command text, command output, usage, reply text, environment variables, credentials, or paths.
+Collector v2 retains collector version/digest, a digest of the starting working directory, sequence number, UTC observation time, monotonic elapsed nanoseconds, lifecycle event type, command call id, status, exit code, and completed file-change metadata. File paths are reduced to safe workspace-relative paths; an unsafe or outside-workspace path is replaced by a digest and makes the generated trace partial. The sidecar does not retain command text, command output, usage, reply text, raw working directories, environment values, or credentials.
 
-The converter reads command text only from the existing agent-belt stream and emits a normalized runner identity such as `["pytest"]` or `["npm", "test"]`. Arguments, shell prefixes, environment assignments, raw output, and absolute worktree paths are discarded. The trace binds the qualified repository revision, run id, scenario definition digest, collector digest, source digests, and `mode: baseline`.
+The converter reads command text only from the existing private agent-belt stream. Public traces retain the runner identity plus SHA-256 digests for working directory, environment assignments, arguments, and the combined command semantics. The raw values are not copied. Commands with different targets, environment assignments, or working directories therefore do not share a canonical id.
+
+Completed file changes are matched to the stream by call id, status, count, and change kind, then inserted into the trace at their observed lifecycle time. Their state id chains from the pinned repository state. A non-test shell command between two test results creates an unknown state boundary because the collector cannot prove that the command was read-only. The trace binds the qualified repository revision, run id, scenario definition digest, collector digest, source digests, and `mode: baseline`.
+
+The converter also compares the union of completed file-change paths with the outcome's final `files_modified` list. A meaningful source/test/config file present on only one side makes the trace partial. Generated Python caches (`__pycache__`, `.pyc`, pytest/mypy/ruff caches) are counted separately and ignored for this comparison because they are runtime byproducts, not product edits.
 
 `test_result.duration_ms` is the difference between the observed monotonic completion and start values. A `stop` event is emitted only for an observed `turn.completed` or `turn.failed`. It is never inferred from the final response or process exit.
 
 ## Fail-closed rules
 
-Missing start, missing completion, missing terminal, duplicate call ids, reordered events, thread mismatch, source mismatch, or exit-code mismatch makes the trace `partial`. Unpaired calls do not produce a synthetic `test_result`; no zero duration is filled in. A missing terminal never produces a `stop`. Partial traces validate only with `allowPartial: true` and remain quality-claim-ineligible.
+Missing start, missing completion, missing terminal, duplicate call ids, reordered events, thread mismatch, source mismatch, exit-code mismatch, incomplete command semantics, or unmatched/unsafe file-change evidence makes the trace `partial`. Unpaired calls do not produce a synthetic `test_result`; no zero duration is filled in. A missing terminal never produces a `stop`. Partial traces validate only with `allowPartial: true` and remain quality-claim-ineligible.
+
+Legacy collector-v1 traces remain readable, but they do not contain the state and command-semantic evidence required for `exact_repeat` or `unattributed_retry`. Diagnostics therefore emit neither label for those traces. They must be recollected with collector v2 before they can support repetition or efficiency claims.
 
 The baseline trace uses a disclosed `unmanaged-coding-agent-baseline` policy envelope. Its `test_selection.commands` are a retrospective list of observed test-runner calls, marked by `selection_source: observed_test_runner_calls`; it is not presented as a policy decision made before execution.

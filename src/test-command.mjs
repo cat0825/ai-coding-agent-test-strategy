@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 const TEST_RUNNER_RULES = Object.freeze([
   {
     pattern: /(?:^|[\s"';&|])(?:(uv)\s+run\s+)?(?:(python(?:3)?)\s+-m\s+)?(pytest)(?:\s|$)/i,
@@ -41,6 +43,169 @@ const TEST_RUNNER_RULES = Object.freeze([
   },
 ]);
 
+const SHELLS = new Set(["sh", "bash", "zsh", "dash", "ksh"]);
+const OPERATORS = new Set(["&&", "||", ";", "|"]);
+const DIGEST = /^[a-f0-9]{64}$/i;
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function executableName(value) {
+  return value.replaceAll("\\", "/").split("/").at(-1).toLowerCase();
+}
+
+function tokenizeShell(command) {
+  const tokens = [];
+  let current = "";
+  let quote = null;
+  let escaped = false;
+
+  const flush = () => {
+    if (current.length > 0) tokens.push(current);
+    current = "";
+  };
+
+  for (let index = 0; index < command.length; index += 1) {
+    const character = command[index];
+    if (escaped) {
+      current += character;
+      escaped = false;
+      continue;
+    }
+    if (character === "\\" && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      if (character === quote) quote = null;
+      else current += character;
+      continue;
+    }
+    if (character === "'" || character === '"') {
+      quote = character;
+      continue;
+    }
+    if (/\s/.test(character)) {
+      flush();
+      continue;
+    }
+    if (character === ";" || character === "|") {
+      flush();
+      if (command[index + 1] === character) {
+        tokens.push(`${character}${character}`);
+        index += 1;
+      } else {
+        tokens.push(character);
+      }
+      continue;
+    }
+    if (character === "&" && command[index + 1] === "&") {
+      flush();
+      tokens.push("&&");
+      index += 1;
+      continue;
+    }
+    current += character;
+  }
+  if (escaped || quote) return null;
+  flush();
+  return tokens;
+}
+
+function unwrapShell(tokens) {
+  if (tokens.length < 3 || !SHELLS.has(executableName(tokens[0]))) return tokens;
+  const commandFlagIndex = tokens.findIndex((token, index) => index > 0 && /^-[a-z]*c[a-z]*$/i.test(token));
+  if (commandFlagIndex < 0 || tokens.length !== commandFlagIndex + 2) return tokens;
+  return tokenizeShell(tokens[commandFlagIndex + 1]);
+}
+
+function commandSegments(tokens) {
+  const segments = [];
+  let current = [];
+  for (const token of tokens) {
+    if (OPERATORS.has(token)) {
+      if (current.length > 0) segments.push(current);
+      current = [];
+    } else {
+      current.push(token);
+    }
+  }
+  if (current.length > 0) segments.push(current);
+  return segments;
+}
+
+function environmentPrefix(segment) {
+  const assignments = [];
+  let index = segment[0] === "env" ? 1 : 0;
+  while (index < segment.length) {
+    const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/s.exec(segment[index]);
+    if (!match) break;
+    assignments.push([match[1], match[2]]);
+    index += 1;
+  }
+  return { assignments, index };
+}
+
+function runnerAt(tokens, index) {
+  const first = executableName(tokens[index] ?? "");
+  const second = (tokens[index + 1] ?? "").toLowerCase();
+  const third = executableName(tokens[index + 2] ?? "");
+
+  if (first === "uv" && second === "run" && third === "pytest") {
+    return { command: ["uv", "run", "pytest"], argumentsIndex: index + 3 };
+  }
+  if (/^python3?$/.test(first) && second === "-m" && third === "pytest") {
+    return { command: [first, "-m", "pytest"], argumentsIndex: index + 3 };
+  }
+  if (first === "pytest") return { command: ["pytest"], argumentsIndex: index + 1 };
+
+  if (["npm", "pnpm", "yarn", "bun"].includes(first)) {
+    const scriptIndex = second === "run" ? index + 2 : index + 1;
+    const script = (tokens[scriptIndex] ?? "").toLowerCase();
+    if (script === "test" || script === "t") {
+      return { command: [first, "test"], argumentsIndex: scriptIndex + 1 };
+    }
+  }
+
+  const wrapperLength = first === "npx" || first === "bunx" ? 1
+    : ((first === "pnpm" && second === "exec") || (first === "yarn" && second === "dlx") ? 2 : 0);
+  const tool = executableName(tokens[index + wrapperLength] ?? "");
+  if (["vitest", "jest", "mocha", "ava"].includes(tool)) {
+    return {
+      command: wrapperLength === 0 ? [tool] : [...tokens.slice(index, index + wrapperLength).map(executableName), tool],
+      argumentsIndex: index + wrapperLength + 1,
+    };
+  }
+
+  if (first === "node" && second === "--test") return { command: ["node", "--test"], argumentsIndex: index + 2 };
+  if (first === "deno" && second === "test") return { command: ["deno", "test"], argumentsIndex: index + 2 };
+  if (["go", "cargo", "dotnet"].includes(first) && second === "test") {
+    return { command: [first, "test"], argumentsIndex: index + 2 };
+  }
+  if (/^(?:mvnw?|gradlew?)$/.test(first.replace(/^\.\//, "")) && second === "test") {
+    return { command: [first, "test"], argumentsIndex: index + 2 };
+  }
+  return null;
+}
+
+function incompleteAnalysis(command, normalized, reason) {
+  const semanticDigest = sha256(JSON.stringify({ raw_command: command }));
+  return {
+    command: normalized,
+    canonicalId: canonicalTestCommandId(normalized, semanticDigest),
+    semantics: {
+      version: 1,
+      complete: false,
+      reason,
+      cwd_sha256: null,
+      environment_sha256: null,
+      arguments_sha256: null,
+      semantic_sha256: semanticDigest,
+    },
+  };
+}
+
 export function normalizeTestRunnerCommand(command) {
   if (typeof command !== "string") return null;
   for (const rule of TEST_RUNNER_RULES) {
@@ -50,10 +215,71 @@ export function normalizeTestRunnerCommand(command) {
   return null;
 }
 
+export function analyzeTestRunnerCommand(command, { cwdSha256 = null } = {}) {
+  const normalized = normalizeTestRunnerCommand(command);
+  if (!normalized) return null;
+  const outerTokens = tokenizeShell(command);
+  if (!outerTokens) return incompleteAnalysis(command, normalized, "unparseable_shell_command");
+  const tokens = unwrapShell(outerTokens);
+  if (!tokens) return incompleteAnalysis(command, normalized, "unparseable_shell_wrapper");
+
+  const segments = commandSegments(tokens);
+  let effectiveCwdSha256 = DIGEST.test(cwdSha256 ?? "") ? cwdSha256.toLowerCase() : null;
+  const matches = [];
+  for (const segment of segments) {
+    const prefix = environmentPrefix(segment);
+    const executable = executableName(segment[prefix.index] ?? "");
+    if (executable === "cd" && segment.length === prefix.index + 2) {
+      effectiveCwdSha256 = effectiveCwdSha256
+        ? sha256(JSON.stringify({ base: effectiveCwdSha256, directory: segment[prefix.index + 1] }))
+        : null;
+      continue;
+    }
+    const runner = runnerAt(segment, prefix.index);
+    if (runner) {
+      matches.push({
+        command: runner.command,
+        arguments: segment.slice(runner.argumentsIndex),
+        environment: prefix.assignments,
+        cwdSha256: effectiveCwdSha256,
+      });
+    }
+  }
+  if (matches.length !== 1) {
+    return incompleteAnalysis(command, normalized, matches.length === 0 ? "runner_structure_unrecognized" : "multiple_runner_commands");
+  }
+
+  const match = matches[0];
+  if (!match.cwdSha256) return incompleteAnalysis(command, match.command, "missing_working_directory_evidence");
+  const environment = [...match.environment].sort(([left], [right]) => left.localeCompare(right));
+  const environmentSha256 = sha256(JSON.stringify(environment));
+  const argumentsSha256 = sha256(JSON.stringify(match.arguments));
+  const semanticDigest = sha256(JSON.stringify({
+    command: match.command,
+    cwd_sha256: match.cwdSha256,
+    environment,
+    arguments: match.arguments,
+  }));
+  return {
+    command: match.command,
+    canonicalId: canonicalTestCommandId(match.command, semanticDigest),
+    semantics: {
+      version: 1,
+      complete: true,
+      reason: null,
+      cwd_sha256: match.cwdSha256,
+      environment_sha256: environmentSha256,
+      arguments_sha256: argumentsSha256,
+      semantic_sha256: semanticDigest,
+    },
+  };
+}
+
 export function isTestRunnerCommand(command) {
   return normalizeTestRunnerCommand(command) !== null;
 }
 
-export function canonicalTestCommandId(command) {
-  return `baseline:${command.join(":")}`;
+export function canonicalTestCommandId(command, semanticDigest = null) {
+  const runner = `baseline:${command.join(":")}`;
+  return semanticDigest ? `${runner}:semantic:${semanticDigest}` : runner;
 }

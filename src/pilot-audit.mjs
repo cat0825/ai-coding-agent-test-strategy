@@ -58,6 +58,13 @@ function isTestFile(filePath) {
     || /\.(?:test|spec)\.[^.]+$/.test(basename);
 }
 
+function isGeneratedRuntimeArtifact(filePath) {
+  const segments = filePath.toLowerCase().split("/");
+  const basename = segments.at(-1);
+  return segments.some((segment) => ["__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"].includes(segment))
+    || /\.(?:pyc|pyo)$/.test(basename);
+}
+
 function round(value, digits = 2) {
   const factor = 10 ** digits;
   return Math.round((value + Number.EPSILON) * factor) / factor;
@@ -144,7 +151,9 @@ function auditScenario(scenario, output, timing) {
   assert(Number.isFinite(output.timing?.total) && output.timing.total >= 0, `scenario ${scenario.scenario_name} must include non-negative timing`);
   assert(Math.abs(output.timing.total - timing.total_seconds) < 0.02, `scenario ${scenario.scenario_name} timing must match results`);
 
-  const filesModified = [...new Set(output.files_modified.map((file, index) => normalizedRelativePath(file, `scenario ${scenario.scenario_name} files_modified[${index}]`)))].sort();
+  const observedFiles = [...new Set(output.files_modified.map((file, index) => normalizedRelativePath(file, `scenario ${scenario.scenario_name} files_modified[${index}]`)))].sort();
+  const ignoredGeneratedFiles = observedFiles.filter(isGeneratedRuntimeArtifact);
+  const filesModified = observedFiles.filter((file) => !isGeneratedRuntimeArtifact(file));
   const testFilesModified = filesModified.filter(isTestFile);
   const shellCalls = output.tool_calls.filter((call) => call?.name === "shell");
   for (const [index, call] of shellCalls.entries()) {
@@ -164,6 +173,7 @@ function auditScenario(scenario, output, timing) {
     passed: scenario.overall_pass,
     duration_seconds: round(output.timing.total),
     files_modified: filesModified,
+    ignored_generated_files: ignoredGeneratedFiles.length,
     test_files_modified: testFilesModified,
     test_change: testChange,
     shell_invocations: shellCalls.length,
@@ -248,6 +258,7 @@ export function auditAgentBeltPilot({ benchmarkCard, results, outcomes, environm
       scenarios_with_unspecified_test_changes: scenarios.filter((scenario) => scenario.test_change === "unspecified").length,
       scenarios_missing_required_tests: missingRequired,
       test_files_modified: sum((scenario) => scenario.test_files_modified.length),
+      ignored_generated_files: sum((scenario) => scenario.ignored_generated_files),
       shell_invocations: sum((scenario) => scenario.shell_invocations),
       test_runner_invocations: sum((scenario) => scenario.test_runner_invocations),
       failed_test_runner_invocations: sum((scenario) => scenario.failed_test_runner_invocations),

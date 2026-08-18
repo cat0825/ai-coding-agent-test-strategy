@@ -2,17 +2,17 @@
   "counts": {
     "complete_traces": 5,
     "partial_traces": 0,
-    "test_results": 10,
+    "test_results": 7,
     "traces": 5
   },
   "environment_sha256": "00aaacf941ecbe46937f59f40740d127e92e45cd805a19858a6a537f86fd457b",
   "evidence_class": "timestamped_agent_belt_trace_collection",
   "harness_revision": "90bd105b172adc41394f458e33b653dda2b199b0",
-  "run_id": "20260818-135957-7eedf656",
+  "run_id": "20260818-162534-870bcfcf",
   "schema_version": 1,
   "timing": {
-    "agent_total_ms": 802390,
-    "observed_test_duration_ms": 5000.681
+    "agent_total_ms": 935730,
+    "observed_test_duration_ms": 2874.598
   },
   "traces": [
     {
@@ -20,39 +20,39 @@
       "observed_test_duration_ms": 0,
       "task_id": "l1_find_bug",
       "test_results": 0,
-      "trace_id": "trace-d7d6e353b4aeb7d0d13d032fa36101eb70035f78f9fd7712917e30e02d846bc1",
+      "trace_id": "trace-21ed123881b3e93981ce7598e56293738b0392a81ef66aa69fffb865d659ab10",
       "warnings": []
     },
     {
       "completeness": "complete",
-      "observed_test_duration_ms": 1507.695,
+      "observed_test_duration_ms": 685.425,
       "task_id": "l2_add_completed_at",
-      "test_results": 3,
-      "trace_id": "trace-8e2cfca77a61228a828eca9f8a42e2a25f0eaa7b20bbe5cc0e9c7f893b6ba449",
+      "test_results": 2,
+      "trace_id": "trace-d3a36c0da35808f56bcbcce15559ea02a2f8509066277092c38a4795cb05842f",
       "warnings": []
     },
     {
       "completeness": "complete",
-      "observed_test_duration_ms": 1482.324,
+      "observed_test_duration_ms": 884.95,
       "task_id": "l2_fix_formatter_bug",
-      "test_results": 3,
-      "trace_id": "trace-49072908ca3d7e5523abee2e4806e1f0c2ab5620261f48ec4c58a8e7465aa7b9",
+      "test_results": 2,
+      "trace_id": "trace-22408bd40cfdf1c3d0328088b2cd5b34328f0eddc04cdf12c6e73ccb3b4b9402",
       "warnings": []
     },
     {
       "completeness": "complete",
-      "observed_test_duration_ms": 1170.25,
+      "observed_test_duration_ms": 984.368,
       "task_id": "l3_add_delete_command",
       "test_results": 2,
-      "trace_id": "trace-e39355c8cd37018f6395c5d6c224ed01a0d0653768e27687636e55a849ea9ab0",
+      "trace_id": "trace-85aa9455e08e489f0ac5318bcfbe4ee0bc2432957826d165747673adea788de2",
       "warnings": []
     },
     {
       "completeness": "complete",
-      "observed_test_duration_ms": 840.412,
+      "observed_test_duration_ms": 319.856,
       "task_id": "l3_add_json_format",
-      "test_results": 2,
-      "trace_id": "trace-409b960aa56304abe47469ff30791073565a4d1e532af6672e7f6f7f44555b74",
+      "test_results": 1,
+      "trace_id": "trace-5ec98d008a29c47a1cab93d650166008ae5920b0e850581e11b9d7a360483c7a",
       "warnings": []
     }
   ]
