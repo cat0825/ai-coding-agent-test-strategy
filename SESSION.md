@@ -1,4 +1,4 @@
-# Handoff 2026-08-18
+# Handoff 2026-08-18 (timestamped trace checkpoint)
 
 ## 目标
 
@@ -6,8 +6,8 @@
 
 ## 进度
 
-- 百分比：MVP 实现与本地 calibration 100%；benchmark 环境资格审查 100%；baseline 审计闸门 100%；通用 runtime probes 100%；首个候选环境资格 100%；真实 baseline/candidate cohort 0%。
-- 检查点：agent-belt 固定 revision 的环境 preflight 已通过；下一执行项是 #16 的 5-task go/no-go pilot，真实数据仍为 0/30。
+- 百分比：约 92%。MVP、环境资格、baseline 审计闸门、runtime probes、候选环境、independent oracles 和 timestamped trace collection 均已实现并通过本地验证；真实 quality-claim-eligible baseline 为 4/30。
+- 检查点：Issue #28 的 pinned local collector 已完成；5-task timestamped rerun 与 trace conversion 已复现；下一执行项是提交并推送 feature 分支，创建 base 为 `codex/agent-belt-independent-oracles` 的 PR。
 
 ## 已完成（含证据）
 
@@ -26,19 +26,21 @@
 - Maka clean detached worktree（仅作为验证样本）：`/Users/qianyuhe/Documents/GitHub/maka-agent-test-strategy-pilot-latest`，revision `5d9ce0d2020b641b37eccbc89e25416358db2d55`，官方 CI green。
 - Maka 样本真实 preflight：包含 postinstall 的 `npm ci`、`format:check`、`build:test`、`typecheck` 均 exit 0；manifest 为 `eligible`，不含 home path、proxy、token、argv/env 或命令输出。
 - `dugite` artifact SHA-256：`e561cfc80c755e6f3e938653e81efcd025c9827a5b76dd42778b1159b3fab437`；lockfile SHA-256：`5873cc4a49b5c7957069105a6b7264766e577d77fff15cc71f1ae5319df9dce8`。
+- Issue #28 定向测试：9/9 通过；全量 `npm run check`：72/72 通过；`git diff --check` 通过；临时目录重建 trace 与 checked-in fixtures 无差异。
+- 隐私扫描未发现本轮新增证据中的 home path、token、密钥或原始输出；STATUS 中既有 Maka 历史样本路径是唯一命中。
 
 ## 未完成
 
-- PR #9-#15、#19、#21、#24、#25 尚待审阅与合并；Issue 由对应 PR 合并流程关闭。
-- Issue #16 尚未按通用选择标准确定最终仓库/任务集，也未采集 30 个 quality-claim-eligible baseline tasks；Issue #17 尚无 30 个 paired comparisons / 10 个 oracle failures。
+- PR #9-#15、#19、#21、#24、#25、#27、#31 尚待审阅与合并；Issue 由对应 PR 合并流程关闭。
+- Issue #28 尚未创建 PR；Issue #30 尚未补足 26 个不同 task；Issue #16 尚未采集 30 个 quality-claim-eligible baseline tasks；Issue #17 尚无 30 个 paired comparisons / 10 个 oracle failures。
 - Maka 样本的完整 `npm test` 仍有 PTY timeout、macOS `/var` 路径规范化、authenticated websocket 本机能力等已知失败；这些只能作为样本环境证据，不能限制 #16/#17 的仓库范围，也不能算作 candidate regression。
 - 没有证据支持真实效率提升、质量保持或 hard enforcement。
 
 ## 下一步（可直接执行）
 
-1. 按依赖顺序审阅 PR #19、#21、#24、#25；不主动合并。
-2. 继续 #16：在 agent-belt 上选 5 个不会依赖 LLM judge 的真实场景，验证 Agent 认证、独立 worktree、稳定 task ids、baseline VerifyTrace 与 oracle；当前真实 deficit 为 30。
-3. 5-task pilot 通过后再扩到 30，并推进 #17 的 paired candidate cohort 与 safety gates；证据不足时保持 `evidence_insufficient`。
+1. 提交当前 feature 分支，推送 `codex/agent-belt-timestamped-trace`，创建 PR（base `codex/agent-belt-independent-oracles`，正文包含 `Fixes #28`）。
+2. 等待 Node 20/24 CI 并 fresh-check PR 状态；CI 通过且无审阅阻塞后再更新 Issue #28。
+3. 按 Issue #30 审计 agent-belt 任务资格，补足 26 个不同 task，再推进 #16/#17；证据不足时保持 `evidence_insufficient`，不启用强制。
 
 ## 风险/红线
 

@@ -4,7 +4,7 @@
 
 ## 当前进度
 
-**Observatory MVP 代码和本地 calibration 已完成；真实 benchmark 尚未开始，当前证据不足以支持效率或质量声明。**
+**Observatory MVP 代码和本地 calibration 已完成；首个 timestamped 5-task baseline 已采集，4/30 任务具备质量声明所需证据，当前仍不足以支持效率或质量声明。**
 
 - 已完成 Google、OpenAI Codex、Aider、Claude Code、GitHub Copilot、Meta 等实践的横向比较。
 - 已提炼四档验证强度：`off`、`smoke`、`standard`、`thorough`。
@@ -13,7 +13,7 @@
 - 已定义 pilot 指标、预算校准、保守 fallback、命令归一化和 override 审计方案。
 - 已实现 `verify.sh`、受影响 workspace 发现、unknown fallback、命令存在性校验和 JSONL 验证账本。
 - 已用 Maka 的固定 CI-green revision 完成一次真实 preflight，作为仓库无关实现的验证样本；未改动 Maka 源码。
-- 通用 coding-agent baseline cohort 尚未采集；当前证据不足以支持效率或质量声明，详见 [STATUS.md](STATUS.md)。
+- 通用 baseline cohort 已采集 4 个 editing task；cohort auditor 输出 `4/30`、`evidence_insufficient`，详见 [STATUS.md](STATUS.md) 与 [agent-belt-baseline-report.json](fixtures/benchmark/agent-belt-baseline-report.json)。
 
 ## 核心结论
 
@@ -127,11 +127,28 @@ npm run benchmark:oracle -- \
 
 当前 4 个 editing task 的独立 oracle 均通过，且未使用 agent 自己编写的测试；`l1_find_bug` 因缺少稳定响应 oracle 被排除。Host 模式必须显式开启且只传最小环境，它仍不是 sandbox，不应用于未经审查的 agent 代码。完整边界见 [Agent-belt independent oracles v1](docs/agent-belt-independent-oracles-v1.md)。
 
+为新的 agent-belt run 采集带 UTC/monotonic 时间的 Codex shell lifecycle sidecar，并生成 fail-closed VerifyTrace：
+
+```sh
+npm run benchmark:trace:prepare -- \
+  --real-codex /path/to/real/codex \
+  --bin-dir /private/path/to/collector-bin \
+  --lifecycle-dir /private/path/to/lifecycle
+
+npm run benchmark:trace -- \
+  --run /path/to/agent-belt-outcomes/run-id \
+  --lifecycle-dir /private/path/to/lifecycle \
+  --environment fixtures/benchmark/agent-belt-environment.json \
+  --output-dir output/benchmark/traces
+```
+
+采集器不保存命令、输出、凭据或绝对工作区路径；转换器只保留归一化后的测试 runner 标识、观察到的 duration/exit code，并只从 `turn.completed` / `turn.failed` 生成 stop。缺失、重复、乱序或不匹配的证据一律生成 partial trace。集成与安全边界见 [Agent-belt timestamped VerifyTrace collection v1](docs/agent-belt-timestamped-trace-v1.md)。
+
 ## 后续评测
 
 下一阶段按以下顺序推进：
 
-1. 为 agent-belt pilot editing task 采集完整 timestamped baseline VerifyTrace；现有独立 oracle 通过，但在 trace 完整前保持 0/30。
+1. 扩充 agent-belt 的合格任务集，补足 26 个 baseline task；当前 4 个 editing task 的完整 trace 与独立 oracle 均通过。
 2. 在同一合格仓库/任务集上采集至少 30 个基线任务和 30 个 shadow 任务，比较命令数、耗时、失败漏检和 fallback 比例。
 3. 依据数据校准预算和停止规则，再决定是否在 Agent hook/permission 层启用有限强制。
 

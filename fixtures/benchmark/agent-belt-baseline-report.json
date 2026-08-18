@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "cohort": {
+    "id": "agent-belt-tasktracker-baseline",
+    "version": 1,
+    "evidence_class": "observed_benchmark"
+  },
+  "environment": {
+    "benchmark_id": "coding-agent-agent-belt-pilot",
+    "repository_identity": "jfrog/agent-belt",
+    "repository_revision": "90bd105b172adc41394f458e33b653dda2b199b0",
+    "manifest_digest": "0a9f5458397cc40211ebe10e43bdee59fec4d47334b8ef1b3d75bdc920cc4165",
+    "status": "eligible"
+  },
+  "counts": {
+    "declared_tasks": 5,
+    "planned_tasks": 0,
+    "collected_tasks": 4,
+    "excluded_tasks": 1,
+    "quality_claim_eligible_tasks": 4,
+    "required_baseline_tasks": 30,
+    "evidence_deficit": 26
+  },
+  "tasks": [
+    {
+      "task_id": "l1_find_bug",
+      "status": "excluded",
+      "quality_claim_eligible": false,
+      "reasons": [
+        "task_status:excluded"
+      ]
+    },
+    {
+      "task_id": "l2_add_completed_at",
+      "status": "collected",
+      "quality_claim_eligible": true,
+      "reasons": []
+    },
+    {
+      "task_id": "l2_fix_formatter_bug",
+      "status": "collected",
+      "quality_claim_eligible": true,
+      "reasons": []
+    },
+    {
+      "task_id": "l3_add_delete_command",
+      "status": "collected",
+      "quality_claim_eligible": true,
+      "reasons": []
+    },
+    {
+      "task_id": "l3_add_json_format",
+      "status": "collected",
+      "quality_claim_eligible": true,
+      "reasons": []
+    }
+  ],
+  "conclusion": {
+    "status": "evidence_insufficient",
+    "quality_claim_eligible": false,
+    "reasons": [
+      "minimum_baseline_tasks_not_met"
+    ]
+  }
+}
