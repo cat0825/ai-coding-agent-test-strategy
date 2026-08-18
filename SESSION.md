@@ -9,7 +9,7 @@
 ## 进度
 
 - Issue #33 实现与 5-task 验收：100%，draft PR #34 等待人工审阅。
-- Issue #30 原任务资格实现保留为历史审计；draft PR #35 已在本地改为专用 Verification Policy benchmark，尚未推送本轮提交。
+- Issue #30 原任务资格实现保留为历史审计；draft PR #35 已改为专用 Verification Policy benchmark，本轮实现已推送。
 - Verification Policy pilot：设计 6/6，工作区资格检查 6/6；baseline/candidate 配对仍为 0/6。
 - 历史 agent-belt editing baseline 仍为 4 个，但不再拿它和 26 个简单功能题拼正式 30-task benchmark。
 
@@ -17,10 +17,10 @@
 
 - 仓库：`/Users/qianyuhe/Documents/ChatGPT/llm test`。
 - 分支：`codex/issue-30-qualify-baseline-tasks`，基于 `codex/issue-33-state-aware-verifytrace@29eec10`。
-- 本轮实现提交为 `90ad5ed feat: add verification policy benchmark pilot`，尚未推送。
+- 本轮核心实现提交为 `90ad5ed feat: add verification policy benchmark pilot`；CI 修复提交为 `6bce414 ci: fetch benchmark source history`，均已推送。
 - GitHub：[Issue #30](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/30)；[draft PR #35](https://github.com/cat0825/ai-coding-agent-test-strategy/pull/35)，base 为 Issue #33 的分支。
 - [Issue #36](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/36) 的旧 Tasktracker oracle 批次暂停，不能按原方向执行。
-- 最新全量检查：`npm run check` 94/94 通过；6/6 pilot workspace qualification 通过。
+- 最新全量检查：本地 `npm run check` 94/94 通过；PR #35 的 Node 20/24 CI 通过；6/6 pilot workspace qualification 通过。
 
 ## 本轮已完成
 
@@ -39,15 +39,15 @@
 
 ## 未完成
 
-1. PR #34、#35 都是 draft 且上一轮 CI 通过；本轮提交尚未推送，不能把旧 CI 当成当前验证结果。
+1. PR #34、#35 都是 draft；PR #35 本轮提交的 Node 20/24 CI 已通过，仍等待人工 review。
 2. 六题还没有真实 baseline/candidate Agent trace，配对计数仍为 0/6。
 3. 当前任务来源只适合 pilot；多个真实 JS/TS 仓库的正式任务尚未选取。
 4. candidate/shadow adapter 还不能直接强制执行，只能先做六题观察模式。
 
 ## 下一步（可直接执行）
 
-1. 提交并推送本轮改动，让 PR #35 重新跑 Node 20/24 CI；仍不主动 merge。
-2. 为单题物化 + Agent lifecycle collector 建固定入口，先采集六题 baseline。
+1. 人工审阅 PR #34、#35；仍不主动 merge。
+2. 使用现有单题物化入口接 Agent lifecycle collector，先采集六题 baseline。
 3. baseline 完整后才跑 candidate；每题只有公开任务摘要、完整 collector-v2 trace 和隐藏 oracle 同时匹配才计入配对。
 
 ## 风险与红线
