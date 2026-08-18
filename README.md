@@ -4,7 +4,7 @@
 
 ## 当前进度
 
-**Observatory MVP 代码和本地 calibration 已完成；state-aware 5-task baseline 已采集，4/30 任务具备完整功能与 trace 证据，当前仍不足以支持总体效率或质量声明。**
+**Observatory MVP 代码和本地 calibration 已完成；30-task 规划清单与 fixture 预检已通过，但真实 baseline 仍只有 4/30，当前不足以支持总体效率或质量声明。**
 
 - 已完成 Google、OpenAI Codex、Aider、Claude Code、GitHub Copilot、Meta 等实践的横向比较。
 - 已提炼四档验证强度：`off`、`smoke`、`standard`、`thorough`。
@@ -14,6 +14,7 @@
 - 已实现 `verify.sh`、受影响 workspace 发现、unknown fallback、命令存在性校验和 JSONL 验证账本。
 - 已用 Maka 的固定 CI-green revision 完成一次真实 preflight，作为仓库无关实现的验证样本；未改动 Maka 源码。
 - 通用 baseline cohort 已采集 4 个 editing task；cohort auditor 输出 `4/30`、`evidence_insufficient`，详见 [STATUS.md](STATUS.md) 与 [agent-belt-baseline-report.json](fixtures/benchmark/agent-belt-baseline-report.json)。
+- Issue #30 已审计 agent-belt 41 个 experience 场景，并形成 30 个不同任务、2 个 fixture 的 planning manifest；26 个新任务仍需独立 oracle 和真实 trace，详见 [Agent-belt 30-task qualification v1](docs/agent-belt-task-qualification-v1.md)。
 
 ## 核心结论
 
@@ -127,6 +128,18 @@ npm run benchmark:oracle -- \
 
 当前 4 个 editing task 的独立 oracle 均通过，且未使用 agent 自己编写的测试；`l1_find_bug` 因缺少稳定响应 oracle 被排除。Host 模式必须显式开启且只传最小环境，它仍不是 sandbox，不应用于未经审查的 agent 代码。完整边界见 [Agent-belt independent oracles v1](docs/agent-belt-independent-oracles-v1.md)。
 
+审计 41 个上游场景并预检 30 个不同任务的规划清单：
+
+```sh
+npm run benchmark:tasks -- \
+  --plan fixtures/benchmark/agent-belt-task-plan.json \
+  --agent-belt /path/to/pinned/agent-belt \
+  --output fixtures/benchmark/agent-belt-task-plan-report.json \
+  --allow-host
+```
+
+该命令只验证任务唯一性、源文件摘要、fixture revision、reset 和原始测试；`planning_ready` 不等于 30/30，清单不能声明 collection status 或质量资格。
+
 为新的 agent-belt run 采集带 UTC/monotonic 时间的 Codex shell lifecycle sidecar，并生成 fail-closed VerifyTrace：
 
 ```sh
@@ -148,7 +161,7 @@ Collector v2 不保存命令、输出、凭据或绝对工作区路径；它保�
 
 下一阶段按以下顺序推进：
 
-1. 扩充 agent-belt 的合格任务集，补足 26 个 baseline task；不拿旧 trace 或重复 trial 补数量。
+1. 按规划清单为 26 个新任务分批实现独立 oracle 并采集 baseline trace；不拿计划条目、旧 trace 或重复 trial 补数量。
 2. 在同一合格仓库/任务集上采集至少 30 个基线任务，再实现并采集 30 个 shadow task。
 3. 依据配对结果和 oracle safety gate 决定是否启用有限强制；在此之前不做效率宣传。
 

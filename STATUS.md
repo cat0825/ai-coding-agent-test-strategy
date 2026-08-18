@@ -1,6 +1,6 @@
 # 项目状态
 
-状态：**Observatory MVP、baseline 审计闸门与 state-aware collector v2 已实现 / v2 的 5-task rerun 通过 / 真实 baseline 证据为 4/30**
+状态：**Observatory MVP、state-aware collector v2 与 30-task 规划已实现 / 真实 baseline 证据仍为 4/30**
 
 ## 已完成
 
@@ -29,10 +29,13 @@
 - 真实 rerun `20260818-162534-870bcfcf` 在固定 agent-belt revision 上完成 5/5 scenarios、32/32 checks；生成 5 条 complete VerifyTrace、7 个观察到的测试结果，测试执行总时长为 2874.598ms，agent 总时长为 935730ms。
 - 4 个 editing task 的本轮 diff 独立 oracle 为 4/4 passed；cohort auditor 输出 `quality_claim_eligible_tasks: 4`、`evidence_deficit: 26`、`evidence_insufficient`。
 - Issue #33 的 state-aware collector v2 已实现：记录脱敏文件变化和起始目录摘要；命令 canonical id 保留 cwd、环境和目标语义摘要；证据不完整时不输出 `exact_repeat` 或 `unattributed_retry`。
+- Issue #30 的任务资格审计已落盘：41/41 上游场景有稳定选取或排除理由；保留 4 个 Tasktracker 编辑任务，补 26 个受控任务，形成 Tasktracker 16 + Calculator 14 的 30-task planning manifest。
+- 任务计划审计器会拒绝重复语义、定义摘要漂移和自报 collection/eligibility；真实临时 clone 预检中，Tasktracker 10 个测试和 Calculator 编译均通过，结论为 `planning_ready` 且 `quality_claim_eligible: false`。
 
 ## 未完成
 
 - agent-belt 探索性 go/no-go 与 timestamped rerun 均通过；当前只有 4 个 editing task 同时具备完整 baseline VerifyTrace 与独立 oracle，read-only task 没有稳定响应 oracle，配对 candidate run 也未开始，真实 eligible baseline 为 4/30。
+- 26 个受控任务只有固定定义、测试要求和 oracle id，独立 oracle 实现与 baseline trace 尚未采集，不能把 planning manifest 当成 30/30。
 - 三个未显式标记 `test-required` 的场景新增了测试，这只是 `unspecified` 观察，不能据此断言测试无价值；本轮没有任务超过两次即时测试预算，1 个任务超过单测试文件预算。
 - Maka 固定 CI-green revision 已通过 `npm ci`、`format:check`、`build:test`、`typecheck` 的真实 preflight，但完整 `npm test` 仍含 PTY、macOS 路径规范化和本机认证能力相关失败；只作为验证样本和环境分类证据。
 - 没有完整真实仓库 cohort，不能声称已经减少测试耗时或 CI 成本；也没有启用 Agent hook/permission 强制。
@@ -40,6 +43,6 @@
 
 ## 下一阶段
 
-1. 继续 Issue #30，补足 26 个不同 task；重复 trial 不计新任务。
+1. 按 26 个受控任务分批实现独立 oracle，再采集对应 baseline trace；重复 trial 不计新任务。
 2. 同步按 stacked 依赖顺序审阅现有 PR；不主动合并。
 3. 完成 30 个 baseline 后再实现 candidate/shadow adapter，随后执行 30 对比较与 oracle safety gate。
