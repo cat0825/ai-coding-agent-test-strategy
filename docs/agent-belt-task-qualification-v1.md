@@ -1,5 +1,7 @@
 # Agent-belt 30-task qualification v1
 
+> 状态：历史规划审计，已被 [Verification Policy Benchmark v0.1](verification-policy-benchmark-v0.1.md) 取代，不再作为正式 30-task 任务池。原文件保留用于解释为什么旧方案被放弃；不得继续为其中 26 个受控任务批量实现 oracle。
+
 ## 结论
 
 固定 `jfrog/agent-belt@90bd105b172adc41394f458e33b653dda2b199b0` 的 41 个 experience 场景已逐个审计。只有 Tasktracker 的 4 个编辑任务可直接保留；其余 37 个因为只读、Agent 专用、重复、开放式选题或 fixture 依赖不可重复而排除。

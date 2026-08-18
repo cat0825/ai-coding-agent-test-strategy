@@ -1,6 +1,6 @@
 # 项目状态
 
-状态：**Observatory MVP、state-aware collector v2 与 30-task 规划已实现 / 真实 baseline 证据仍为 4/30**
+状态：**Observatory MVP 与 state-aware collector v2 已实现 / Verification Policy pilot 工作区 6/6 合格 / 配对 trace 仍为 0/6**
 
 ## 已完成
 
@@ -31,18 +31,25 @@
 - Issue #33 的 state-aware collector v2 已实现：记录脱敏文件变化和起始目录摘要；命令 canonical id 保留 cwd、环境和目标语义摘要；证据不完整时不输出 `exact_repeat` 或 `unattributed_retry`。
 - Issue #30 的任务资格审计已落盘：41/41 上游场景有稳定选取或排除理由；保留 4 个 Tasktracker 编辑任务，补 26 个受控任务，形成 Tasktracker 16 + Calculator 14 的 30-task planning manifest。
 - 任务计划审计器会拒绝重复语义、定义摘要漂移和自报 collection/eligibility；真实临时 clone 预检中，Tasktracker 10 个测试和 Calculator 编译均通过，结论为 `planning_ready` 且 `quality_claim_eligible: false`。
+- 重新审视测评目标后，原 Tasktracker/Calculator 30-task 清单已降级为历史规划审计；它主要测编码能力和基础设施可用性，不再作为正式 Verification Policy benchmark。
+- 已实现 6 题 Verification Policy pilot：5 个 `verify_only`、1 个 `test_decision`，分别覆盖局部通过、相关回归、全量兜底、通过后停止、flaky 单次重试和必要回归测试。
+- 实现临时工作区物化器：从固定 revision 创建 clone，移除原始 Git 历史并只保留一条基线提交，再应用公开代码状态；Agent 无法通过原仓库 commit 找到答案。
+- 6/6 工作区通过真实资格检查：正确题通过、回归题失败、全量兜底题只在完整门禁失败、flaky 题结果为失败后通过、隐藏参考测试在新实现通过且在旧实现失败。
+- 全仓库 `npm run check` 通过，94/94 tests passed；设计报告仍标记 `quality_claim_eligible: false`。
 
 ## 未完成
 
 - agent-belt 探索性 go/no-go 与 timestamped rerun 均通过；当前只有 4 个 editing task 同时具备完整 baseline VerifyTrace 与独立 oracle，read-only task 没有稳定响应 oracle，配对 candidate run 也未开始，真实 eligible baseline 为 4/30。
-- 26 个受控任务只有固定定义、测试要求和 oracle id，独立 oracle 实现与 baseline trace 尚未采集，不能把 planning manifest 当成 30/30。
+- 原 26 个受控任务不再继续实现 oracle；旧 planning manifest 只保留为决策历史，不能当成 30/30。
 - 三个未显式标记 `test-required` 的场景新增了测试，这只是 `unspecified` 观察，不能据此断言测试无价值；本轮没有任务超过两次即时测试预算，1 个任务超过单测试文件预算。
 - Maka 固定 CI-green revision 已通过 `npm ci`、`format:check`、`build:test`、`typecheck` 的真实 preflight，但完整 `npm test` 仍含 PTY、macOS 路径规范化和本机认证能力相关失败；只作为验证样本和环境分类证据。
 - 没有完整真实仓库 cohort，不能声称已经减少测试耗时或 CI 成本；也没有启用 Agent hook/permission 强制。
 - Observatory MVP 的 Issue/PR 仍需按依赖顺序审阅和合并；本地 canonical fixture 不能替代真实 P1/P2 benchmark。
+- 6 题 pilot 还没有采集同一 Agent/模型的策略关闭与开启配对 VerifyTrace，因此不能声称测试时间或命令数量已经下降。
+- 当前 6 题都来自本仓库历史或受控故障，只用于隔离测评合同；正式 30 题仍需从多个真实 JS/TS 仓库选取。
 
 ## 下一阶段
 
-1. 按 26 个受控任务分批实现独立 oracle，再采集对应 baseline trace；重复 trial 不计新任务。
-2. 同步按 stacked 依赖顺序审阅现有 PR；不主动合并。
-3. 完成 30 个 baseline 后再实现 candidate/shadow adapter，随后执行 30 对比较与 oracle safety gate。
+1. 用相同 Agent、模型和六个固定工作区采集策略关闭 baseline trace。
+2. 接入当前推荐策略，以相同任务采集 candidate trace，并先检查 6 对是否漏故障。
+3. 六题配对成立后再从多个真实 JS/TS 仓库扩展正式 30 题；同步按 stacked 依赖顺序审阅现有 PR，不主动合并。

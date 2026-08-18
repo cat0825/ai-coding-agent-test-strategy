@@ -1,4 +1,4 @@
-# Handoff 2026-08-18 18:15 CST（Issue #30 任务资格检查点）
+# Handoff 2026-08-18 18:20 CST（Verification Policy pilot fixture-ready 检查点）
 
 ## 目标与方向
 
@@ -9,52 +9,50 @@
 ## 进度
 
 - Issue #33 实现与 5-task 验收：100%，draft PR #34 等待人工审阅。
-- Issue #30 任务资格实现：100%，draft PR #35 的 Node 20/24 CI 已通过，等待人工审阅。
-- 30-task planning：30/30 个不同任务已固定；真实 baseline evidence 仍为 4/30（13.3%）。
-- Candidate paired cohort：0/30；eligible oracle failures：0/10。
+- Issue #30 原任务资格实现保留为历史审计；draft PR #35 正在改为专用 Verification Policy benchmark，尚未推送本轮改动。
+- Verification Policy pilot：设计 6/6，工作区资格检查 6/6；baseline/candidate 配对仍为 0/6。
+- 历史 agent-belt editing baseline 仍为 4 个，但不再拿它和 26 个简单功能题拼正式 30-task benchmark。
 
 ## 当前真相
 
 - 仓库：`/Users/qianyuhe/Documents/ChatGPT/llm test`。
 - 分支：`codex/issue-30-qualify-baseline-tasks`，基于 `codex/issue-33-state-aware-verifytrace@29eec10`。
-- 实现提交：`9d60d61 feat: qualify agent-belt baseline tasks`。
+- 当前远端提交仍为 `e9bd535 docs: update issue 30 handoff`；本轮 Verification Policy 改动尚未提交。
 - GitHub：[Issue #30](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/30)；[draft PR #35](https://github.com/cat0825/ai-coding-agent-test-strategy/pull/35)，base 为 Issue #33 的分支。
-- 下一批已写入 [Issue #36](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/36)，只做 4 个 Tasktracker 核心任务，不吞并剩余全部工作。
-- 最新全量检查：`npm run check` 86/86 通过；`git diff --check` 与计划/报告隐私扫描通过。
+- [Issue #36](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/36) 的旧 Tasktracker oracle 批次暂停，不能按原方向执行。
+- 最新全量检查：`npm run check` 94/94 通过；6/6 pilot workspace qualification 通过。
 
-## Issue #30 已完成
+## 本轮已完成
 
-- 审计固定 agent-belt revision 的 41/41 experience 场景：保留 4 个已有 Tasktracker 编辑任务，37 个场景各有稳定排除原因。
-- 不计 Cursor/Claude 重复题、重复 trial、read-only 回复任务、MCP/plugin 专用场景、开放式自选问题和无法通过依赖预检的 fixture。
-- 新增 26 个受控核心任务：Tasktracker 12 个、Calculator 14 个；连同已有 4 个形成 30 个唯一 `semantic_task_key`。
-- 每个任务固定定义 SHA-256、fixture revision、risk class、明确测试要求、reset command 和 oracle id。
-- 规划清单禁止声明 collection status 或 `quality_claim_eligible`；真实 4/30 继续由 baseline cohort auditor 单独推导。
+- 新增 `verification-benchmark.mjs` 与 CLI，校验公开任务、隐藏 oracle、任务摘要、行为覆盖和禁止自报资格。
+- 新增 `verification-workspace.mjs` 与 CLI，从固定 revision 建隔离工作区，移除原始 Git 历史后应用公开 change/fault。
+- 六题覆盖 `local_pass`、`affected_failure`、`full_fallback`、`repeat_stop`、`flaky_retry`、`test_required`。
+- 两组隐藏参考测试都在新实现上退出 0、在旧实现上非零，证明它们不是只会通过的空测试。
+- 旧 30-task planning manifest 未删除，但文档已明确降级为历史规划，不得继续批量实现 26 个 oracle。
 
-## 真实预检证据
+## 真实资格证据
 
-- 41/41 上游场景摘要匹配，2/2 fixture revision 匹配。
-- Tasktracker 在临时 clone 中 reset 后 10 个 pytest 通过。
-- Calculator 在临时 clone 中 reset 后 `python3 -m compileall -q src` 通过。
-- 规划报告为 `planning_ready`，同时固定 `quality_claim_eligible: false`，原因是受控 oracle 和 baseline traces 尚未采集。
-- 全仓库测试 86/86 通过；新增 task-plan 回归测试 3/3 通过。
+- `npm run benchmark:verification` 输出 `design_ready: 6 pilot tasks`。
+- `npm run benchmark:verification:qualify` 输出 `fixture_ready: 6/6 tasks`。
+- 六题预期退出模式分别被实际复现；资格报告不保存命令输出和绝对工作区路径。
+- `npm run check` 94/94 通过；`git diff --check` 通过。
 
 ## 未完成
 
-1. PR #35 的 Node 20/24 CI 已通过，等待人工 review；PR #34 是它的 stacked 依赖。不要直接 merge 默认分支。
-2. 26 个受控任务只有定义和 oracle id，没有 oracle 实现与 baseline trace；真实 evidence deficit 仍为 26。
-3. Issue #36 还未开始：先实现 `tasktracker_edit_title`、`tasktracker_reopen`、`tasktracker_status_filter`、`tasktracker_search` 四个 oracle 和单次 baseline。
-4. Candidate/shadow adapter 尚无独立 Issue；必须等 30 个 baseline 完成后再建。
-5. 隔离执行 provider 与 stacked PR 集成治理仍未写成独立 Issue，但不是当前阻塞项。
+1. PR #34、#35 都是 draft 且上一轮 CI 通过；本轮改动尚未提交和推送，不能把旧 CI 当成当前验证结果。
+2. 六题还没有真实 baseline/candidate Agent trace，配对计数仍为 0/6。
+3. 当前任务来源只适合 pilot；多个真实 JS/TS 仓库的正式任务尚未选取。
+4. candidate/shadow adapter 还不能直接强制执行，只能先做六题观察模式。
 
 ## 下一步（可直接执行）
 
-1. 人工审阅/合并按 #34 → #35 的 stacked 顺序进行，不主动 merge。
-2. 从 Issue #36 开始四任务小批次：先 oracle fail/pass 夹具，再单次 baseline，最后更新 cohort；不要并行扩成 26 个任务。
-3. 每批只有完整 collector-v2 trace 和独立 oracle 同时通过才增加 baseline 计数。
+1. 提交并推送本轮改动，让 PR #35 重新跑 Node 20/24 CI；仍不主动 merge。
+2. 为单题物化 + Agent lifecycle collector 建固定入口，先采集六题 baseline。
+3. baseline 完整后才跑 candidate；每题只有公开任务摘要、完整 collector-v2 trace 和隐藏 oracle 同时匹配才计入配对。
 
 ## 风险与红线
 
-- `planning_ready` 只表示任务定义和 fixture 可以开始下一步，不是 30/30 evidence。
-- Calculator 的 14 个任务是受控规划；未实现 oracle 前不执行 Agent、不计入 cohort。
+- `fixture_ready` 只表示六题现场真实可复现，不是策略有效，也不是正式 30/30 evidence。
+- Calculator/Tasktracker 旧任务不再扩写；不能因为已经花过工作量就继续错误方向。
 - 不拿计划条目、重复运行、只读任务或 Agent 自写测试充当独立 oracle。
 - 不迁移 DSH，不做边缘安全用例，不直接 merge，不回滚用户改动。

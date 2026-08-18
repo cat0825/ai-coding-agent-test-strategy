@@ -4,7 +4,7 @@
 
 ## 当前进度
 
-**Observatory MVP 代码和本地 calibration 已完成；30-task 规划清单与 fixture 预检已通过，但真实 baseline 仍只有 4/30，当前不足以支持总体效率或质量声明。**
+**Observatory MVP 与 state-aware collector 已完成；专用 Verification Policy Benchmark 的 6 题 pilot 已完成工作区资格检查，但还没有 baseline/candidate 配对 trace，当前不足以支持效率或质量声明。**
 
 - 已完成 Google、OpenAI Codex、Aider、Claude Code、GitHub Copilot、Meta 等实践的横向比较。
 - 已提炼四档验证强度：`off`、`smoke`、`standard`、`thorough`。
@@ -14,7 +14,8 @@
 - 已实现 `verify.sh`、受影响 workspace 发现、unknown fallback、命令存在性校验和 JSONL 验证账本。
 - 已用 Maka 的固定 CI-green revision 完成一次真实 preflight，作为仓库无关实现的验证样本；未改动 Maka 源码。
 - 通用 baseline cohort 已采集 4 个 editing task；cohort auditor 输出 `4/30`、`evidence_insufficient`，详见 [STATUS.md](STATUS.md) 与 [agent-belt-baseline-report.json](fixtures/benchmark/agent-belt-baseline-report.json)。
-- Issue #30 已审计 agent-belt 41 个 experience 场景，并形成 30 个不同任务、2 个 fixture 的 planning manifest；26 个新任务仍需独立 oracle 和真实 trace，详见 [Agent-belt 30-task qualification v1](docs/agent-belt-task-qualification-v1.md)。
+- 原 Issue #30 的 Calculator/Tasktracker 30-task 清单已降级为历史规划审计，不再继续扩写 oracle。
+- 已建立与产品目标直接对应的 6 题 Verification Policy pilot；隔离工作区和隐藏 oracle 资格检查为 6/6，详见 [Verification Policy Benchmark v0.1](docs/verification-policy-benchmark-v0.1.md)。
 
 ## 核心结论
 
@@ -30,6 +31,7 @@
 - [完整研究报告](docs/ai-coding-agent-test-strategy.md)：纵向演进、成熟团队案例、状态机、落地顺序和参考资料。
 - [PDF 报告](output/pdf/ai-coding-agent-test-strategy.pdf)：适合阅读和分发的 16 页版本。
 - [实验与校准方案](docs/experiment-and-calibration.md)：pilot 设计、指标、fallback 和审计契约。
+- [Verification Policy Benchmark v0.1](docs/verification-policy-benchmark-v0.1.md)：六题隔离测评、隐藏判分和当前证据边界。
 - [当前状态与下一步](STATUS.md)：明确已完成、未完成和下一阶段实现边界。
 - [贡献指南](CONTRIBUTING.md)：Issue/PR 边界、验证命令和证据要求。
 
@@ -140,6 +142,25 @@ npm run benchmark:tasks -- \
 
 该命令只验证任务唯一性、源文件摘要、fixture revision、reset 和原始测试；`planning_ready` 不等于 30/30，清单不能声明 collection status 或质量资格。
 
+该清单现仅作为历史规划审计保留，正式方向已经切换到 Verification Policy pilot。验证六题合同并实际复现工作区：
+
+```sh
+npm run benchmark:verification -- \
+  --plan fixtures/benchmark/verification-policy-pilot-plan.json \
+  --oracles fixtures/benchmark/verification-policy-pilot-oracles.json \
+  --output fixtures/benchmark/verification-policy-pilot-report.json
+
+npm run benchmark:verification:qualify -- \
+  --plan fixtures/benchmark/verification-policy-pilot-plan.json \
+  --oracles fixtures/benchmark/verification-policy-pilot-oracles.json \
+  --repo . \
+  --output fixtures/benchmark/verification-policy-pilot-qualification.json
+```
+
+前者检查任务结构和隐藏答案隔离；后者从固定 revision 创建临时工作区并实际验证六种退出模式。当前结果为 `fixture_ready: 6/6`，仍不等于配对实验完成。
+
+单题 Agent run 使用 `npm run benchmark:verification:prepare` 创建无原始 Git 历史的工作区；参数与绑定要求见 [Verification Policy Benchmark v0.1](docs/verification-policy-benchmark-v0.1.md)。
+
 为新的 agent-belt run 采集带 UTC/monotonic 时间的 Codex shell lifecycle sidecar，并生成 fail-closed VerifyTrace：
 
 ```sh
@@ -161,9 +182,9 @@ Collector v2 不保存命令、输出、凭据或绝对工作区路径；它保�
 
 下一阶段按以下顺序推进：
 
-1. 按规划清单为 26 个新任务分批实现独立 oracle 并采集 baseline trace；不拿计划条目、旧 trace 或重复 trial 补数量。
-2. 在同一合格仓库/任务集上采集至少 30 个基线任务，再实现并采集 30 个 shadow task。
-3. 依据配对结果和 oracle safety gate 决定是否启用有限强制；在此之前不做效率宣传。
+1. 在 6 个 Verification Policy pilot 现场上，使用同一 Agent/模型分别采集策略关闭与开启的配对 VerifyTrace。
+2. 只有六题均不漏故障且能测出停止、重试和全量兜底差异，才从多个真实 JS/TS 仓库扩展正式任务。
+3. 正式任务达到 30 对后再执行 oracle safety gate；在此之前不做效率宣传，也不迁移 DSH。
 
 ## 研究时间
 
