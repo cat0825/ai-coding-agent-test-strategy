@@ -13,15 +13,17 @@
 3. 明确的停止规则能减少同一失败的重复执行、无归因修复和测试代码扩张。
 4. 测试文件数、测试代码比例和 90 秒预算只能作为初始先验，不能在没有仓库数据时成为永久门禁。
 
-## Pilot 仓库
+## Pilot 仓库选择
 
-首选本地 `maka-agent`，原因如下：
+基准面向通用 coding agent，不预设单一实现。仓库或任务集必须满足：
 
-- TypeScript/npm workspaces monorepo，包含桌面端、运行时、存储、CLI 和 UI 等不同风险层级。
-- 已提供 `typecheck`、`test:fast`、`test`、`test:full` 和 workspace 级测试入口。
-- 同时存在快速验证、构建后测试和外部依赖/E2E 场景，适合验证分层策略。
+- 项目公开，且核心用途是 coding agent 或其直接运行时；
+- 固定一个官方 CI-green revision，并在 manifest 中记录仓库身份与 commit；
+- install、build、typecheck/test 等声明 gate 可重复执行，失败能够保留并分类；
+- 从固定提交创建独立 clean worktree，不使用包含用户改动的工作区；
+- baseline 与 candidate 使用同一合格仓库/任务集，避免样本漂移。
 
-正式实验必须从干净提交创建独立 worktree，不使用当前包含用户改动的工作区。
+Maka 已用于验证 preflight 的可执行性和脱敏边界，只是一个历史样本及 policy adapter 示例，不是默认或唯一 benchmark 仓库。
 
 ## 实验阶段
 
@@ -127,6 +129,8 @@
 - override 不修改历史记录；账本同时保留原建议、覆盖决定和最终命令。
 
 每个验证事件至少记录：
+
+下面的 Maka 命令只演示仓库特定 adapter 如何写入通用账本字段：
 
 ```json
 {

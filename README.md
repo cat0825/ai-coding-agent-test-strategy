@@ -11,8 +11,8 @@
 - 已完成 Google、OpenAI Codex、Aider、Claude Code、GitHub Copilot、Meta 等实践的横向比较。
 - 已提炼四档验证强度：`off`、`smoke`、`standard`、`thorough`，并形成状态机、预算、停止规则和 fallback。
 - 已实现 `verify.sh`、受影响 workspace 发现、unknown fallback、命令存在性校验和 JSONL 验证账本。
-- 已形成实验指标、任务集调研和 ground-truth 方案；真实 benchmark 尚未开始。
-- 旧 Maka pilot 只作为历史验证记录，不再是本项目当前下一步。
+- 已用 Maka 的固定 CI-green revision 完成一次真实 preflight，作为仓库无关实现的验证样本；未改动 Maka 源码。
+- 通用 coding-agent baseline cohort 尚未采集；当前证据不足以支持效率或质量声明，详见 [STATUS.md](STATUS.md)。
 
 ## 核心结论
 
@@ -58,7 +58,7 @@ npm run check
 ./scripts/verify.sh affected --repo /path/to/repo --policy policies/maka-agent.json
 ```
 
-默认是 plan-only shadow 模式；加 `--execute --mode baseline` 才会执行并把每条命令的耗时、退出码写入 JSONL 账本。
+这里的 Maka policy 是仓库适配示例，不是产品边界。默认是 plan-only shadow 模式；加 `--execute --mode baseline` 才会执行并把每条命令的耗时、退出码写入 JSONL 账本。
 
 将已验证的 VerifyTrace 生成为无需服务器或网络的静态回放：
 
@@ -84,21 +84,21 @@ npm run evaluate
 
 评测报告会明确区分 `evidence_insufficient`、`rejected` 和可支持效率声明的状态；外部 P1/P2 benchmark 不在 MVP 内。
 
+真实 benchmark 开始前，先对 pinned worktree、runtime、安装证据和 command 前置关系生成脱敏环境清单：
+
+```sh
+npm run benchmark:preflight -- --repo /path/to/worktree --spec /path/to/spec.json --output output/benchmark/environment.json
+```
+
+契约与 fail-closed 规则见 [Benchmark environment manifest v1](docs/benchmark-environment-v1.md)。
+
 ## 下一阶段
 
 只在本仓库内按以下顺序推进：
 
-完整依赖和验收闸门见 [Observatory MVP 路线图](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/1)：
-
-1. [发布范围、状态与任务集研究](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/2)。
-2. [增加 CI 与贡献闸门](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/3)。
-3. [冻结 VerifyTrace v1 schema 与三类 fixture](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/4)。
-4. [实现确定性 trace 诊断](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/5)。
-5. [生成自包含 HTML 回放](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/6)。
-6. [增加专家模式与简化模式](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/7)。
-7. [建立 MVP 评测与安全闸门](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/8)。
-
-在上述链路跑通前，不启用硬拦截，不宣称真实项目提速或质量不变。
+1. 按公开 coding-agent 项目、CI-green 固定 revision、可重复 install/build/test、独立 clean worktree 的标准选择仓库与任务集，并由 preflight 固定环境。
+2. 在同一合格仓库/任务集上采集至少 30 个基线任务和 30 个 shadow 任务，比较命令数、耗时、失败漏检和 fallback 比例。
+3. 依据数据校准预算和停止规则，再决定是否在 Agent hook/permission 层启用有限强制。
 
 ## 研究时间
 

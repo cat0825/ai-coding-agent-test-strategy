@@ -10,7 +10,7 @@ VerifyTrace is the replay contract for the Observatory. It represents observed v
   "trace_id": "trace-<content hash>",
   "task_id": "stable task id",
   "run_id": "run id or null",
-  "harness": "codex|maka|opencode or null",
+  "harness": "stable harness identifier or null",
   "model": "fixed model id or null",
   "repository": "repository reference or null",
   "repository_commit": "git sha or null",
@@ -22,6 +22,8 @@ VerifyTrace is the replay contract for the Observatory. It represents observed v
   "events": []
 }
 ```
+
+`harness` 接受任意稳定、非空的执行器标识，不枚举或限制具体 coding agent。
 
 `partial` is required when source evidence ends before an explicit `stop` event. Consumers must surface `missing_stop_event`; they must not treat it as a successful stop. A `complete` trace must end with `stop`.
 
