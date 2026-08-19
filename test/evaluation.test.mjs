@@ -66,6 +66,20 @@ test("a failed failure-recall safety gate blocks efficiency claims", async () =>
   assert.ok(report.conclusion.reason_codes.includes("failed_safety_gate:failure_recall"));
 });
 
+test("comparison integrity rejects mislabeled or unpaired candidate evidence", async () => {
+  const { cohort, traces } = await loadCohort();
+  const candidate = structuredClone(traces.get("exact-repeat-suppressed"));
+  candidate.mode = "baseline";
+  candidate.model = "different-model";
+  traces.set("exact-repeat-suppressed", candidate);
+
+  const report = evaluateCohort(cohort, traces);
+  const comparison = report.comparisons.find(({ id }) => id === "repeat-pass");
+  assert.equal(comparison.comparison_integrity, false);
+  assert.deepEqual(comparison.comparison_integrity_reasons, ["model_mismatch", "candidate_mode_mismatch"]);
+  assert.equal(report.gates.find((gate) => gate.id === "comparison_integrity").status, "fail");
+});
+
 test("positive claims require explicit observed evidence and passing gates", async () => {
   const { cohort, traces } = await loadCohort();
   cohort.evidence_class = "observed_benchmark";

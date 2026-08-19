@@ -1,26 +1,25 @@
 #!/usr/bin/env node
 
-import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
-import { promisify } from "node:util";
 import { convertAgentBeltLifecycleToTrace, parseNdjson } from "./agent-belt-trace.mjs";
 import { stableJson } from "./benchmark-preflight.mjs";
-import { verificationTaskDefinitionDigest } from "./verification-benchmark.mjs";
+import { verifyCollectorProvenance } from "./collector-provenance.mjs";
+import { validateVerificationBenchmark } from "./verification-benchmark.mjs";
 import {
+  matchRequiredFailureSignatures,
+  verificationPostRunWorkspaceSha256,
   verificationWorkspaceChangedFiles,
   verificationWorkspaceFileSha256,
-  verificationWorkspaceStateSha256,
+  verifyMaterializedVerificationTask,
 } from "./verification-workspace.mjs";
 
-const execFileAsync = promisify(execFile);
 const SHA256 = /^[a-f0-9]{64}$/i;
-const GIT_REVISION = /^[a-f0-9]{40}$/i;
 
 function usage() {
-  return "Usage: node src/verification-trace-cli.mjs --plan PLAN --task-manifest TASK_JSON --stream STREAM_NDJSON --lifecycle LIFECYCLE_NDJSON --collector COLLECTOR_JSON --run-id ID --harness NAME --model MODEL --output TRACE_JSON\n";
+  return "Usage: node src/verification-trace-cli.mjs --plan PLAN --oracles ORACLES --repo REPOSITORY --task-manifest TASK_JSON --stream STREAM_NDJSON --lifecycle LIFECYCLE_NDJSON --collector COLLECTOR_JSON --run-id ID --harness NAME --model MODEL --mode baseline|shadow --policy-name NAME --policy-version VERSION --output TRACE_JSON\n";
 }
 
 function parseArguments(argv) {
@@ -28,7 +27,7 @@ function parseArguments(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--help" || argument === "-h") return { help: true };
-    if (["--plan", "--task-manifest", "--stream", "--lifecycle", "--collector", "--run-id", "--harness", "--model", "--output"].includes(argument)) {
+    if (["--plan", "--oracles", "--repo", "--task-manifest", "--stream", "--lifecycle", "--collector", "--run-id", "--harness", "--model", "--mode", "--policy-name", "--policy-version", "--output"].includes(argument)) {
       const value = argv[index + 1];
       if (!value || value.startsWith("--")) throw new Error(`${argument} requires a value`);
       options[argument.slice(2).replaceAll("-", "_")] = value;
@@ -46,11 +45,6 @@ function sha256(value) {
 
 async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, "utf8"));
-}
-
-async function git(arguments_, cwd) {
-  const { stdout } = await execFileAsync("git", arguments_, { cwd, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
-  return stdout;
 }
 
 function safeChangedFiles(records) {
@@ -77,36 +71,30 @@ async function main(argv) {
     process.stdout.write(usage());
     return;
   }
-  for (const option of ["plan", "task_manifest", "stream", "lifecycle", "collector", "run_id", "harness", "model", "output"]) {
+  for (const option of ["plan", "oracles", "repo", "task_manifest", "stream", "lifecycle", "collector", "run_id", "harness", "model", "mode", "policy_name", "policy_version", "output"]) {
     if (!options[option]) throw new Error(`--${option.replaceAll("_", "-")} is required`);
   }
+  if (!["baseline", "shadow"].includes(options.mode)) throw new Error("--mode must be baseline or shadow");
 
   const plan = await readJson(path.resolve(options.plan));
+  const oracles = await readJson(path.resolve(options.oracles));
+  const designErrors = validateVerificationBenchmark(plan, oracles);
+  if (designErrors.length > 0) throw new Error(`Invalid Verification Policy benchmark: ${designErrors.map(({ path: field, message }) => `${field} ${message}`).join("; ")}`);
   const manifest = await readJson(path.resolve(options.task_manifest));
-  const collector = await readJson(path.resolve(options.collector));
-  const task = plan.tasks?.find(({ task_id: taskId }) => taskId === manifest.task_id);
-  if (!task) throw new Error(`Task manifest references unknown task: ${manifest.task_id}`);
-  if (verificationTaskDefinitionDigest(task.definition) !== task.scenario_definition_sha256
-    || manifest.scenario_definition_sha256 !== task.scenario_definition_sha256) {
-    throw new Error("Task definition digest does not match the public plan");
-  }
-  if (!GIT_REVISION.test(manifest.workspace_revision ?? "")) throw new Error("Task manifest requires workspace_revision");
-  if (!SHA256.test(manifest.workspace_state_sha256 ?? "")) throw new Error("Task manifest requires workspace_state_sha256");
+  const collectorPath = path.resolve(options.collector);
+  const collector = await readJson(collectorPath);
   if (!SHA256.test(collector.collector_sha256 ?? "")) throw new Error("Collector manifest requires collector_sha256");
-  if (JSON.stringify([...(manifest.changed_files ?? [])].sort()) !== JSON.stringify([...task.definition.changed_files].sort())) {
-    throw new Error("Task manifest changed_files do not match the public plan");
-  }
-  if (manifest.changed_file_sha256 === null || typeof manifest.changed_file_sha256 !== "object"
-    || Array.isArray(manifest.changed_file_sha256)
-    || JSON.stringify(Object.keys(manifest.changed_file_sha256).sort()) !== JSON.stringify([...manifest.changed_files].sort())
-    || Object.values(manifest.changed_file_sha256).some((value) => value !== null && !SHA256.test(value))) {
-    throw new Error("Task manifest changed_file_sha256 must bind every declared changed file");
-  }
-
-  const workspace = path.resolve(manifest.workspace);
-  const observedRevision = (await git(["rev-parse", "HEAD"], workspace)).trim();
-  if (observedRevision !== manifest.workspace_revision) throw new Error("Workspace revision does not match the task manifest");
-  const finalStateSha256 = await verificationWorkspaceStateSha256(workspace);
+  const collectorBinding = await verifyCollectorProvenance({
+    collector,
+    collectorManifestPath: collectorPath,
+    controlledCollectorPath: new URL("../scripts/codex-lifecycle-wrapper.py", import.meta.url),
+  });
+  const { task, fixture, workspace, sourceBinding } = await verifyMaterializedVerificationTask({
+    plan,
+    taskManifest: manifest,
+    sourceRepository: await realpath(options.repo),
+  });
+  const finalStateSha256 = await verificationPostRunWorkspaceSha256(workspace);
   const workspaceStateChanged = finalStateSha256 !== manifest.workspace_state_sha256;
   const finalChangedFiles = await verificationWorkspaceChangedFiles(workspace);
   const finalInitialFileSha256 = await verificationWorkspaceFileSha256(workspace, manifest.changed_files);
@@ -122,6 +110,19 @@ async function main(argv) {
   const streamContents = await readFile(streamPath, "utf8");
   const lifecycle = parseNdjson(lifecycleContents, "Codex lifecycle");
   const stream = parseNdjson(streamContents, "Codex stream");
+  const oracle = oracles.oracles.find(({ task_id: taskId }) => taskId === task.task_id);
+  if (!oracle) throw new Error(`Missing oracle for task ${task.task_id}`);
+  const failureSignaturesByCallId = {};
+  for (const { record } of stream) {
+    if (record.type !== "item.completed" || record.item?.type !== "command_execution" || record.item.exit_code === 0) continue;
+    const matched = oracle.required_failure_signatures.filter((signature) => matchRequiredFailureSignatures([signature], [{
+      exit_code: record.item.exit_code,
+      stdout: typeof record.item.aggregated_output === "string" ? record.item.aggregated_output : "",
+      stderr: "",
+    }]));
+    if (matched.length > 1) throw new Error(`Command ${record.item.id} matches multiple oracle failure signatures`);
+    if (matched.length === 1) failureSignaturesByCallId[record.item.id] = matched[0];
+  }
   const observedAgentFileChanges = safeChangedFiles(lifecycle);
   const outcomeFilesModified = [...agentChangedFiles].sort();
   const outcome = stableJson({
@@ -131,9 +132,6 @@ async function main(argv) {
     final_agent_changed_files: outcomeFilesModified,
     observed_agent_file_changes: observedAgentFileChanges,
   });
-  const fixture = plan.fixtures?.find(({ fixture_id: fixtureId }) => fixtureId === task.fixture_id);
-  if (!fixture) throw new Error(`Task references unknown fixture: ${task.fixture_id}`);
-
   const trace = convertAgentBeltLifecycleToTrace({
     lifecycle,
     stream,
@@ -143,12 +141,20 @@ async function main(argv) {
       harness: options.harness,
       model: options.model,
       repository: fixture.repository.identity,
-      repositoryCommit: manifest.workspace_revision,
+      repositoryCommit: sourceBinding.source_base_revision,
+      mode: options.mode,
+      policyName: options.policy_name,
+      policyVersion: options.policy_version,
+      workspaceRevision: sourceBinding.workspace_revision,
+      sourceTree: sourceBinding.source_tree,
       scenarioDefinitionSha256: task.scenario_definition_sha256,
-      collectorSha256: collector.collector_sha256,
+      oracleDefinitionSha256: sha256(stableJson(oracle)),
+      failureSignaturesByCallId,
+      collectorSha256: collectorBinding.collector_sha256,
       initialChangedFiles: manifest.changed_files,
       initialStateSha256: manifest.workspace_state_sha256,
       finalStateSha256,
+      postRunWorkspaceSha256: finalStateSha256,
       workspaceStateChanged,
       sourceFormat: "codex-cli-lifecycle-v2",
     },

@@ -10,7 +10,7 @@ const TEST_RUNNER_RULES = Object.freeze([
     },
   },
   {
-    pattern: /(?:^|[\s"';&|])(npm|pnpm|yarn|bun)\s+(?:run\s+)?(test|t)(?:\s|$)/i,
+    pattern: /(?:^|[\s"';&|])(npm|pnpm|yarn|bun)\s+(?:run\s+)?(test|t)(?=[\s"']|$)/i,
     normalize(match) {
       return [match[1].toLowerCase(), match[2].toLowerCase() === "t" ? "test" : match[2].toLowerCase()];
     },

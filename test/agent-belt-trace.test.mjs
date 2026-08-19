@@ -107,6 +107,9 @@ function convert(lifecycle = lifecycleRecords(), stream = streamRecords(), outco
       model: null,
       repository: "jfrog/agent-belt",
       repositoryCommit: revision,
+      mode: "baseline",
+      policyName: "unmanaged-coding-agent-baseline",
+      policyVersion: "1",
       scenarioDefinitionSha256: digest,
       collectorSha256: digest,
       ...bindingOverrides,
@@ -132,6 +135,8 @@ test("converts paired lifecycle evidence into a sanitized complete VerifyTrace",
   assert.match(result.data.canonical_command_id, /^baseline:pytest:semantic:[a-f0-9]{64}$/);
   assert.equal(trace.events.at(-1).data.reason, "observed_turn_completed");
   assert.equal(trace.source.scenario_definition_sha256, digest);
+  assert.equal(trace.mode, "baseline");
+  assert.deepEqual(trace.policy, { name: "unmanaged-coding-agent-baseline", version: "1" });
   assert.equal(validateTrace(trace).valid, true);
   assert.doesNotMatch(JSON.stringify(trace), /secret|private|aggregated_output|TOKEN/);
 });
@@ -151,6 +156,23 @@ test("direct Codex traces bind the materialized task state", () => {
   assert.equal(trace.source.initial_workspace_state_sha256, "d".repeat(64));
   assert.equal(trace.source.workspace_state_changed, false);
   assert.equal(trace.completeness, "complete");
+});
+
+test("post-run oracle matching binds a semantic failure signature without raw output", () => {
+  const lifecycle = lifecycleRecords().map((record) => record.event === "item.completed"
+    ? { ...record, exit_code: 1 }
+    : record);
+  const stream = streamRecords().map((record) => record.type === "item.completed" && record.item?.type === "command_execution"
+    ? { ...record, item: { ...record.item, exit_code: 1 } }
+    : record);
+  const trace = convert(lifecycle, stream, [], {
+    oracleDefinitionSha256: "f".repeat(64),
+    failureSignaturesByCallId: { item_1: "evaluation:quality-claim-regression" },
+  });
+  const result = trace.events.find(({ event_type }) => event_type === "test_result");
+  assert.equal(result.data.failure_signature, "evaluation:quality-claim-regression");
+  assert.equal(trace.source.oracle_definition_sha256, "f".repeat(64));
+  assert.doesNotMatch(JSON.stringify(trace), /aggregated_output/);
 });
 
 test("unobserved workspace changes make a direct trace partial", () => {

@@ -20,6 +20,9 @@
       "status": "collected",
       "trace_id": "trace-d3a36c0da35808f56bcbcce15559ea02a2f8509066277092c38a4795cb05842f",
       "trace_path": "traces/l2_add_completed_at.json",
+      "oracle_report_path": "oracles/l2_add_completed_at.json",
+      "oracle_report_sha256": "d93c7894eba025cb2327be6ada37b93b351471d2b78bec7c4d016d1d97a066a5",
+      "oracle_definition_sha256": "cdf7e0f2f452c65f088081fc26d4c9dcf8254aaa2e79a8b4ff5ef267cc960a69",
       "repository_commit": "90bd105b172adc41394f458e33b653dda2b199b0",
       "environment_manifest_digest": "0a9f5458397cc40211ebe10e43bdee59fec4d47334b8ef1b3d75bdc920cc4165",
       "evidence": {
@@ -28,9 +31,7 @@
         "build_status": "passed",
         "test_status": "passed",
         "clean_worktree": true,
-        "failure_class": "none",
-        "oracle_status": "passed",
-        "oracle_failure_signatures": []
+        "failure_class": "none"
       }
     },
     {
@@ -38,6 +39,9 @@
       "status": "collected",
       "trace_id": "trace-22408bd40cfdf1c3d0328088b2cd5b34328f0eddc04cdf12c6e73ccb3b4b9402",
       "trace_path": "traces/l2_fix_formatter_bug.json",
+      "oracle_report_path": "oracles/l2_fix_formatter_bug.json",
+      "oracle_report_sha256": "af9881d71c68c516164b30ce5a3d0217d0ee7fb937e736db599be8648c69bc02",
+      "oracle_definition_sha256": "cdf7e0f2f452c65f088081fc26d4c9dcf8254aaa2e79a8b4ff5ef267cc960a69",
       "repository_commit": "90bd105b172adc41394f458e33b653dda2b199b0",
       "environment_manifest_digest": "0a9f5458397cc40211ebe10e43bdee59fec4d47334b8ef1b3d75bdc920cc4165",
       "evidence": {
@@ -46,9 +50,7 @@
         "build_status": "passed",
         "test_status": "passed",
         "clean_worktree": true,
-        "failure_class": "none",
-        "oracle_status": "passed",
-        "oracle_failure_signatures": []
+        "failure_class": "none"
       }
     },
     {
@@ -56,6 +58,9 @@
       "status": "collected",
       "trace_id": "trace-85aa9455e08e489f0ac5318bcfbe4ee0bc2432957826d165747673adea788de2",
       "trace_path": "traces/l3_add_delete_command.json",
+      "oracle_report_path": "oracles/l3_add_delete_command.json",
+      "oracle_report_sha256": "87b87ee454311535be4a1e29fddb74bc988d4ac13741ac3737f461aac030941f",
+      "oracle_definition_sha256": "cdf7e0f2f452c65f088081fc26d4c9dcf8254aaa2e79a8b4ff5ef267cc960a69",
       "repository_commit": "90bd105b172adc41394f458e33b653dda2b199b0",
       "environment_manifest_digest": "0a9f5458397cc40211ebe10e43bdee59fec4d47334b8ef1b3d75bdc920cc4165",
       "evidence": {
@@ -64,9 +69,7 @@
         "build_status": "passed",
         "test_status": "passed",
         "clean_worktree": true,
-        "failure_class": "none",
-        "oracle_status": "passed",
-        "oracle_failure_signatures": []
+        "failure_class": "none"
       }
     },
     {
@@ -74,6 +77,9 @@
       "status": "collected",
       "trace_id": "trace-5ec98d008a29c47a1cab93d650166008ae5920b0e850581e11b9d7a360483c7a",
       "trace_path": "traces/l3_add_json_format.json",
+      "oracle_report_path": "oracles/l3_add_json_format.json",
+      "oracle_report_sha256": "3cf228211430ce7104c2252677036c77098552658fe89447f864893563f12f1f",
+      "oracle_definition_sha256": "cdf7e0f2f452c65f088081fc26d4c9dcf8254aaa2e79a8b4ff5ef267cc960a69",
       "repository_commit": "90bd105b172adc41394f458e33b653dda2b199b0",
       "environment_manifest_digest": "0a9f5458397cc40211ebe10e43bdee59fec4d47334b8ef1b3d75bdc920cc4165",
       "evidence": {
@@ -82,9 +88,7 @@
         "build_status": "passed",
         "test_status": "passed",
         "clean_worktree": true,
-        "failure_class": "none",
-        "oracle_status": "passed",
-        "oracle_failure_signatures": []
+        "failure_class": "none"
       }
     }
   ]

@@ -70,6 +70,15 @@ function assertCohort(cohort, tracesById) {
   if (!EVIDENCE_CLASSES.has(cohort.evidence_class)) throw new Error("Evaluation cohort has an unsupported evidence_class");
   if (!Array.isArray(cohort.traces) || cohort.traces.length === 0) throw new Error("Evaluation cohort requires traces");
   if (!Array.isArray(cohort.comparisons) || cohort.comparisons.length === 0) throw new Error("Evaluation cohort requires comparisons");
+  if (cohort.pairing?.baseline?.mode !== "baseline" || cohort.pairing?.candidate?.mode !== "shadow") {
+    throw new Error("Evaluation cohort pairing must declare baseline and shadow modes");
+  }
+  for (const role of ["baseline", "candidate"]) {
+    if (typeof cohort.pairing[role].policy?.name !== "string" || cohort.pairing[role].policy.name.length === 0
+      || typeof cohort.pairing[role].policy?.version !== "string" || cohort.pairing[role].policy.version.length === 0) {
+      throw new Error(`Evaluation cohort pairing ${role} requires policy name and version`);
+    }
+  }
   for (const threshold of REQUIRED_THRESHOLDS) {
     if (!Number.isFinite(cohort.thresholds?.[threshold]) || cohort.thresholds[threshold] < 0) throw new Error(`Evaluation cohort requires non-negative threshold ${threshold}`);
   }
@@ -94,6 +103,32 @@ function assertCohort(cohort, tracesById) {
       throw new Error(`Comparison ${comparison.id} requires quality_claim_eligible`);
     }
   }
+}
+
+function pairingIntegrityReasons(comparison, baseline, candidate, pairing) {
+  const reasons = [];
+  if (baseline.task_id !== comparison.task_id) reasons.push("baseline_task_id_mismatch");
+  if (candidate.task_id !== comparison.task_id) reasons.push("candidate_task_id_mismatch");
+  if (!baseline.repository || baseline.repository !== candidate.repository) reasons.push("repository_mismatch");
+  if (!baseline.repository_commit || baseline.repository_commit !== candidate.repository_commit) reasons.push("repository_revision_mismatch");
+  if (!baseline.harness || baseline.harness !== candidate.harness) reasons.push("harness_mismatch");
+  if (!baseline.model || baseline.model !== candidate.model) reasons.push("model_mismatch");
+  for (const [role, trace] of [["baseline", baseline], ["candidate", candidate]]) {
+    const contract = pairing[role];
+    if (trace.mode !== contract.mode) reasons.push(`${role}_mode_mismatch`);
+    if (trace.policy?.name !== contract.policy.name || trace.policy?.version !== contract.policy.version) {
+      reasons.push(`${role}_policy_mismatch`);
+    }
+  }
+  const scenarioDigests = [baseline.source?.scenario_definition_sha256, candidate.source?.scenario_definition_sha256];
+  if (scenarioDigests.some((value) => value !== undefined) && scenarioDigests[0] !== scenarioDigests[1]) {
+    reasons.push("scenario_definition_mismatch");
+  }
+  const workspaceRevisions = [baseline.source?.workspace_revision, candidate.source?.workspace_revision];
+  if (workspaceRevisions.some((value) => value !== undefined) && workspaceRevisions[0] !== workspaceRevisions[1]) {
+    reasons.push("workspace_revision_mismatch");
+  }
+  return reasons;
 }
 
 function commandNormalization(trace) {
@@ -304,7 +339,8 @@ export function evaluateCohort(cohort, tracesInput) {
     const candidateFinalStatus = finalStatus(candidate);
     const oracleMatch = candidateFinalStatus === comparison.oracle.final_status;
     if (oracleMatch) finalOracleMatches += 1;
-    const integrityMatch = baseline.task_id === comparison.task_id && candidate.task_id === comparison.task_id;
+    const integrityReasons = pairingIntegrityReasons(comparison, baseline, candidate, cohort.pairing);
+    const integrityMatch = integrityReasons.length === 0;
     if (integrityMatch) comparisonIntegrityMatches += 1;
 
     return {
@@ -314,6 +350,7 @@ export function evaluateCohort(cohort, tracesInput) {
       candidate_trace: comparison.candidate_trace,
       quality_claim_eligible: comparison.quality_claim_eligible === true,
       comparison_integrity: integrityMatch,
+      comparison_integrity_reasons: integrityReasons,
       oracle: comparison.oracle,
       candidate_final_status: candidateFinalStatus,
       final_oracle_match: oracleMatch,
@@ -357,7 +394,7 @@ export function evaluateCohort(cohort, tracesInput) {
       cohort.traces.length,
     ),
     comparison_integrity: metric(
-      "Baseline and candidate traces matching the declared task id / all comparisons",
+      "Baseline/candidate pairs matching task, repository revision, harness, model, mode, policy, and available scenario/workspace bindings / all comparisons",
       comparisonIntegrityMatches,
       cohort.comparisons.length,
     ),

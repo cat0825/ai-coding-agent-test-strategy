@@ -4,10 +4,12 @@ import { appendFile, lstat, mkdir, mkdtemp, readFile, readlink, realpath, rm, wr
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { validateVerificationBenchmark, VerificationBenchmarkValidationError } from "./verification-benchmark.mjs";
+import { validateVerificationBenchmark, verificationTaskDefinitionDigest, VerificationBenchmarkValidationError } from "./verification-benchmark.mjs";
 
 const execFileAsync = promisify(execFile);
 const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
+const SHA256 = /^[a-f0-9]{64}$/i;
+const GIT_REVISION = /^[a-f0-9]{40}$/i;
 
 function taskById(plan, taskId) {
   const task = plan.tasks.find((candidate) => candidate.task_id === taskId);
@@ -48,6 +50,25 @@ async function git(arguments_, cwd, timeoutMs = 30_000, extraEnvironment = {}) {
   const result = await run(["git", ...arguments_], cwd, timeoutMs, extraEnvironment);
   if (result.exit_code !== 0) throw new Error(`Git command failed: git ${arguments_.join(" ")}`);
   return result.stdout.trim();
+}
+
+export async function verifyVerificationWorkspaceSource({ sourceRepository, workspace, sourceBaseRevision }) {
+  const sourceRoot = await realpath(sourceRepository);
+  const workspaceRoot = await realpath(workspace);
+  const [sourceTree, workspaceTree, workspaceRevision] = await Promise.all([
+    git(["rev-parse", `${sourceBaseRevision}^{tree}`], sourceRoot),
+    git(["rev-parse", "HEAD^{tree}"], workspaceRoot),
+    git(["rev-parse", "HEAD"], workspaceRoot),
+  ]);
+  if (sourceTree !== workspaceTree) {
+    throw new Error("Workspace base tree does not match the task source revision");
+  }
+  return {
+    source_base_revision: sourceBaseRevision,
+    source_tree: sourceTree,
+    workspace_revision: workspaceRevision,
+    workspace_tree: workspaceTree,
+  };
 }
 
 async function repositoryDiff(sourceRepository, source, paths) {
@@ -166,6 +187,43 @@ export async function verificationWorkspaceStateSha256(workspace) {
   return hash.digest("hex");
 }
 
+export const verificationPostRunWorkspaceSha256 = verificationWorkspaceStateSha256;
+
+export async function verifyMaterializedVerificationTask({ plan, taskManifest, sourceRepository }) {
+  const task = taskById(plan, taskManifest?.task_id);
+  if (verificationTaskDefinitionDigest(task.definition) !== task.scenario_definition_sha256
+    || taskManifest.scenario_definition_sha256 !== task.scenario_definition_sha256) {
+    throw new Error("Task definition digest does not match the public plan");
+  }
+  if (!GIT_REVISION.test(taskManifest.workspace_revision ?? "")) throw new Error("Task manifest requires workspace_revision");
+  if (taskManifest.source_base_revision !== task.definition.source.base_revision) {
+    throw new Error("Task manifest source_base_revision does not match the public plan");
+  }
+  if (!SHA256.test(taskManifest.workspace_state_sha256 ?? "")) throw new Error("Task manifest requires workspace_state_sha256");
+  const expectedFiles = [...task.definition.changed_files].sort();
+  if (JSON.stringify([...(taskManifest.changed_files ?? [])].sort()) !== JSON.stringify(expectedFiles)) {
+    throw new Error("Task manifest changed_files do not match the public plan");
+  }
+  if (taskManifest.changed_file_sha256 === null || typeof taskManifest.changed_file_sha256 !== "object"
+    || Array.isArray(taskManifest.changed_file_sha256)
+    || JSON.stringify(Object.keys(taskManifest.changed_file_sha256).sort()) !== JSON.stringify(expectedFiles)
+    || Object.values(taskManifest.changed_file_sha256).some((value) => value !== null && !SHA256.test(value))) {
+    throw new Error("Task manifest changed_file_sha256 must bind every declared changed file");
+  }
+
+  const workspace = await realpath(taskManifest.workspace);
+  const observedRevision = await git(["rev-parse", "HEAD"], workspace);
+  if (observedRevision !== taskManifest.workspace_revision) throw new Error("Workspace revision does not match the task manifest");
+  const sourceBinding = await verifyVerificationWorkspaceSource({
+    sourceRepository,
+    workspace,
+    sourceBaseRevision: task.definition.source.base_revision,
+  });
+  const fixture = plan.fixtures?.find(({ fixture_id: fixtureId }) => fixtureId === task.fixture_id);
+  if (!fixture) throw new Error(`Task references unknown fixture: ${task.fixture_id}`);
+  return { task, fixture, workspace, sourceBinding };
+}
+
 async function initializeIsolatedHistory(workspace) {
   await rm(path.join(workspace, ".git"), { recursive: true, force: true });
   await git(["init", "--quiet"], workspace);
@@ -245,12 +303,31 @@ function commandFor(task, phase) {
   return task.definition.command_tiers[phase];
 }
 
+export function matchRequiredFailureSignatures(requiredSignatures, executionResults) {
+  if (requiredSignatures.length === 0) return true;
+  const failureOutput = executionResults
+    .filter(({ exit_code: exitCode }) => exitCode !== 0)
+    .map(({ stdout = "", stderr = "" }) => `${stdout}\n${stderr}`)
+    .join("\n");
+  const semanticMatchers = {
+    "evaluation:quality-claim-regression": (output) => output.includes("ineligible calibration comparisons cannot inflate quality-claim gates")
+      && output.includes("ERR_ASSERTION"),
+    "configuration:missing-check-entry": (output) => output.includes("Cannot find module")
+      && output.includes("verification-policy-missing.mjs"),
+    "diagnostics:intermittent-fixture": (output) => output.includes("diagnostics:intermittent-fixture")
+      && output.includes("ERR_ASSERTION"),
+  };
+  return requiredSignatures.every((signature) => (semanticMatchers[signature] ?? ((output) => output.includes(signature)))(failureOutput));
+}
+
 async function qualifyTask({ plan, oracles, task, sourceRepository, outputParent, timeoutMs }) {
   const oracle = oracleByTaskId(oracles, task.task_id);
   const executions = [];
+  const executionResults = [];
   const execute = async (materialized, phase) => {
     const result = await run(commandFor(task, phase), materialized.workspace, timeoutMs);
     executions.push({ phase, exit_code: result.exit_code });
+    executionResults.push(result);
     return result.exit_code;
   };
 
@@ -265,7 +342,8 @@ async function qualifyTask({ plan, oracles, task, sourceRepository, outputParent
       const mutantExit = await execute(mutant, "fast");
       const observed = visibleExit === null ? [goldExit, mutantExit] : [visibleExit, goldExit, mutantExit];
       const expected = visibleExit === null ? [0, "nonzero"] : [0, 0, "nonzero"];
-      const passed = expected.every((value, index) => value === "nonzero" ? observed[index] !== 0 : observed[index] === value);
+      const passed = expected.every((value, index) => value === "nonzero" ? observed[index] !== 0 : observed[index] === value)
+        && matchRequiredFailureSignatures(oracle.required_failure_signatures, executionResults);
       return { task_id: task.task_id, status: passed ? "passed" : "failed", expected_exit_pattern: expected, executions };
     } finally {
       await Promise.all([gold.cleanup(), mutant.cleanup()]);
@@ -293,7 +371,8 @@ async function qualifyTask({ plan, oracles, task, sourceRepository, outputParent
       expected = [0];
       observed = [await execute(materialized, oracle.minimum_evidence_phase)];
     }
-    const passed = expected.every((value, index) => value === "nonzero" ? observed[index] !== 0 : observed[index] === value);
+    const passed = expected.every((value, index) => value === "nonzero" ? observed[index] !== 0 : observed[index] === value)
+      && matchRequiredFailureSignatures(oracle.required_failure_signatures, executionResults);
     return { task_id: task.task_id, status: passed ? "passed" : "failed", expected_exit_pattern: expected, executions };
   } finally {
     await materialized.cleanup();

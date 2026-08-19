@@ -1,11 +1,19 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { materializeVerificationTask, qualifyVerificationPilot, verificationWorkspaceStateSha256 } from "../src/verification-workspace.mjs";
+import { verifyCollectorProvenance } from "../src/collector-provenance.mjs";
+import { runVerificationPolicyOracle } from "../src/verification-policy-oracle.mjs";
+import {
+  matchRequiredFailureSignatures,
+  materializeVerificationTask,
+  qualifyVerificationPilot,
+  verifyVerificationWorkspaceSource,
+  verificationWorkspaceStateSha256,
+} from "../src/verification-workspace.mjs";
 
 async function checkedInputs() {
   const [plan, oracles, qualification] = await Promise.all([
@@ -15,6 +23,43 @@ async function checkedInputs() {
   ]);
   return { plan, oracles, qualification };
 }
+
+test("qualification rejects a different failure with the same exit code", () => {
+  const required = ["evaluation:quality-claim-regression"];
+  assert.equal(matchRequiredFailureSignatures(required, [{ exit_code: 1, stdout: "", stderr: "SyntaxError: unexpected token" }]), false);
+  assert.equal(matchRequiredFailureSignatures(required, [{
+    exit_code: 1,
+    stdout: "ineligible calibration comparisons cannot inflate quality-claim gates",
+    stderr: "AssertionError [ERR_ASSERTION]",
+  }]), true);
+  assert.equal(matchRequiredFailureSignatures(required, [{
+    exit_code: 1,
+    stdout: "ineligible calibration comparisons cannot inflate quality-claim gates",
+    stderr: "SyntaxError: unexpected token",
+  }]), false);
+});
+
+test("collector provenance rejects a forged digest that is not backed by the wrapper", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "verification-collector-binding-test-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const manifestPath = path.join(directory, "collector.json");
+  const wrapperPath = path.join(directory, "codex");
+  const controlledCollectorPath = path.resolve("scripts/codex-lifecycle-wrapper.py");
+  await copyFile(controlledCollectorPath, wrapperPath);
+  const controlled = await readFile(controlledCollectorPath);
+  const collector = {
+    schema_version: 1,
+    collector_sha256: createHash("sha256").update(controlled).digest("hex"),
+  };
+  await writeFile(manifestPath, `${JSON.stringify(collector)}\n`);
+  await verifyCollectorProvenance({ collector, collectorManifestPath: manifestPath, controlledCollectorPath });
+
+  await writeFile(wrapperPath, "forged wrapper\n");
+  await assert.rejects(
+    verifyCollectorProvenance({ collector, collectorManifestPath: manifestPath, controlledCollectorPath }),
+    /digest does not match/,
+  );
+});
 
 test("materializer exposes only the base snapshot and declared change", async (t) => {
   const { plan } = await checkedInputs();
@@ -84,6 +129,69 @@ test("workspace state detects untracked files", async (t) => {
   assert.notEqual(await verificationWorkspaceStateSha256(materialized.workspace), materialized.workspace_state_sha256);
 });
 
+test("workspace source binding rejects a different base revision with the same manifest shape", async (t) => {
+  const { plan } = await checkedInputs();
+  const outputParent = await mkdtemp(path.join(os.tmpdir(), "verification-source-binding-test-"));
+  t.after(() => rm(outputParent, { recursive: true, force: true }));
+  const materialized = await materializeVerificationTask({
+    plan,
+    taskId: "vp_local_correct_stop",
+    sourceRepository: path.resolve("."),
+    outputParent,
+  });
+  t.after(() => materialized.cleanup());
+
+  const binding = await verifyVerificationWorkspaceSource({
+    sourceRepository: path.resolve("."),
+    workspace: materialized.workspace,
+    sourceBaseRevision: materialized.base_revision,
+  });
+  assert.equal(binding.workspace_revision, materialized.workspace_revision);
+  assert.equal(binding.source_tree, binding.workspace_tree);
+  await assert.rejects(
+    verifyVerificationWorkspaceSource({
+      sourceRepository: path.resolve("."),
+      workspace: materialized.workspace,
+      sourceBaseRevision: "e9bd535012d4657534cf3cef69f394d2e7145387",
+    }),
+    /base tree does not match/,
+  );
+});
+
+test("independent oracle binds the same post-run workspace digest as the trace collector", async (t) => {
+  const { plan, oracles } = await checkedInputs();
+  const outputParent = await mkdtemp(path.join(os.tmpdir(), "verification-oracle-binding-test-"));
+  t.after(() => rm(outputParent, { recursive: true, force: true }));
+  const materialized = await materializeVerificationTask({
+    plan,
+    taskId: "vp_local_correct_stop",
+    sourceRepository: path.resolve("."),
+    outputParent,
+  });
+  t.after(() => materialized.cleanup());
+  const task = plan.tasks.find(({ task_id }) => task_id === "vp_local_correct_stop");
+  const taskManifest = {
+    task_id: task.task_id,
+    scenario_definition_sha256: task.scenario_definition_sha256,
+    source_base_revision: materialized.base_revision,
+    workspace: materialized.workspace,
+    workspace_revision: materialized.workspace_revision,
+    workspace_state_sha256: materialized.workspace_state_sha256,
+    changed_files: materialized.changed_files,
+    changed_file_sha256: materialized.changed_file_sha256,
+  };
+  const report = await runVerificationPolicyOracle({
+    plan,
+    oracles,
+    taskManifest,
+    sourceRepository: path.resolve("."),
+  });
+  assert.equal(report.result.status, "passed");
+  assert.equal(report.workspace.post_run_workspace_state_sha256, await verificationWorkspaceStateSha256(materialized.workspace));
+  assert.equal(report.workspace.post_run_workspace_state_sha256, materialized.workspace_state_sha256);
+  assert.deepEqual(report.workspace.agent_changed_files, []);
+});
+
 test("all six pilot states reproduce their declared pass and failure patterns", async (t) => {
   const { plan, oracles, qualification } = await checkedInputs();
   const outputParent = await mkdtemp(path.join(os.tmpdir(), "verification-qualification-test-"));
@@ -107,4 +215,37 @@ test("checked-in integration smoke report stays bound to its sanitized trace", a
   assert.equal(trace.trace_id, "trace-1ea6741faac78aa281daff8ba7879f5a3eaaa2a91259b60b30c73b6a3c34ed57");
   assert.equal(report.assessment.formal_baseline_eligible, false);
   assert.equal(report.conclusion.status, "integration_smoke_ready");
+});
+
+test("checked-in paired dry run stays bound to traces and independent oracles", async () => {
+  const root = path.resolve("fixtures/benchmark/verification-policy-dry-run-2026-08-19");
+  const report = JSON.parse(await readFile(path.join(root, "run-report.json"), "utf8"));
+  for (const task of report.tasks) {
+    for (const role of ["baseline", "candidate"]) {
+      const evidence = task[role];
+      const [traceContents, oracleContents] = await Promise.all([
+        readFile(path.join(root, evidence.trace.path)),
+        readFile(path.join(root, evidence.oracle.path)),
+      ]);
+      assert.equal(createHash("sha256").update(traceContents).digest("hex"), evidence.trace.sha256);
+      assert.equal(createHash("sha256").update(oracleContents).digest("hex"), evidence.oracle.sha256);
+      const trace = JSON.parse(traceContents);
+      const oracle = JSON.parse(oracleContents);
+      assert.equal(trace.task_id, task.task_id);
+      assert.equal(trace.mode, report.treatment[role].mode);
+      assert.deepEqual(trace.policy, report.treatment[role].policy);
+      assert.equal(trace.completeness, "complete");
+      assert.deepEqual(trace.warnings, []);
+      assert.equal(oracle.result.status, "passed");
+      assert.equal(trace.source.oracle_definition_sha256, oracle.oracle.definition_sha256);
+      assert.equal(trace.source.post_run_workspace_sha256, oracle.workspace.post_run_workspace_state_sha256);
+      assert.equal(trace.source.post_run_workspace_sha256, evidence.post_run_workspace_state_sha256);
+      assert.deepEqual(oracle.workspace.agent_changed_files, []);
+    }
+  }
+  const evaluation = JSON.parse(await readFile(path.join(root, report.evaluation.report_path), "utf8"));
+  assert.equal(evaluation.metrics.comparison_integrity.value, 1);
+  assert.equal(evaluation.metrics.candidate_failure_recall.value, 1);
+  assert.equal(evaluation.conclusion.status, "evidence_insufficient");
+  assert.equal(evaluation.conclusion.efficiency_claim, "not_supported");
 });

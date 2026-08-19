@@ -29,10 +29,17 @@ function sha256(value) {
 
 function validateBinding(binding) {
   if (!isObject(binding)) throw new Error("Trace binding must be an object");
-  for (const field of ["taskId", "runId", "harness", "repository", "repositoryCommit", "scenarioDefinitionSha256", "collectorSha256"]) {
+  for (const field of ["taskId", "runId", "harness", "repository", "repositoryCommit", "scenarioDefinitionSha256", "collectorSha256", "policyName", "policyVersion"]) {
     if (!nonEmptyString(binding[field])) throw new Error(`Trace binding requires ${field}`);
   }
+  if (!["baseline", "shadow"].includes(binding.mode)) throw new Error("Trace binding mode must be baseline or shadow");
   if (!/^[a-f0-9]{40}$/i.test(binding.repositoryCommit)) throw new Error("Trace binding repositoryCommit must be a Git revision");
+  if (binding.workspaceRevision !== undefined && !/^[a-f0-9]{40}$/i.test(binding.workspaceRevision)) {
+    throw new Error("Trace binding workspaceRevision must be a Git revision");
+  }
+  if (binding.sourceTree !== undefined && !/^[a-f0-9]{40}$/i.test(binding.sourceTree)) {
+    throw new Error("Trace binding sourceTree must be a Git tree ID");
+  }
   for (const field of ["scenarioDefinitionSha256", "collectorSha256"]) {
     if (!/^[a-f0-9]{64}$/i.test(binding[field])) throw new Error(`Trace binding ${field} must be a SHA-256 digest`);
   }
@@ -42,11 +49,23 @@ function validateBinding(binding) {
   if (binding.finalStateSha256 !== undefined && !/^[a-f0-9]{64}$/i.test(binding.finalStateSha256)) {
     throw new Error("Trace binding finalStateSha256 must be a SHA-256 digest");
   }
+  if (binding.postRunWorkspaceSha256 !== undefined && !/^[a-f0-9]{64}$/i.test(binding.postRunWorkspaceSha256)) {
+    throw new Error("Trace binding postRunWorkspaceSha256 must be a SHA-256 digest");
+  }
   if (binding.workspaceStateChanged !== undefined && typeof binding.workspaceStateChanged !== "boolean") {
     throw new Error("Trace binding workspaceStateChanged must be a boolean");
   }
   if (binding.sourceFormat !== undefined && !nonEmptyString(binding.sourceFormat)) {
     throw new Error("Trace binding sourceFormat must be a non-empty string");
+  }
+  if (binding.oracleDefinitionSha256 !== undefined && !/^[a-f0-9]{64}$/i.test(binding.oracleDefinitionSha256)) {
+    throw new Error("Trace binding oracleDefinitionSha256 must be a SHA-256 digest");
+  }
+  if (binding.failureSignaturesByCallId !== undefined) {
+    if (!isObject(binding.failureSignaturesByCallId)) throw new Error("Trace binding failureSignaturesByCallId must be an object");
+    for (const [callId, signature] of Object.entries(binding.failureSignaturesByCallId)) {
+      if (!safeCallId(callId) || !nonEmptyString(signature)) throw new Error("Trace binding failureSignaturesByCallId is invalid");
+    }
   }
   if (binding.initialChangedFiles !== undefined) {
     if (!Array.isArray(binding.initialChangedFiles)) throw new Error("Trace binding initialChangedFiles must be an array");
@@ -550,7 +569,7 @@ export function convertAgentBeltLifecycleToTrace({
         duration_ms: result.durationMs,
         exit_code: result.exitCode,
         signal: null,
-        failure_signature: null,
+        failure_signature: binding.failureSignaturesByCallId?.[result.callId] ?? null,
         failure_class: null,
         override: null,
       },
@@ -592,8 +611,8 @@ export function convertAgentBeltLifecycleToTrace({
     model: binding.model ?? null,
     repository: binding.repository,
     repository_commit: binding.repositoryCommit,
-    policy: { name: "unmanaged-coding-agent-baseline", version: "1" },
-    mode: "baseline",
+    policy: { name: binding.policyName, version: binding.policyVersion },
+    mode: binding.mode,
     completeness: complete ? "complete" : "partial",
     source: {
       format: binding.sourceFormat ?? "agent-belt-codex-lifecycle-v2",
@@ -604,9 +623,13 @@ export function convertAgentBeltLifecycleToTrace({
       stream_sha256: streamDigest,
       outcome_sha256: outcomeSha256,
       scenario_definition_sha256: binding.scenarioDefinitionSha256,
+      ...(binding.oracleDefinitionSha256 === undefined ? {} : { oracle_definition_sha256: binding.oracleDefinitionSha256 }),
       collector_sha256: binding.collectorSha256,
+      ...(binding.workspaceRevision === undefined ? {} : { workspace_revision: binding.workspaceRevision }),
+      ...(binding.sourceTree === undefined ? {} : { source_tree: binding.sourceTree }),
       initial_workspace_state_sha256: binding.initialStateSha256 ?? null,
       final_workspace_state_sha256: binding.finalStateSha256 ?? null,
+      post_run_workspace_sha256: binding.postRunWorkspaceSha256 ?? null,
       workspace_state_changed: binding.workspaceStateChanged ?? null,
       initial_changed_files: initialChangedFiles.length,
       state_evidence_complete: stateWarnings.size === 0,

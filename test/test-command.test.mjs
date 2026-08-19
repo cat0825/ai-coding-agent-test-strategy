@@ -46,6 +46,13 @@ test("project check scripts count as verification commands", () => {
   assert.equal(analysis.semantics.complete, true);
 });
 
+test("quoted npm test commands count as verification commands", () => {
+  const analysis = analyzeTestRunnerCommand("/bin/zsh -lc 'npm test'", { cwdSha256 });
+
+  assert.deepEqual(analysis.command, ["npm", "test"]);
+  assert.equal(analysis.semantics.complete, true);
+});
+
 test("missing cwd and ambiguous command chains fail closed", () => {
   const missingCwd = analyzeTestRunnerCommand("pytest");
   const ambiguous = analyzeTestRunnerCommand("pytest && pytest", { cwdSha256 });

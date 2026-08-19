@@ -37,6 +37,7 @@ async function main() {
     mode: task.mode,
     instruction: task.definition.instruction,
     scenario_definition_sha256: task.scenario_definition_sha256,
+    source_base_revision: materialized.base_revision,
     workspace: materialized.workspace,
     workspace_revision: materialized.workspace_revision,
     workspace_state_sha256: materialized.workspace_state_sha256,
