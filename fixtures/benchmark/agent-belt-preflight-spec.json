@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "coding-agent-agent-belt-pilot",
+  "repository": {
+    "identity": "jfrog/agent-belt",
+    "expected_revision": "90bd105b172adc41394f458e33b653dda2b199b0",
+    "require_clean": true
+  },
+  "runtime": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "tools": [
+      { "id": "python", "argv": ["python3", "--version"], "major": 3 },
+      { "id": "uv", "argv": ["uv", "--version"], "major": 0 }
+    ]
+  },
+  "install": {
+    "command": { "argv": ["uv", "sync", "--locked", "--python", "3.12"], "timeout_ms": 600000 },
+    "lockfile": {
+      "path": "uv.lock",
+      "sha256": "a8e83d8bc6223229e1f142f12aa21fd72c8bfd13e7ced1b6645b40022dc85a3f"
+    },
+    "required_paths": [".venv/bin/python"],
+    "artifacts": []
+  },
+  "commands": [
+    { "id": "lint", "argv": ["uv", "run", "make", "lint"], "timeout_ms": 600000, "prerequisites": [] },
+    { "id": "test", "argv": ["uv", "run", "pytest", "tests/", "-q"], "timeout_ms": 600000, "prerequisites": [] },
+    { "id": "build", "argv": ["uv", "build"], "timeout_ms": 600000, "prerequisites": ["lint", "test"] }
+  ]
+}

@@ -1,6 +1,6 @@
 # 项目状态
 
-状态：**Observatory MVP 与 baseline 审计闸门实现完成 / 本地 calibration 通过 / 真实 benchmark 证据 0/30**
+状态：**Observatory MVP、baseline 审计闸门与通用 runtime preflight 已实现 / agent-belt 环境合格 / 真实 benchmark 证据 0/30**
 
 ## 已完成
 
@@ -20,6 +20,8 @@
 - 实现 expert/simplified 推荐模式；只有低风险、高置信重复可自动处理，推荐与决定均进入可验证 trace。
 - 实现一命令 evaluation harness；本地 7 条 trace 和 4 个配对任务的结论为 `evidence_insufficient`，不支持效率声明。
 - 实现 fail-closed baseline cohort 审计器：任务资格只能由合格环境、固定 revision、完整 baseline VerifyTrace 和失败分类推导，调用方不能自报合格，也不能把 30-task 门槛调低。
+- 将 preflight 从 Node/npm 专用 runtime 扩展为声明式工具探针，兼容 Python/uv、Go、Rust 等工具链；manifest 不保存 probe argv 或原始输出。
+- 首个通用候选 `jfrog/agent-belt@90bd105b` 已通过无代理真实 preflight：`uv sync --locked`、lint、pytest 与 build 全部通过，官方同 revision CI green；脱敏 manifest 已落盘。
 
 ## 当前未完成
 
@@ -31,12 +33,13 @@
 ## 历史阻塞（不作为当前执行入口）
 
 - 尚未按通用选择标准确定最终 coding-agent 仓库/任务集；真实 quality-claim-eligible baseline tasks 为 0/30，审计工具通过不等于效果已经证明。
+- agent-belt 的 Agent 认证与真实场景尚未执行；当前只证明环境可复现，不能证明少写测试、少跑测试或质量不下降。
 - Maka 固定 CI-green revision 已通过 `npm ci`、`format:check`、`build:test`、`typecheck` 的真实 preflight，但完整 `npm test` 仍含 PTY、macOS 路径规范化和本机认证能力相关失败；只作为验证样本和环境分类证据。
 - 没有完整真实仓库 cohort，不能声称已经减少测试耗时或 CI 成本；也没有启用 Agent hook/permission 强制。
 - Observatory MVP 的 Issue/PR 仍需按依赖顺序审阅和合并；本地 canonical fixture 不能替代真实 P1/P2 benchmark。
 
 ## 下一阶段
 
-1. 按 stacked 依赖顺序审阅 PR #19 与 PR #21；不主动合并。
-2. 按公开性、CI-green revision、可重复 install/build/test 和 clean worktree 标准选择一个或多个 coding-agent 仓库/任务集。
-3. 使用 baseline cohort 审计器采集至少 30 个合格 baseline tasks，再在相同任务上完成 candidate 配对和 oracle safety gates；在此之前保持 shadow，不启用强制或效率宣传。
+1. 按 stacked 依赖顺序审阅 PR #19、PR #21、PR #24 和 PR #25；不主动合并。
+2. 在 agent-belt 上先执行 5 个真实任务的 go/no-go pilot，验证 Agent 认证、任务复位、trace 完整性和独立 oracle；失败则停止扩到 30。
+3. pilot 通过后采集至少 30 个合格 baseline tasks，再完成 candidate 配对和 oracle safety gates；在此之前保持 shadow，不启用强制或效率宣传。
