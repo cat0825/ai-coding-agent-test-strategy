@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "evidence_class": "paired_verification_policy_dry_run",
+  "benchmark_id": "observatory-verification-policy-pilot-v0.1",
+  "run_date": "2026-08-19",
+  "harness": "codex-cli@0.147.0",
+  "model": "gpt-5.6-sol",
+  "model_reasoning_effort": "high",
+  "treatment": {
+    "baseline": {"mode": "baseline", "policy": {"name": "unmanaged-coding-agent-baseline", "version": "1"}},
+    "candidate": {
+      "mode": "shadow",
+      "policy": {"name": "observatory-verification-policy", "version": "0.1"},
+      "rules": [
+        "Inspect the current diff and map it to the narrowest relevant existing test.",
+        "For verify_only tasks, do not edit any file.",
+        "Run the targeted test once and stop after a local pass or attributable failure.",
+        "Escalate only when the affected scope cannot be determined.",
+        "Do not run a repository-wide test or check for a local pass or attributable failure."
+      ]
+    }
+  },
+  "counts": {
+    "declared_pilot_tasks": 6,
+    "paired_dry_run_tasks": 2,
+    "complete_traces": 4,
+    "independent_oracles_passed": 4,
+    "workspace_digest_matches": 4,
+    "quality_claim_eligible_comparisons": 0,
+    "required_quality_claim_comparisons": 30
+  },
+  "tasks": [
+    {
+      "task_id": "vp_local_correct_stop",
+      "pairing_integrity": true,
+      "baseline": {
+        "trace": {"path": "traces/vp_local_correct_stop-baseline.json", "sha256": "8ee569382c0eae5a05d29edaebd7c170f9fc95af5d16a20a56fd98e02816750b"},
+        "oracle": {"path": "oracles/vp_local_correct_stop-baseline.json", "sha256": "ea580f248a492ec0917f0ca8e5b78923b29832ab2110140c9bd259b24061486b", "status": "passed", "workspace_status": "passed"},
+        "shell_commands": 8,
+        "agent_elapsed_ms": 45851,
+        "verification_commands": 2,
+        "verification_duration_ms": 1123.204583,
+        "post_run_workspace_state_sha256": "4045f91b54f6984753c9cf0a123bf74d6b0eff3106cbe24030fdcbf0aee44eb4",
+        "agent_changed_files": []
+      },
+      "candidate": {
+        "trace": {"path": "traces/vp_local_correct_stop-candidate.json", "sha256": "faad263e6ce1451d25111236a5bcedf0c5cab3cda6a83cbef8757e251f7d16b1"},
+        "oracle": {"path": "oracles/vp_local_correct_stop-candidate.json", "sha256": "ea580f248a492ec0917f0ca8e5b78923b29832ab2110140c9bd259b24061486b", "status": "passed", "workspace_status": "passed"},
+        "shell_commands": 6,
+        "agent_elapsed_ms": 39855.933,
+        "verification_commands": 1,
+        "verification_duration_ms": 63.561375,
+        "post_run_workspace_state_sha256": "4045f91b54f6984753c9cf0a123bf74d6b0eff3106cbe24030fdcbf0aee44eb4",
+        "agent_changed_files": []
+      },
+      "observed_reduction": {"verification_commands": 0.5, "verification_duration": 0.943411, "shell_commands": 0.25, "agent_elapsed": 0.130751}
+    },
+    {
+      "task_id": "vp_affected_failure",
+      "pairing_integrity": true,
+      "baseline": {
+        "trace": {"path": "traces/vp_affected_failure-baseline.json", "sha256": "739212253136aadf7fbd6859c5cab3b26b228e5e0e37b808494debce70f89c12"},
+        "oracle": {"path": "oracles/vp_affected_failure-baseline.json", "sha256": "f1c9539943ea086c28ec131e88d1db55153644e684a3c2aeda1e8e86b0515a15", "status": "passed", "workspace_status": "failed"},
+        "shell_commands": 10,
+        "agent_elapsed_ms": 49019.695,
+        "verification_commands": 1,
+        "verification_duration_ms": 191.237916,
+        "failure_signatures": ["evaluation:quality-claim-regression"],
+        "post_run_workspace_state_sha256": "e5cca606abdf15d824c99dc2e8b639e337deffb1d8f7d21b944c547fa73a312e",
+        "agent_changed_files": []
+      },
+      "candidate": {
+        "trace": {"path": "traces/vp_affected_failure-candidate.json", "sha256": "b50cd4e531d51073d2234774feae5baa01f3be41f3f34721bdec9db4e9367fda"},
+        "oracle": {"path": "oracles/vp_affected_failure-candidate.json", "sha256": "f1c9539943ea086c28ec131e88d1db55153644e684a3c2aeda1e8e86b0515a15", "status": "passed", "workspace_status": "failed"},
+        "shell_commands": 6,
+        "agent_elapsed_ms": 39291.891,
+        "verification_commands": 1,
+        "verification_duration_ms": 91.196,
+        "failure_signatures": ["evaluation:quality-claim-regression"],
+        "post_run_workspace_state_sha256": "e5cca606abdf15d824c99dc2e8b639e337deffb1d8f7d21b944c547fa73a312e",
+        "agent_changed_files": []
+      },
+      "observed_reduction": {"verification_commands": 0, "verification_duration": 0.523128, "shell_commands": 0.4, "agent_elapsed": 0.198447}
+    }
+  ],
+  "evaluation": {
+    "cohort_path": "cohort.json",
+    "report_path": "evaluation-report.json",
+    "comparison_integrity": 1,
+    "final_oracle_match": 1,
+    "baseline_failure_recall": 1,
+    "candidate_failure_recall": 1,
+    "median_verification_duration_reduction": 0.73327,
+    "median_verification_command_reduction": 0.25,
+    "status": "evidence_insufficient",
+    "efficiency_claim": "not_supported"
+  },
+  "excluded_environment_attempts": [
+    {"status": "environment_failed", "reason": "conflicting environment API key returned 401", "agent_commands_executed": 0},
+    {"status": "environment_failed", "reason": "configured provider token returned 401", "agent_commands_executed": 0}
+  ],
+  "conclusion": {
+    "status": "paired_dry_run_complete",
+    "quality_claim_eligible": false,
+    "reason_codes": ["dry_run_only", "only_2_of_6_pilot_tasks_paired", "minimum_quality_claim_comparisons_not_met", "minimum_oracle_failures_not_met"]
+  }
+}

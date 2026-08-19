@@ -1,0 +1,160 @@
+{
+  "completeness": "complete",
+  "events": [
+    {
+      "data": {
+        "change_kinds": [
+          "code"
+        ],
+        "changed_files": [
+          "src/evaluation.mjs"
+        ],
+        "observation": "materialized_task_state",
+        "repository_commit": "e9bd535012d4657534cf3cef69f394d2e7145387",
+        "state_id": "c090197be987f3b0cd410a94c594ebd214037d083885d0734f9f00c0097a4de3"
+      },
+      "event_index": 0,
+      "event_type": "diff",
+      "raw_event_ref": {
+        "event": "turn.started",
+        "kind": "codex-cli-lifecycle",
+        "line": 3,
+        "source_ref": "codex-1787069811736078000-41143-63546a45.ndjson"
+      },
+      "timestamp": "2026-08-18T16:16:52.007Z"
+    },
+    {
+      "data": {
+        "fallback": true,
+        "reasons": [
+          "baseline_unmanaged_agent"
+        ],
+        "risk_level": "standard"
+      },
+      "event_index": 1,
+      "event_type": "risk",
+      "raw_event_ref": {
+        "event": "turn.started",
+        "kind": "codex-cli-lifecycle",
+        "line": 3,
+        "source_ref": "codex-1787069811736078000-41143-63546a45.ndjson"
+      },
+      "timestamp": "2026-08-18T16:16:52.007Z"
+    },
+    {
+      "data": {
+        "affected_workspaces": [],
+        "commands": [
+          {
+            "argv": [
+              "node",
+              "--test"
+            ],
+            "id": "baseline:node:--test:semantic:72a4503642087e15e5d41da80ddd107eee556c60a1d31807cc45b4d046773800"
+          }
+        ],
+        "requested_phase": "affected",
+        "selected_phase": "affected",
+        "selection_source": "observed_verification_calls"
+      },
+      "event_index": 2,
+      "event_type": "test_selection",
+      "raw_event_ref": {
+        "event": "turn.started",
+        "kind": "codex-cli-lifecycle",
+        "line": 3,
+        "source_ref": "codex-1787069811736078000-41143-63546a45.ndjson"
+      },
+      "timestamp": "2026-08-18T16:16:52.007Z"
+    },
+    {
+      "data": {
+        "canonical_command_id": "baseline:node:--test:semantic:72a4503642087e15e5d41da80ddd107eee556c60a1d31807cc45b4d046773800",
+        "command": [
+          "node",
+          "--test"
+        ],
+        "command_semantics": {
+          "arguments_sha256": "c71b4cec41418e3e29e19c6a07af1a778100930fb6333da0949536d84a97ccfd",
+          "complete": true,
+          "cwd_sha256": "a5e4a201915502bcae630062453674417326fd54d1cec5bfff5a810bdce04195",
+          "environment_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "reason": null,
+          "semantic_sha256": "72a4503642087e15e5d41da80ddd107eee556c60a1d31807cc45b4d046773800",
+          "version": 1
+        },
+        "duration_ms": 191.237916,
+        "exit_code": 1,
+        "failure_class": null,
+        "failure_signature": "evaluation:quality-claim-regression",
+        "override": null,
+        "signal": null
+      },
+      "event_index": 3,
+      "event_type": "test_result",
+      "raw_event_ref": {
+        "call_id": "item_12",
+        "event": "item.completed",
+        "kind": "codex-cli-lifecycle",
+        "line": 23,
+        "source_ref": "codex-1787069811736078000-41143-63546a45.ndjson",
+        "start_line": 22,
+        "stream_completion_line": 25,
+        "stream_source_ref": "stream-login.ndjson",
+        "stream_start_line": 24
+      },
+      "timestamp": "2026-08-18T16:17:31.412Z"
+    },
+    {
+      "data": {
+        "reason": "observed_turn_completed",
+        "status": "completed"
+      },
+      "event_index": 4,
+      "event_type": "stop",
+      "raw_event_ref": {
+        "event": "turn.completed",
+        "kind": "codex-cli-lifecycle",
+        "line": 24,
+        "source_ref": "codex-1787069811736078000-41143-63546a45.ndjson"
+      },
+      "timestamp": "2026-08-18T16:17:41.027Z"
+    }
+  ],
+  "harness": "codex-cli@0.147.0",
+  "mode": "baseline",
+  "model": "gpt-5.6-sol",
+  "policy": {
+    "name": "unmanaged-coding-agent-baseline",
+    "version": "1"
+  },
+  "repository": "cat0825/ai-coding-agent-test-strategy",
+  "repository_commit": "e9bd535012d4657534cf3cef69f394d2e7145387",
+  "run_id": "dry-affected-baseline-20260819",
+  "schema_version": 1,
+  "source": {
+    "collector_sha256": "9404d97212ea19959119df8c5c580814d6483e43cbd195f705da151ed3a37b40",
+    "final_workspace_state_sha256": "e5cca606abdf15d824c99dc2e8b639e337deffb1d8f7d21b944c547fa73a312e",
+    "format": "codex-cli-lifecycle-v2",
+    "ignored_generated_files": 0,
+    "initial_changed_files": 1,
+    "initial_workspace_state_sha256": "e5cca606abdf15d824c99dc2e8b639e337deffb1d8f7d21b944c547fa73a312e",
+    "lifecycle_sha256": "b5f5cbd05e112f1a0ba21b209c9b0364deebf95926b088cf39d05b5c026c04f5",
+    "lifecycle_source_ref": "codex-1787069811736078000-41143-63546a45.ndjson",
+    "oracle_definition_sha256": "b9ac47472f81fd39ca8b5fbebabf39690139b27e942b97bf5eb320b2c8ed3761",
+    "outcome_files_modified": 0,
+    "outcome_sha256": "aace0befba95fc3fa5b86c2e44729ec9aae45757247dbb46c137455824dabdde",
+    "post_run_workspace_sha256": "e5cca606abdf15d824c99dc2e8b639e337deffb1d8f7d21b944c547fa73a312e",
+    "record_count": 52,
+    "scenario_definition_sha256": "d24a6f86d72256574325a4e4e9ce78f030a377fd198d7f8ab24448697f314181",
+    "source_tree": "6417c42a2dc0a5367ab3d074f4f1e5111556bb22",
+    "state_evidence_complete": true,
+    "stream_sha256": "bbd28605e15faae9936f9e01eaea53590c951fabd01352982c48b5728387f272",
+    "stream_source_ref": "stream-login.ndjson",
+    "workspace_revision": "586304f4932ed975c01199308d5e1bfe8e20837c",
+    "workspace_state_changed": false
+  },
+  "task_id": "vp_affected_failure",
+  "trace_id": "trace-b01f9ac037996bba47eb275258b5a9d0dccb2921ff4e1995747100c94f2747fa",
+  "warnings": []
+}

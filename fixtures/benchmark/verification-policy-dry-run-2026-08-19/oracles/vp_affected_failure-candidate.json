@@ -1,0 +1,48 @@
+{
+  "benchmark_id": "observatory-verification-policy-pilot-v0.1",
+  "environment": {
+    "benchmark_id": "observatory-verification-policy-pilot-v0.1",
+    "repository_identity": "cat0825/ai-coding-agent-test-strategy",
+    "repository_revision": "e9bd535012d4657534cf3cef69f394d2e7145387",
+    "scenario_definition_sha256": "d24a6f86d72256574325a4e4e9ce78f030a377fd198d7f8ab24448697f314181",
+    "workspace_revision": "586304f4932ed975c01199308d5e1bfe8e20837c"
+  },
+  "evidence_class": "independent_oracle",
+  "execution": {
+    "results": [
+      {
+        "exit_code": 1,
+        "phase": "fast"
+      }
+    ],
+    "timeout_ms": 120000
+  },
+  "oracle": {
+    "definition_sha256": "b9ac47472f81fd39ca8b5fbebabf39690139b27e942b97bf5eb320b2c8ed3761",
+    "id": "vp-oracle-affected-failure-v1"
+  },
+  "result": {
+    "expected_failure_signatures": [
+      "evaluation:quality-claim-regression"
+    ],
+    "failure_signatures": [
+      "evaluation:quality-claim-regression"
+    ],
+    "status": "passed",
+    "workspace_status": "failed"
+  },
+  "schema_version": 1,
+  "task_id": "vp_affected_failure",
+  "workspace": {
+    "agent_changed_files": [],
+    "changed_files": [
+      "src/evaluation.mjs"
+    ],
+    "edit_policy_satisfied": true,
+    "initial_workspace_state_sha256": "e5cca606abdf15d824c99dc2e8b639e337deffb1d8f7d21b944c547fa73a312e",
+    "post_run_workspace_state_sha256": "e5cca606abdf15d824c99dc2e8b639e337deffb1d8f7d21b944c547fa73a312e",
+    "production_edits": [],
+    "test_edits": []
+  }
+}
+
