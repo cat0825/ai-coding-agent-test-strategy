@@ -8,7 +8,7 @@
   },
   "scripts": {
     "check": "node --check src/verifier.mjs && node --check src/cli.mjs && bash -n scripts/verify.sh && npm test",
-    "test": "node --test test/verifier.test.mjs",
+    "test": "node --test test/*.test.mjs",
     "verify": "node src/cli.mjs"
   }
 }
