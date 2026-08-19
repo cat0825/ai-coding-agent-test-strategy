@@ -6,11 +6,10 @@
 
 **Observatory MVP 与 state-aware collector 已完成；Verification Policy pilot 工作区 6/6 合格，已完成 2/6 同模型 baseline/candidate dry run，质量声明仍为 0/30。**
 
+- 研究问题已收敛为：解释 Coding Agent 为什么重复、扩大或延迟测试，以及浪费从哪一个决策点开始。
+- 第一阶段只做诊断型可视化，服务重度使用 Coding Agent 的个人开发者；不做通用 Agent 观测平台。
 - 已完成 Google、OpenAI Codex、Aider、Claude Code、GitHub Copilot、Meta 等实践的横向比较。
-- 已提炼四档验证强度：`off`、`smoke`、`standard`、`thorough`。
-- 已形成 Agent 验证状态机、测试预算、停止规则和可直接放入 `AGENTS.md` 的策略模板。
-- 已修复 PDF 代码块裁切并提供可复现构建入口。
-- 已定义 pilot 指标、预算校准、保守 fallback、命令归一化和 override 审计方案。
+- 已提炼四档验证强度：`off`、`smoke`、`standard`、`thorough`，并形成状态机、预算、停止规则和 fallback。
 - 已实现 `verify.sh`、受影响 workspace 发现、unknown fallback、命令存在性校验和 JSONL 验证账本。
 - 已用 Maka 的固定 CI-green revision 完成一次真实 preflight，作为仓库无关实现的验证样本；未改动 Maka 源码。
 - 通用 baseline cohort 已采集 4 个 editing task；cohort auditor 输出 `4/30`、`evidence_insufficient`，详见 [STATUS.md](STATUS.md) 与 [agent-belt-baseline-report.json](fixtures/benchmark/agent-belt-baseline-report.json)。
@@ -34,6 +33,7 @@
 - [PDF 报告](output/pdf/ai-coding-agent-test-strategy.pdf)：适合阅读和分发的 16 页版本。
 - [实验与校准方案](docs/experiment-and-calibration.md)：pilot 设计、指标、fallback 和审计契约。
 - [Verification Policy Benchmark v0.1](docs/verification-policy-benchmark-v0.1.md)：六题隔离测评、隐藏判分和当前证据边界。
+- [验证行为任务集调研](docs/coding-agent-verification-task-set-research.md)：任务来源、轨迹 schema 和实验阶段建议。
 - [当前状态与下一步](STATUS.md)：明确已完成、未完成和下一阶段实现边界。
 - [项目交接文档](docs/handoff-2026-08-19.md)：当前分支、PR 链、本地未提交变更、证据状态和可直接执行的下一步。
 - [贡献指南](CONTRIBUTING.md)：Issue/PR 边界、验证命令和证据要求。
@@ -181,9 +181,9 @@ npm run benchmark:trace -- \
 
 Collector v2 不保存命令、输出、凭据或绝对工作区路径；它保存脱敏后的相对文件变化和起始目录摘要。转换器为工作目录、环境和目标参数生成不可逆摘要，将文件变化按观察时间写入 trace，并只从 `turn.completed` / `turn.failed` 生成 stop。缺失、重复、乱序、不匹配或无法解释的证据一律 fail closed。旧 collector-v1 trace 仍可回放，但不能产出重复测试结论。集成与安全边界见 [Agent-belt timestamped VerifyTrace collection](docs/agent-belt-timestamped-trace-v1.md)。
 
-## 后续评测
+## 下一阶段
 
-下一阶段按以下顺序推进：
+只在本仓库内按以下顺序推进：
 
 1. 在 6 个 Verification Policy pilot 现场上，使用同一 Agent/模型分别采集策略关闭与开启的配对 VerifyTrace。
 2. 只有六题均不漏故障且能测出停止、重试和全量兜底差异，才从多个真实 JS/TS 仓库扩展正式任务。
