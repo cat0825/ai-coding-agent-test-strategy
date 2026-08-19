@@ -71,6 +71,8 @@ npm run benchmark:verification:prepare -- \
 ```sh
 npm run benchmark:verification:trace -- \
   --plan fixtures/benchmark/verification-policy-pilot-plan.json \
+  --oracles fixtures/benchmark/verification-policy-pilot-oracles.json \
+  --repo . \
   --task-manifest /private/run/task.json \
   --stream /private/run/stream.ndjson \
   --lifecycle /private/run/lifecycle/codex-run.ndjson \
@@ -78,10 +80,26 @@ npm run benchmark:verification:trace -- \
   --run-id baseline-vp-local-correct-stop \
   --harness codex-cli@0.147.0 \
   --model gpt-5.6-sol \
+  --mode baseline \
+  --policy-name unmanaged-coding-agent-baseline \
+  --policy-version 1 \
   --output /private/run/traces/vp_local_correct_stop.json
 ```
 
-转换器会校验题目摘要、工作区 revision、初始/最终 diff、collector 摘要和事件配对。模型名必须显式传入；不能用未知默认模型充当正式配对数据。
+转换器会从源仓库重新计算 task base revision 的 Git tree，并要求它与隔离工作区的基线 tree 一致；同时校验题目摘要、工作区 synthetic revision、初始/最终 diff、collector 摘要和事件配对。失败命令只在私有原始输出匹配隐藏 oracle 的稳定语义时写入 `failure_signature`，原始输出不会进入 trace。模型、`baseline|shadow` 模式和 policy 名称/版本都必须显式传入；不能用未知默认值充当正式配对数据。candidate 使用 `--mode shadow --policy-name observatory-verification-policy --policy-version 0.1`。
+
+Agent 结束后，在同一工作区运行独立 oracle：
+
+```sh
+npm run benchmark:verification:oracle -- \
+  --plan fixtures/benchmark/verification-policy-pilot-plan.json \
+  --oracles fixtures/benchmark/verification-policy-pilot-oracles.json \
+  --repo . \
+  --task-manifest /private/run/task.json \
+  --output /private/run/oracles/vp_local_correct_stop.json
+```
+
+oracle 在执行独立测试前计算 `workspace.post_run_workspace_state_sha256`；它必须等于 trace 的 `source.post_run_workspace_sha256`。两者共用同一个确定性算法，摘要覆盖 tracked diff 和 untracked 文件内容。oracle 在临时副本中执行测试，不改变被采集的 Agent 工作区。
 
 ## 单题链路试跑
 
@@ -94,13 +112,25 @@ npm run benchmark:verification:trace -- \
 
 这仍不是正式 baseline：试跑没有显式固定模型。随后固定 `gpt-5.6-sol` 的正式尝试在任何 Agent 命令执行前因 workspace 额度耗尽而失败，已归类为环境失败，不能计入 1/6。
 
+## 两题配对 dry run
+
+2026-08-19 使用同一 `codex-cli@0.147.0` / `gpt-5.6-sol` 完成 `vp_local_correct_stop`、`vp_affected_failure` 的 baseline/candidate 配对。脱敏 trace、独立 oracle、cohort 和评估结果在 [`verification-policy-dry-run-2026-08-19`](../fixtures/benchmark/verification-policy-dry-run-2026-08-19/run-report.json)：
+
+- 4/4 trace 完整且无 warning，4/4 oracle 通过，Agent 未改文件；
+- task、repository revision、harness、model、baseline/shadow mode、policy、scenario、workspace revision 配对完整性为 1；
+- trace/oracle 的 post-run workspace digest 4/4 一致；
+- 回归题 baseline/candidate 均捕获 `evaluation:quality-claim-regression`，该两题内 failure recall 未下降；
+- 观察到的验证耗时下降中位数为 73.3%，验证命令数下降中位数为 25%，但只有两题且 `quality_claim_eligible_comparisons` 为 0。
+
+因此报告结论严格保持 `evidence_insufficient / not_supported`；这些数值只用于校准采集链和题目，不是效率或安全声明。
+
 ## 不能声称什么
 
-`fixture_ready` 和单题 smoke 只证明题目现场、隐藏判分及采集链可复现。当前还没有在这六题上采集同一 Agent/模型的 baseline/candidate 配对 VerifyTrace，因此：
+`fixture_ready`、单题 smoke 和两题配对 dry run 只证明题目现场、隐藏判分及采集链可复现。当前只有 2/6 pilot 题完成同一 Agent/模型配对，且没有达到 30 个质量样本门槛，因此：
 
 - 不能声称策略已经节省时间；
 - 不能声称故障发现率没有下降；
 - 不能把这六题计入正式 30-task 质量样本；
 - 不能把原来的 Calculator/Tasktracker 26 题继续扩写成正式 benchmark。
 
-下一步先在额度恢复后重跑这一题的显式模型 baseline；它合格后再复制到剩余五题。六题配对成立后，才从多个真实 JS/TS 仓库扩展正式任务。
+下一步完成剩余 4/6 pilot 配对，并把独立 oracle report 作为 evaluation 的直接输入而非只引用派生合同。六题链路稳定后，再从多个真实 JS/TS 仓库扩展到至少 30 个质量声明任务。

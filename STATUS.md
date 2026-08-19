@@ -1,6 +1,6 @@
 # 项目状态
 
-状态：**Observatory MVP 与 state-aware collector v2 已实现 / Verification Policy pilot 工作区 6/6 合格 / 单题 smoke 链路已通 / 正式配对仍为 0/6**
+状态：**Observatory MVP 与 state-aware collector v2 已实现 / Verification Policy pilot 工作区 6/6 合格 / 已完成 2/6 配对 dry run / 正式质量样本仍为 0/30**
 
 ## 已完成
 
@@ -37,6 +37,8 @@
 - 6/6 工作区通过真实资格检查：正确题通过、回归题失败、全量兜底题只在完整门禁失败、flaky 题结果为失败后通过、隐藏参考测试在新实现通过且在旧实现失败。
 - 新增单题 direct-Codex trace 转换入口，绑定公开题目摘要、collector、模型、初始/最终工作区状态；Agent 未被观察到的文件改动会让 trace fail closed。
 - `vp_local_correct_stop` 链路 smoke 已完成：完整 trace、6 个 shell 调用、1 个项目级 `npm run check`、Agent 零文件改动、独立相关测试 6/6 通过；该结果显示验证范围超过最小证据。
+- `vp_local_correct_stop` 与 `vp_affected_failure` 已使用同一 `codex-cli@0.147.0` / `gpt-5.6-sol` 完成 baseline/candidate 配对 dry run：4/4 trace 完整，4/4 独立 Oracle 通过，4/4 post-run workspace digest 一致；baseline/candidate failure recall 均为 1。
+- 两题 dry run 的耗时观察为毫秒量级（1123.2ms→63.6ms、191.2ms→91.2ms），candidate 均为 `mode: shadow`；评估仍为 `evidence_insufficient` / `not_supported`，因为只有 2/6 pilot 题且 quality-claim eligible 为 0/30。百分比不作为结论引用。
 - 全仓库 `npm run check` 通过；设计与 smoke 报告仍标记 `quality_claim_eligible: false`。
 
 ## 未完成
@@ -47,12 +49,14 @@
 - Maka 固定 CI-green revision 已通过 `npm ci`、`format:check`、`build:test`、`typecheck` 的真实 preflight，但完整 `npm test` 仍含 PTY、macOS 路径规范化和本机认证能力相关失败；只作为验证样本和环境分类证据。
 - 没有完整真实仓库 cohort，不能声称已经减少测试耗时或 CI 成本；也没有启用 Agent hook/permission 强制。
 - Observatory MVP 的 Issue/PR 仍需按依赖顺序审阅和合并；本地 canonical fixture 不能替代真实 P1/P2 benchmark。
-- 6 题 pilot 还没有采集同一 Agent/模型的策略关闭与开启配对 VerifyTrace，因此不能声称测试时间或命令数量已经下降。
-- smoke run 未显式固定模型，只能证明链路和现象；固定 `gpt-5.6-sol` 的正式 run 在执行任何 Agent 命令前因 workspace 额度耗尽而失败，正式 baseline 仍为 0/6。
+- 6 题 pilot 目前只完成 2/6 同一 Agent/模型的 baseline/candidate 配对，剩余 4 题尚未采集。
+- 两题 dry run 的耗时/命令数下降只能作为采集链校准观察，不能声称策略已经节省测试时间或 CI 成本。
+- smoke run 未显式固定模型，只能证明链路与现象；固定 `gpt-5.6-sol` 的两次尝试因 provider 凭据 401 失败且未执行任何 Agent 命令，不能计入正式配对。
 - 当前 6 题都来自本仓库历史或受控故障，只用于隔离测评合同；正式 30 题仍需从多个真实 JS/TS 仓库选取。
 
 ## 下一阶段
 
-1. workspace 额度恢复后，只重跑 `vp_local_correct_stop` 的显式模型 baseline，先确认正式证据链合格。
-2. 第一题合格后复制到剩余五题，再接当前推荐策略采集 candidate，并先检查 6 对是否漏故障。
-3. 六题配对成立后再从多个真实 JS/TS 仓库扩展正式 30 题；同步按 stacked 依赖顺序审阅现有 PR，不主动合并。
+1. 先审阅、测试并提交当前 30 项本地改动，确保加固代码、fixture、报告和文档进入远程分支。
+2. 先排查 provider 凭据 401，再完成剩余 4/6 题的 baseline/candidate 配对，并保留 trace、独立 Oracle 和 workspace digest 证据。
+3. 六题配对成立后重新运行 evaluation；只有链路稳定且不漏故障，才从多个真实 JS/TS 仓库扩展正式 30 题。
+4. 按 stacked 依赖顺序审阅 PR #34、#35 及前置 PR；不直接合并默认分支。

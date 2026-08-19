@@ -4,7 +4,7 @@
 
 ## 当前进度
 
-**Observatory MVP 与 state-aware collector 已完成；Verification Policy pilot 工作区 6/6 合格，单题采集链 smoke 已跑通，但正式 baseline/candidate 仍为 0/6。**
+**Observatory MVP 与 state-aware collector 已完成；Verification Policy pilot 工作区 6/6 合格，已完成 2/6 同模型 baseline/candidate dry run，质量声明仍为 0/30。**
 
 - 已完成 Google、OpenAI Codex、Aider、Claude Code、GitHub Copilot、Meta 等实践的横向比较。
 - 已提炼四档验证强度：`off`、`smoke`、`standard`、`thorough`。
@@ -17,6 +17,7 @@
 - 原 Issue #30 的 Calculator/Tasktracker 30-task 清单已降级为历史规划审计，不再继续扩写 oracle。
 - 已建立与产品目标直接对应的 6 题 Verification Policy pilot；隔离工作区和隐藏 oracle 资格检查为 6/6，详见 [Verification Policy Benchmark v0.1](docs/verification-policy-benchmark-v0.1.md)。
 - `vp_local_correct_stop` 已产出一条完整脱敏 smoke trace：正确性与不改文件均通过，但观察到 6 个 shell 调用和项目级 `npm run check`；因模型未显式绑定，不计入正式 baseline。
+- `vp_local_correct_stop`、`vp_affected_failure` 已用 `gpt-5.6-sol` 完成配对 dry run；4 条 trace 完整、4 个独立 oracle 通过、failure signature 与终态 workspace digest 均绑定。评估仍为 `evidence_insufficient / not_supported`，详见 [paired dry run report](fixtures/benchmark/verification-policy-dry-run-2026-08-19/run-report.json)。
 
 ## 核心结论
 
@@ -34,6 +35,7 @@
 - [实验与校准方案](docs/experiment-and-calibration.md)：pilot 设计、指标、fallback 和审计契约。
 - [Verification Policy Benchmark v0.1](docs/verification-policy-benchmark-v0.1.md)：六题隔离测评、隐藏判分和当前证据边界。
 - [当前状态与下一步](STATUS.md)：明确已完成、未完成和下一阶段实现边界。
+- [项目交接文档](docs/handoff-2026-08-19.md)：当前分支、PR 链、本地未提交变更、证据状态和可直接执行的下一步。
 - [贡献指南](CONTRIBUTING.md)：Issue/PR 边界、验证命令和证据要求。
 
 ## 开发检查
@@ -105,7 +107,7 @@ npm run benchmark:cohort -- \
   --output output/benchmark/baseline-report.json
 ```
 
-审计器会校验仓库身份、固定 revision、环境清单摘要、安装/构建/测试证据和完整 baseline VerifyTrace，并明确输出距 30 个质量声明任务的证据缺口。结果为 `evidence_insufficient` 时退出码为 2；这不是失败伪装成成功。字段与资格规则见 [Baseline cohort v1](docs/baseline-cohort-v1.md)。
+审计器会自行读取独立 oracle report，并校验 report 摘要、oracle definition、仓库身份、固定 revision、环境清单摘要和完整 baseline VerifyTrace；输入不能自报 oracle 结果。报告会明确输出距 30 个质量声明任务的证据缺口。结果为 `evidence_insufficient` 时退出码为 2；这不是失败伪装成成功。字段与资格规则见 [Baseline cohort v1](docs/baseline-cohort-v1.md)。
 
 对 agent-belt 真实 run 做脱敏的探索性 pilot 审计：
 
@@ -160,7 +162,7 @@ npm run benchmark:verification:qualify -- \
 
 前者检查任务结构和隐藏答案隔离；后者从固定 revision 创建临时工作区并实际验证六种退出模式。当前结果为 `fixture_ready: 6/6`，仍不等于配对实验完成。
 
-单题 Agent run 使用 `npm run benchmark:verification:prepare` 创建无原始 Git 历史的工作区，再用 `npm run benchmark:verification:trace` 转换 lifecycle；参数、模型绑定和当前 smoke 边界见 [Verification Policy Benchmark v0.1](docs/verification-policy-benchmark-v0.1.md)。
+单题 Agent run 使用 `npm run benchmark:verification:prepare` 创建无原始 Git 历史的工作区，再用 `npm run benchmark:verification:trace` 转换 lifecycle，并用 `npm run benchmark:verification:oracle` 在临时副本中独立判分。trace 强制绑定模型、baseline/shadow 模式和 policy 身份；trace/oracle 共用 post-run workspace digest。参数和当前 smoke 边界见 [Verification Policy Benchmark v0.1](docs/verification-policy-benchmark-v0.1.md)。
 
 为新的 agent-belt run 采集带 UTC/monotonic 时间的 Codex shell lifecycle sidecar，并生成 fail-closed VerifyTrace：
 
