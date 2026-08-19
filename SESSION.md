@@ -1,36 +1,37 @@
-# Handoff 2026-08-14
+# Handoff 2026-08-17
 
 ## 目标
 
-实现 AI 编码代理测试策略的 shadow 验证器，并在 Maka Agent 干净 worktree 中准备基线评测。
+只在本仓库把现有测试策略和 shadow ledger 发展为 **Agent Verification Observatory**：用可回放的诊断型可视化解释 Coding Agent 的过度验证行为。
 
 ## 进度
 
-- 百分比：约 85%
-- 检查点：策略工具、policy 校验、dry-run 和 baseline 账本已完成；真实 baseline 受 Maka 安装/上游构建阻塞。
+- 方向与研究边界：100%
+- 策略研究与 shadow 基础：已完成
+- Observatory 可视化与策略闭环：0%，这是当前唯一主线
+- 检查点：不再续跑 Maka baseline，先在本仓库完成事件 schema、trace 回放和最小 fixtures。
 
 ## 已完成（含证据）
 
-- 策略仓库：`/Users/qianyuhe/Documents/GitHub/ai-coding-agent-test-strategy`，分支 `codex/publish-research`。
-- Maka pilot：`/Users/qianyuhe/Documents/GitHub/maka-agent-test-strategy-pilot`，分支 `codex/test-strategy-pilot`，基于 `origin/main@938487ea`，未修改 Maka 文件。
-- `npm test`：7/7 通过；`node --check src/verifier.mjs`、`node --check src/cli.mjs`、`bash -n scripts/verify.sh` 通过。
+- 策略仓库：`/Users/qianyuhe/Documents/ChatGPT/llm test`，分支 `codex/observatory-roadmap`。
+- 2026-08-17 fresh check：`npm test` 7/7 通过；`node --check src/verifier.mjs`、`node --check src/cli.mjs`、`bash -n scripts/verify.sh` 通过。
 - 四类 dry-run 已验证：docs-only 走 `format:check`；core 变更包含直接依赖闭包；storage migration 和 unknown 文件 fallback 到 `npm test`。
-- baseline 账本：`output/ledger/maka-agent-baseline.jsonl`（本地文件已被 `.gitignore` 忽略）。
+- 已建立 [Observatory MVP 路线图 #1](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/1) 和执行 Issue #2-#8；当前分支只处理文档发布 Issue #2。
 
 ## 未完成
 
-- Maka 完整 `npm ci` 被 `dugite-native` 资产下载/缓存校验阻塞；`npm ci --ignore-scripts` 只能作为诊断安装。
-- `format:check` 已通过（4282ms）；`typecheck` 因诊断安装没有先生成 dist 失败（7722ms）。
-- `npm test` 在 `packages/ui` build 阶段因接口不一致失败（12638ms），未进入测试执行。
-- 尚未有 30+ baseline / 30+ shadow 任务，不能宣称减少耗时或成本。
+- 尚未定义并冻结 `diff → risk → test → result → retry/expand → stop` 的 v1 事件 schema。
+- 尚未生成可回放的 trace fixture 和诊断型 HTML 视图。
+- 尚未实现专家/傻瓜模式的版本化策略候选和证据面板。
+- 尚未有真实 benchmark；不能宣称减少耗时或降低质量风险。
 
 ## 下一步（可直接执行）
 
-1. 在 Maka 干净 worktree 确认 `packages/ui` 的接口错误是否存在于 `origin/main@938487ea`，或是否需要先完成项目规定的构建/patch 步骤。
-2. 解决 `dugite-native` 下载后重跑不带 `--ignore-scripts` 的 `npm ci`；保留官方 SHA-256 校验。
-3. 重跑 `verify.sh fast/full --mode baseline --execute`，然后开始成对采集 baseline 与 shadow 任务。
+1. 合并 [#2](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/2) 的范围与研究文档。
+2. 通过 [#3](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/3) 建立 CI 与 PR 证据闸门。
+3. 从 [#4](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/4) 开始实现 ledger 到 VerifyTrace v1 的数据闭环。
 
 ## 风险/红线
 
-- 不修改、不推送 Maka pilot 分支；策略仓库不直接推送 `main`/`master`。
-- 在基线与 shadow 样本达到门槛前，不启用强制 hook，也不宣称“减少测试”。
+- 只修改本仓库；不触碰 `testguard`、`research-console-private`、Maka、VPS/Hermes。
+- 在回放、标签和安全指标稳定前，不启用硬拦截，也不宣称“减少测试”。
