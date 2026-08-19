@@ -26,7 +26,14 @@
 - 实现 fail-closed pilot outcome 审计器：绑定环境 revision、场景定义哈希和结构化输出，拒绝缺失/畸形/自报资格证据，不保存原始命令、输出、绝对路径或认证信息。
 - 为 4 个 editing task 实现外置独立功能 oracle，并用真实 pilot diff 重建的 post-agent 工作区验证 4/4 通过；oracle 不调用 agent 自写测试，证据绑定环境、定义和源码摘要。
 
-## 未完成
+## 当前未完成
+
+- 尚未把 JSONL ledger 转成统一的 Observatory trace schema。
+- 尚未实现诊断型可视化回放：时间线、重复/支配测试、失败扩张、成本和停止点。
+- 尚未实现专家模式、傻瓜模式和版本化策略候选。
+- 尚未在本仓库 fixtures 上建立可复现的冗余标签与回放回归测试。
+
+## 历史阻塞（不作为当前执行入口）
 
 - agent-belt 已通过探索性 go/no-go，4 个 editing task 的独立 oracle 已通过，但原始 outcomes 没有完整 baseline VerifyTrace；read-only task 没有稳定响应 oracle，配对 candidate run 也未开始，真实 eligible baseline 仍为 0/30。
 - 两个未显式标记 `test-required` 的场景新增了测试，这只是 `unspecified` 观察，不能据此断言测试无价值；当前能确认的是 2 个任务超过两次即时测试预算。
