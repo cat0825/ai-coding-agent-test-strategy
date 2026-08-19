@@ -4,6 +4,10 @@
   "cohort_version": 1,
   "evidence_class": "canonical_fixture",
   "external_benchmarks": "deferred",
+  "pairing": {
+    "baseline": {"mode": "baseline", "policy": {"name": "fixture-policy", "version": "policy-v1"}},
+    "candidate": {"mode": "shadow", "policy": {"name": "fixture-policy", "version": "policy-v1"}}
+  },
   "thresholds": {
     "minimum_quality_claim_comparisons": 30,
     "minimum_oracle_failures": 10,
@@ -24,12 +28,14 @@
     {"id": "exact-repeat", "path": "fixtures/diagnostics/exact-repeat.json", "expected_diagnostics": [{"event_index": 4, "label": "exact_repeat"}]},
     {"id": "unattributed-retry", "path": "fixtures/diagnostics/unattributed-retry.json", "expected_diagnostics": [{"event_index": 6, "label": "exact_repeat"}, {"event_index": 6, "label": "unattributed_retry"}]},
     {"id": "exact-repeat-suppressed", "path": "fixtures/evaluation/exact-repeat-suppressed.json", "expected_diagnostics": []},
-    {"id": "unattributed-retry-suppressed", "path": "fixtures/evaluation/unattributed-retry-suppressed.json", "expected_diagnostics": []}
+    {"id": "unattributed-retry-suppressed", "path": "fixtures/evaluation/unattributed-retry-suppressed.json", "expected_diagnostics": []},
+    {"id": "failed-retry-shadow", "path": "fixtures/evaluation/failed-retry-shadow.json", "expected_diagnostics": [{"event_index": 8, "label": "necessary_revalidation"}]},
+    {"id": "conservative-escalation-shadow", "path": "fixtures/evaluation/conservative-escalation-shadow.json", "expected_diagnostics": []}
   ],
   "comparisons": [
     {"id": "repeat-pass", "task_id": "diagnostic-exact-repeat", "baseline_trace": "exact-repeat", "candidate_trace": "exact-repeat-suppressed", "quality_claim_eligible": false, "oracle": {"final_status": "passed", "failure_signatures": []}},
     {"id": "repeat-failure", "task_id": "diagnostic-unattributed-retry", "baseline_trace": "unattributed-retry", "candidate_trace": "unattributed-retry-suppressed", "quality_claim_eligible": false, "oracle": {"final_status": "failed", "failure_signatures": ["assertion:expected-42"]}},
-    {"id": "necessary-revalidation", "task_id": "fixture-failed-retry", "baseline_trace": "failed-retry", "candidate_trace": "failed-retry", "quality_claim_eligible": false, "oracle": {"final_status": "passed", "failure_signatures": ["assertion:parser"]}},
-    {"id": "conservative-expansion", "task_id": "fixture-conservative-escalation", "baseline_trace": "conservative-escalation", "candidate_trace": "conservative-escalation", "quality_claim_eligible": false, "oracle": {"final_status": "passed", "failure_signatures": ["storage:unknown"]}}
+    {"id": "necessary-revalidation", "task_id": "fixture-failed-retry", "baseline_trace": "failed-retry", "candidate_trace": "failed-retry-shadow", "quality_claim_eligible": false, "oracle": {"final_status": "passed", "failure_signatures": ["assertion:parser"]}},
+    {"id": "conservative-expansion", "task_id": "fixture-conservative-escalation", "baseline_trace": "conservative-escalation", "candidate_trace": "conservative-escalation-shadow", "quality_claim_eligible": false, "oracle": {"final_status": "passed", "failure_signatures": ["storage:unknown"]}}
   ]
 }

@@ -1,0 +1,438 @@
+{
+  "report_version": 1,
+  "cohort": {
+    "id": "verification-policy-paired-dry-run-2026-08-19",
+    "version": 1,
+    "schema_version": 1,
+    "evidence_class": "observed_benchmark",
+    "external_benchmarks": "deferred",
+    "input_digest": "7c4b7011d4ed9151fd54d8064799c22561db2d3a628b28e2790636fa47ccba78"
+  },
+  "thresholds": {
+    "minimum_quality_claim_comparisons": 30,
+    "minimum_oracle_failures": 10,
+    "event_completeness": 1,
+    "command_normalization": 1,
+    "diagnostic_precision": 1,
+    "replay_correctness": 1,
+    "comparison_integrity": 1,
+    "final_oracle_match": 1,
+    "failure_recall": 0.95,
+    "minimum_duration_reduction": 0.25,
+    "minimum_command_reduction": 0.3
+  },
+  "metrics": {
+    "event_completeness": {
+      "definition": "Validated complete traces with an explicit stop / all cohort traces",
+      "numerator": 4,
+      "denominator": 4,
+      "value": 1
+    },
+    "command_normalization": {
+      "definition": "Test results matching a previously selected canonical command id and argv / all test results",
+      "numerator": 5,
+      "denominator": 5,
+      "value": 1
+    },
+    "diagnostic_precision": {
+      "definition": "Expected event-label findings / all emitted event-label findings",
+      "numerator": 0,
+      "denominator": 0,
+      "value": null,
+      "true_positives": 0,
+      "false_positives": 0
+    },
+    "diagnostic_recall": {
+      "definition": "Expected event-label findings emitted / all expected event-label findings",
+      "numerator": 0,
+      "denominator": 0,
+      "value": null,
+      "false_negatives": 0
+    },
+    "replay_correctness": {
+      "definition": "Offline replays containing every escaped event with no remote runtime dependency / all cohort traces",
+      "numerator": 4,
+      "denominator": 4,
+      "value": 1
+    },
+    "comparison_integrity": {
+      "definition": "Baseline/candidate pairs matching task, repository revision, harness, model, mode, policy, and available scenario/workspace bindings / all comparisons",
+      "numerator": 2,
+      "denominator": 2,
+      "value": 1
+    },
+    "final_oracle_match": {
+      "definition": "Candidate traces matching the independent expected final status / all comparisons",
+      "numerator": 2,
+      "denominator": 2,
+      "value": 1
+    },
+    "baseline_failure_recall": {
+      "definition": "Independent oracle failure signatures observed by baseline traces / all oracle failure signatures",
+      "numerator": 1,
+      "denominator": 1,
+      "value": 1
+    },
+    "candidate_failure_recall": {
+      "definition": "Independent oracle failure signatures observed by candidate traces / all oracle failure signatures",
+      "numerator": 1,
+      "denominator": 1,
+      "value": 1
+    },
+    "failure_recall_delta": {
+      "definition": "Candidate failure recall minus baseline failure recall",
+      "value": 0
+    },
+    "verification_cost": {
+      "definition": "Median per-task reduction from observed baseline to candidate test-result count and cumulative duration",
+      "comparison_count": 2,
+      "duration_reduction_denominator": 2,
+      "command_reduction_denominator": 2,
+      "median_duration_reduction": 0.73327,
+      "median_command_reduction": 0.25
+    },
+    "quality_claim": {
+      "comparison_integrity": {
+        "definition": "Quality-claim-eligible comparisons whose baseline and candidate task ids match the declared task id",
+        "numerator": 0,
+        "denominator": 0,
+        "value": null
+      },
+      "final_oracle_match": {
+        "definition": "Quality-claim-eligible comparisons whose candidate final status matches the independent oracle",
+        "numerator": 0,
+        "denominator": 0,
+        "value": null
+      },
+      "baseline_failure_recall": {
+        "definition": "Independent oracle failure signatures observed by baseline traces in quality-claim-eligible comparisons",
+        "numerator": 0,
+        "denominator": 0,
+        "value": null
+      },
+      "candidate_failure_recall": {
+        "definition": "Independent oracle failure signatures observed by candidate traces in quality-claim-eligible comparisons",
+        "numerator": 0,
+        "denominator": 0,
+        "value": null
+      },
+      "failure_recall_delta": {
+        "definition": "Candidate failure recall minus baseline failure recall in quality-claim-eligible comparisons",
+        "value": null
+      },
+      "verification_cost": {
+        "definition": "Median per-task reduction from observed baseline to candidate results in quality-claim-eligible comparisons",
+        "comparison_count": 0,
+        "duration_reduction_denominator": 0,
+        "command_reduction_denominator": 0,
+        "median_duration_reduction": null,
+        "median_command_reduction": null
+      },
+      "oracle_failure_count": 0
+    },
+    "evidence_sufficiency": {
+      "definition": "Quality-claim-eligible comparisons and independent oracle failures available for safety claims",
+      "eligible_comparisons": 0,
+      "required_comparisons": 30,
+      "oracle_failures": 0,
+      "required_oracle_failures": 10,
+      "calibration_oracle_failures": 1,
+      "evidence_class": "observed_benchmark"
+    }
+  },
+  "gates": [
+    {
+      "id": "event_completeness",
+      "category": "structural",
+      "definition": "Validated complete traces with an explicit stop / all cohort traces",
+      "value": 1,
+      "comparator": ">=",
+      "threshold": 1,
+      "status": "pass"
+    },
+    {
+      "id": "command_normalization",
+      "category": "structural",
+      "definition": "Test results matching a previously selected canonical command id and argv / all test results",
+      "value": 1,
+      "comparator": ">=",
+      "threshold": 1,
+      "status": "pass"
+    },
+    {
+      "id": "diagnostic_precision",
+      "category": "structural",
+      "definition": "Expected event-label findings / all emitted event-label findings",
+      "value": null,
+      "comparator": ">=",
+      "threshold": 1,
+      "status": "evidence_insufficient"
+    },
+    {
+      "id": "replay_correctness",
+      "category": "structural",
+      "definition": "Offline replays containing every escaped event with no remote runtime dependency / all cohort traces",
+      "value": 1,
+      "comparator": ">=",
+      "threshold": 1,
+      "status": "pass"
+    },
+    {
+      "id": "comparison_integrity",
+      "category": "structural",
+      "definition": "Baseline/candidate pairs matching task, repository revision, harness, model, mode, policy, and available scenario/workspace bindings / all comparisons",
+      "value": 1,
+      "comparator": ">=",
+      "threshold": 1,
+      "status": "pass"
+    },
+    {
+      "id": "final_oracle_match",
+      "category": "safety",
+      "definition": "Candidate traces matching the independent expected final status / all comparisons",
+      "value": 1,
+      "comparator": ">=",
+      "threshold": 1,
+      "status": "pass"
+    },
+    {
+      "id": "failure_recall",
+      "category": "safety",
+      "definition": "Independent oracle failure signatures observed by candidate traces / all oracle failure signatures; candidate recall must not regress from baseline",
+      "value": 1,
+      "comparator": ">=",
+      "threshold": 0.95,
+      "status": "pass",
+      "non_regression_delta": 0,
+      "non_regression_comparator": ">=",
+      "non_regression_threshold": 0
+    },
+    {
+      "id": "quality_claim_integrity",
+      "category": "safety",
+      "definition": "Quality-claim-eligible comparisons whose baseline and candidate task ids match the declared task id",
+      "value": null,
+      "comparator": ">=",
+      "threshold": 1,
+      "status": "evidence_insufficient"
+    },
+    {
+      "id": "quality_claim_final_oracle_match",
+      "category": "safety",
+      "definition": "Quality-claim-eligible comparisons whose candidate final status matches the independent oracle",
+      "value": null,
+      "comparator": ">=",
+      "threshold": 1,
+      "status": "evidence_insufficient"
+    },
+    {
+      "id": "quality_claim_failure_recall",
+      "category": "safety",
+      "definition": "Independent oracle failure signatures observed by candidate traces in quality-claim-eligible comparisons; candidate recall must not regress from baseline",
+      "value": null,
+      "comparator": ">=",
+      "threshold": 0.95,
+      "status": "evidence_insufficient",
+      "non_regression_delta": null,
+      "non_regression_comparator": ">=",
+      "non_regression_threshold": 0
+    },
+    {
+      "id": "duration_reduction",
+      "category": "efficiency",
+      "definition": "Median per-task reduction in cumulative test-result duration for quality-claim-eligible comparisons",
+      "value": null,
+      "comparator": ">=",
+      "threshold": 0.25,
+      "status": "evidence_insufficient"
+    },
+    {
+      "id": "command_reduction",
+      "category": "efficiency",
+      "definition": "Median per-task reduction in normalized test-result executions for quality-claim-eligible comparisons",
+      "value": null,
+      "comparator": ">=",
+      "threshold": 0.3,
+      "status": "evidence_insufficient"
+    }
+  ],
+  "conclusion": {
+    "status": "evidence_insufficient",
+    "efficiency_claim": "not_supported",
+    "reason_codes": [
+      "insufficient_safety_gate:quality_claim_integrity",
+      "insufficient_safety_gate:quality_claim_final_oracle_match",
+      "insufficient_safety_gate:quality_claim_failure_recall",
+      "failed_structural_gate:diagnostic_precision",
+      "insufficient_efficiency_gate:duration_reduction",
+      "insufficient_efficiency_gate:command_reduction",
+      "insufficient_quality_claim_comparisons",
+      "insufficient_oracle_failures"
+    ],
+    "external_p1_p2_benchmarks": "deferred"
+  },
+  "traces": [
+    {
+      "id": "vp-local-baseline",
+      "path": "fixtures/benchmark/verification-policy-dry-run-2026-08-19/traces/vp_local_correct_stop-baseline.json",
+      "trace_id": "trace-9c89ef966839a68e2f46500cc60d2872bd64ee7c8b8f561a3e61a0051ce7428b",
+      "complete": true,
+      "validation_errors": [],
+      "normalized_commands": {
+        "numerator": 2,
+        "denominator": 2
+      },
+      "diagnostics": {
+        "expected": [],
+        "actual": [],
+        "true_positives": 0,
+        "false_positives": 0,
+        "false_negatives": 0,
+        "error": null
+      },
+      "replay_correct": true,
+      "verification_cost": {
+        "command_executions": 2,
+        "unique_canonical_commands": 2,
+        "duration_ms": 1123.204583
+      }
+    },
+    {
+      "id": "vp-local-candidate",
+      "path": "fixtures/benchmark/verification-policy-dry-run-2026-08-19/traces/vp_local_correct_stop-candidate.json",
+      "trace_id": "trace-1d5a1455a2a5b340f92a0c92defa68a184d383939f47cfceec05774fcb20f116",
+      "complete": true,
+      "validation_errors": [],
+      "normalized_commands": {
+        "numerator": 1,
+        "denominator": 1
+      },
+      "diagnostics": {
+        "expected": [],
+        "actual": [],
+        "true_positives": 0,
+        "false_positives": 0,
+        "false_negatives": 0,
+        "error": null
+      },
+      "replay_correct": true,
+      "verification_cost": {
+        "command_executions": 1,
+        "unique_canonical_commands": 1,
+        "duration_ms": 63.561375
+      }
+    },
+    {
+      "id": "vp-affected-baseline",
+      "path": "fixtures/benchmark/verification-policy-dry-run-2026-08-19/traces/vp_affected_failure-baseline.json",
+      "trace_id": "trace-b01f9ac037996bba47eb275258b5a9d0dccb2921ff4e1995747100c94f2747fa",
+      "complete": true,
+      "validation_errors": [],
+      "normalized_commands": {
+        "numerator": 1,
+        "denominator": 1
+      },
+      "diagnostics": {
+        "expected": [],
+        "actual": [],
+        "true_positives": 0,
+        "false_positives": 0,
+        "false_negatives": 0,
+        "error": null
+      },
+      "replay_correct": true,
+      "verification_cost": {
+        "command_executions": 1,
+        "unique_canonical_commands": 1,
+        "duration_ms": 191.237916
+      }
+    },
+    {
+      "id": "vp-affected-candidate",
+      "path": "fixtures/benchmark/verification-policy-dry-run-2026-08-19/traces/vp_affected_failure-candidate.json",
+      "trace_id": "trace-ab94a29a73525e6ae672394be86705fd39dd5be41ce96194b4a6fd7063460ddd",
+      "complete": true,
+      "validation_errors": [],
+      "normalized_commands": {
+        "numerator": 1,
+        "denominator": 1
+      },
+      "diagnostics": {
+        "expected": [],
+        "actual": [],
+        "true_positives": 0,
+        "false_positives": 0,
+        "false_negatives": 0,
+        "error": null
+      },
+      "replay_correct": true,
+      "verification_cost": {
+        "command_executions": 1,
+        "unique_canonical_commands": 1,
+        "duration_ms": 91.196
+      }
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "vp-local-correct-stop",
+      "task_id": "vp_local_correct_stop",
+      "baseline_trace": "vp-local-baseline",
+      "candidate_trace": "vp-local-candidate",
+      "quality_claim_eligible": false,
+      "comparison_integrity": true,
+      "comparison_integrity_reasons": [],
+      "oracle": {
+        "final_status": "completed",
+        "failure_signatures": []
+      },
+      "candidate_final_status": "completed",
+      "final_oracle_match": true,
+      "baseline_failures_caught": 0,
+      "candidate_failures_caught": 0,
+      "baseline_cost": {
+        "command_executions": 2,
+        "unique_canonical_commands": 2,
+        "duration_ms": 1123.204583
+      },
+      "candidate_cost": {
+        "command_executions": 1,
+        "unique_canonical_commands": 1,
+        "duration_ms": 63.561375
+      },
+      "duration_reduction": 0.943411,
+      "command_reduction": 0.5
+    },
+    {
+      "id": "vp-affected-failure",
+      "task_id": "vp_affected_failure",
+      "baseline_trace": "vp-affected-baseline",
+      "candidate_trace": "vp-affected-candidate",
+      "quality_claim_eligible": false,
+      "comparison_integrity": true,
+      "comparison_integrity_reasons": [],
+      "oracle": {
+        "final_status": "completed",
+        "failure_signatures": [
+          "evaluation:quality-claim-regression"
+        ]
+      },
+      "candidate_final_status": "completed",
+      "final_oracle_match": true,
+      "baseline_failures_caught": 1,
+      "candidate_failures_caught": 1,
+      "baseline_cost": {
+        "command_executions": 1,
+        "unique_canonical_commands": 1,
+        "duration_ms": 191.237916
+      },
+      "candidate_cost": {
+        "command_executions": 1,
+        "unique_canonical_commands": 1,
+        "duration_ms": 91.196
+      },
+      "duration_reduction": 0.523128,
+      "command_reduction": 0
+    }
+  ]
+}

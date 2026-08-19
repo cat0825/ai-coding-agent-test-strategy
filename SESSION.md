@@ -1,69 +1,128 @@
-# Handoff 2026-08-18 17:00 CST（Issue #33 state-aware 证据检查点）
+# Handoff 2026-08-19 15:28 CST（Verification Policy 配对 dry run 与信任边界加固检查点）
 
-## 目标与方向
+## 一、项目定位与核心目标
 
-先完成并稳定当前 Agent Verification Observatory，再考虑迁移到 DeepSeek Harness。当前阶段只做真实业务闭环：可信采集、独立验收、30-task baseline、paired candidate 和安全门；不开发 DSH 插件，不做边缘安全用例，不扩张成全自动平台。
+本项目为 **Agent Verification Observatory（AI 编码代理验证可观测性平台）**。
 
-未来迁移方向已确定但暂缓：核心继续保持 Node.js 可复用逻辑，稳定后用 TypeScript 包一层 DSH 插件，接入 `tools/pre-execute`、`tools/result` 和 `agent/turn-stopping`；离线 benchmark/oracle 不塞进在线插件。
+### 核心目标
+1. **诊断低效**：量化分析 AI Coding Agent（如 Codex、Claude Code、Aider 等）在开发流程中的测试验证行为，精准识别“重复无效执行 (Exact repeat)”、“盲目重试 (Unattributed retry)”与“过度全量回归”。
+2. **策略治理 (Verification Policy)**：提供智能分级验证（`fast` / `affected` / `full`）、依赖闭包分析与预算控制机制。
+3. **双重安全门禁**：在**确保故障召回率不下降（Failure-Recall Safety Gate）**的前提下，量化证明**测试耗时与 CI 成本显著降低（Efficiency Gate）**。
 
-## 进度
+---
 
-- Issue #33 当前实现与真实 5-task 验收：100%。
-- 真实 baseline：4/30（13.3%）；还缺 26 个不同任务。
-- Candidate paired cohort：0/30；eligible oracle failures：0/10。
-- 默认分支集成：仍为 0/14 旧 PR；Issue #33 已提交为 draft PR #34，尚未合并。
+## 二、当前真相与仓库基线
 
-## 当前真相
+- **仓库路径**：`/Users/qianyuhe/Documents/ChatGPT/llm test`
+- **当前分支**：`codex/issue-30-qualify-baseline-tasks`（基于 stacked PR 开发）
+- **远程分支**：`origin/codex/issue-30-qualify-baseline-tasks`
+- **关联 PR**：
+  - [Draft PR #34](https://github.com/cat0825/ai-coding-agent-test-strategy/pull/34)（Issue #33：State-aware VerifyTrace v2）
+  - [Draft PR #35](https://github.com/cat0825/ai-coding-agent-test-strategy/pull/35)（Issue #30：Verification Policy Benchmark Pilot）
+- **工作区状态**：当前提交 `b6eabd3` 与远程跟踪分支一致；本地有 30 项未提交变更，其中 22 个已跟踪文件修改、8 个未跟踪文件/目录。
+- **代码与测试健康度**：
+  - `npm run check`：**100% 通过**（包含 Node/Shell/Python AST 语法静态分析与全量单元/集成测试）。
+  - 测试用例：**108 项测试全部通过，0 失败**。
 
-- 仓库：`/Users/qianyuhe/Documents/ChatGPT/llm test`。
-- 分支：`codex/issue-33-state-aware-verifytrace`，基于 `codex/agent-belt-timestamped-trace@1d11fa3`。
-- GitHub：[Issue #33](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/33)；[draft PR #34](https://github.com/cat0825/ai-coding-agent-test-strategy/pull/34) 以 `codex/agent-belt-timestamped-trace` 为 base，Node 20/24 CI 已通过。
-- 主实现提交：`aa47c02 feat: make agent-belt traces state-aware`。
-- 最新全量检查：`npm run check` 83/83 通过；`git diff --check` 与 fixture 隐私扫描通过。
+---
 
-## Issue #33 已完成
+## 三、核心架构与模块清单
 
-- `scripts/codex-lifecycle-wrapper.py` 升级为 collector v2：记录 UTC/monotonic 生命周期、cwd 摘要和 workspace-relative `file_change`；不记录命令、输出、凭据或绝对路径。
-- `src/test-command.mjs` 保留 cwd、环境赋值和目标参数的摘要。`pytest`、带 `PYTHONPATH` 的 `pytest`、不同 target/cwd 不再被错误折叠成同一命令。
-- `src/agent-belt-trace.mjs` 按时间写入文件状态；测试间的非测试 Shell 命令会产生 unknown-state 边界；最终 `files_modified` 与已观察 file-change 路径必须对得上，否则 trace 变 partial。
-- `src/diagnostics.mjs` 只在状态证据和两次命令语义都完整时输出 `exact_repeat` / `unattributed_retry`。旧 collector-v1 trace 不再产生伪重复结论。
-- Python `__pycache__`、`.pyc`、pytest/mypy/ruff cache 被单独计数，不再抬高测试文件预算；真实本轮忽略 9 个缓存文件，保留 5 个真实测试文件改动。
+| 模块名称 | 源码文件 | 核心职责与设计说明 |
+| :--- | :--- | :--- |
+| **验证规划器 (Verifier)** | `src/verifier.mjs`<br>`src/cli.mjs` | 根据 Git Diff 动态计算变更依赖闭包，自适应选择最小必要验证命令梯度，输出 JSONL 审计账本。 |
+| **评估与门禁引擎 (Evaluator)** | `src/evaluation.mjs` | 解析 VerifyTrace，精确分类执行事件（有效复测 vs 无效浪费），计算效率与召回率门禁指标。 |
+| **工作区物化隔离器 (Materializer)** | `src/verification-workspace.mjs` | 从基准 commit 自动创建 clean 临时工作区并清除 Git 历史，注入受控变更与隐藏 Oracle，防止 Agent 偷看 Commit 答案。 |
+| **防伪溯源器 (Provenance)** | `src/collector-provenance.mjs` *(最新)* | 严格计算并比对 Collector Wrapper 二进制/脚本的实际 SHA-256 签名，杜绝伪造生命周期事件。 |
+| **独立 Oracle 评判器** | `src/verification-policy-oracle.mjs` *(最新)* | 独立执行隐藏测试，精确匹配语义级失败签名 (`required_failure_signatures`)，不仅校验退出码。 |
+| **基准准入审计器 (Cohort Auditor)** | `src/cohort.mjs` | 实行严格的 Fail-closed 准入规则：强制要求 30 题基准门槛与真实 Oracle 报告，禁止调用方自报合格。 |
+| **离线 HTML 回放器** | `src/replay.mjs`<br>`src/replay-cli.mjs` | 将任意 VerifyTrace 转换为独立、无外部网络依赖的交互式 HTML 时间线回放。 |
 
-## 真实 v2 rerun 证据
+---
 
-- Run：`20260818-162534-870bcfcf`；固定 `jfrog/agent-belt@90bd105b172adc41394f458e33b653dda2b199b0`，Codex CLI 0.147.0。
-- Agent-belt：5/5 scenarios、32/32 rules checks、0 errors，总 agent time 935730ms。
-- VerifyTrace：5/5 complete、0 partial、0 warnings；7 个 test result，总 observed test duration 2874.598ms。
-- 状态/语义：4 个 editing task 各绑定 1 次 completed file-change；7/7 测试结果 command semantics complete；最终 outcome 文件清单全部对账。
-- Diagnostics：`exact_repeat=0`、`unattributed_retry=0`、`necessary_revalidation=0`。本轮没有证据支持“重复测试浪费”结论。
-- Independent oracle：4/4 editing tasks passed；read-only `l1_find_bug` 继续排除。
-- 隐私扫描：trace 和 lifecycle 中未发现绝对用户路径、`/private` 路径、API key 标记、原始命令输出。
-- Cohort：`quality_claim_eligible_tasks=4`、`evidence_deficit=26`、`evidence_insufficient`；不得宣称总体效率或质量提升。
+## 四、本轮已完成关键工作 (2026-08-19 进展)
 
-## 已更新的证据
+1. **全面修复独立审计报告中指出的 P0/P1 信任边界缺陷**：
+   - **Collector 真实性绑定**：新增 `src/collector-provenance.mjs`，由 CLI 亲自计算 Wrapper 实现的 SHA-256 并与 Manifest 比对，杜绝篡改。
+   - **语义级失败签名判定**：新增 `src/verification-policy-oracle.mjs`，Oracle 验证时同时核验退出码模式与具体错误签名（如报错信息、错误类型、失败文件）。
+   - **Cohort Auditor 证据链闭环**：修改 `src/cohort.mjs`，不再信任 Manifest 声明的 `oracle_status`，改为直接读取并验证独立 Oracle Report 实体文件。
+2. **Verification Policy 6 题 Pilot 全部就绪**：
+   - 覆盖 6 类验证行为模式（`local_pass`、`affected_failure`、`full_fallback`、`repeat_stop`、`flaky_retry`、`test_required`）。
+   - 6/6 工作区物化与现场资格检查全部通过；
+   - 单题 Direct-Codex Smoke 链路打通并完成脱敏 Trace 验证。
+3. **测试套件全面补充反例用例**：
+   - 增加了伪造 Collector Digest、篡改 Oracle 结果、退出码相同但错误类型不同等 10+ 项安全反例测试。
+4. **两题配对 dry run 已完成**：
+   - `vp_local_correct_stop`、`vp_affected_failure` 已使用同一 `codex-cli@0.147.0` / `gpt-5.6-sol` 完成 baseline/candidate 配对；
+   - 4/4 trace 完整，4/4 独立 Oracle 通过，4/4 workspace digest 一致；
+   - baseline/candidate failure recall 均为 1，delta 为 0；
+   - 耗时观察为毫秒量级（1123.2ms→63.6ms、191.2ms→91.2ms），candidate 均为 `mode: shadow`；当前仅 2/6 题且质量样本为 0/30，百分比不作结论。
 
-- `fixtures/benchmark/traces/*.json` 与 `report.json`：已替换为 collector-v2 run。
-- `fixtures/benchmark/oracles/*.json`：已用 v2 run 的四个 editing diff 重建并通过。
-- `fixtures/benchmark/agent-belt-pilot-report.json`：已更新为 29 shell、7 test runner、3 non-zero、9 generated caches ignored。
-- `fixtures/benchmark/agent-belt-baseline-cohort.json` 与 `agent-belt-baseline-report.json`：已绑定新 trace id，仍为 4/30。
+---
 
-## 未完成
+## 五、Verification Policy 6 题 Pilot 现状表
 
-1. PR #34 等待人工 review/merge；不要直接推或合并默认分支。
-2. Issue #30：审计 41 个现有场景，规划至少 30 个不同、可独立 oracle 的任务；当前还缺 26 个。
-3. Candidate/shadow adapter 尚无独立 Issue，也未实现；完成 30 个 baseline 后再做。
-4. 隔离执行 provider、stacked PR 集成治理仍未写成独立 Issue。
+| 任务 ID (`task_id`) | 行为类型 (`behavior_class`) | 题目类型 | 物化状态 | 现场资格复现 | 隐藏 Oracle 校验 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `vp_local_correct_stop` | `repeat_stop` | 验证通过后停止 | ✅ 正常 | ✅ 预期 [0] | ✅ 零文件修改 + 退出码 0 |
+| `vp_affected_regression` | `affected_failure` | 关联依赖模块回归 | ✅ 正常 | ✅ 预期 [1] | ✅ 关联模块报错命中 |
+| `vp_unknown_impact_full_fallback` | `full_fallback` | 需全量兜底拦截 | ✅ 正常 | ✅ 预期 [0, 0, 1] | ✅ 仅在 Full 门禁失败 |
+| `vp_flaky_retry` | `flaky_retry` | 不稳定重试 | ✅ 正常 | ✅ 预期 [1, 0] | ✅ 重试后通过 |
+| `vp_test_required` | `test_required` | 缺失测试要求补测 | ✅ 正常 | ✅ 预期 [0] | ✅ 允许且要求添加测试 |
+| `vp_local_pass` | `local_pass` | 局部无误正常通过 | ✅ 正常 | ✅ 预期 [0] | ✅ 局部退出码 0 |
 
-## 下一步
+---
 
-1. 等待 PR #34 人工 review/merge；Issue #33 不再新增功能。
-2. 继续 #30，不再重跑这 5 个任务。
-3. 30 个 baseline 完成后，实现 candidate/shadow adapter，再执行 30 对比较与 10 个 oracle-failure gate。
-4. 只有 paired 数据和 safety gate 通过后，才讨论有限强制；当前保持 observation/shadow。
+## 六、当前阻塞点与未完成事项
 
-## 风险与红线
+1. **剩余正式 pilot 配对未完成**：
+   - 当前为 `2/6` 配对 dry run，剩余 4 题仍需同一 Agent/模型完成 baseline/candidate 采集；
+   - 之前两次尝试均因 provider 凭据返回 401 失败（run-report 记录为 `conflicting environment API key returned 401` 与 `configured provider token returned 401`），`agent_commands_executed` 为 0，不能计入正式证据；这是凭据配置问题，不是额度问题。
+2. **正式质量证据仍不足**：
+   - Verification Policy quality-claim eligible 为 `0/30`；
+   - 通用 agent-belt 历史 baseline 为 `4/30`，不能与当前六题 pilot 混合计数。
+3. **分支治理与 PR 评审**：
+   - 本地 30 项加固代码、fixture 和文档变更尚未提交；
+   - PR #34、#35 及前置 stacked PR 仍需按依赖顺序审阅，PR #35 远端描述也需要同步 2/6 dry run 结果。
 
-- 5-task run 只能证明采集链和这四个 editing oracle 可用，不能证明更快、更安全或普遍减少测试。
-- 不把生成缓存、重复 trial、read-only 无 oracle 任务算进 30-task 门槛。
-- 不直接 merge，不回滚用户改动，不把 DSH 迁移提前混入当前 PR。
-- 不为追求“零 bug”继续扩展边缘场景；证据不够就明确 `evidence_insufficient`。
+---
+
+## 七、常用操作与验证命令清单
+
+```bash
+# 1. 执行全量静态分析与 108 项测试套件
+npm run check
+
+# 2. 运行 6 题 Verification Policy 基准定义自检
+npm run benchmark:verification
+
+# 3. 运行 6/6 工作区现场物化与模式复现资格检查
+npm run benchmark:verification:qualify
+
+# 4. 对单题执行 Direct-Codex Trace 采集 (以 vp_local_correct_stop 为例)
+npm run benchmark:verification:trace -- --task vp_local_correct_stop
+
+# 5. 运行独立 Verification Policy Oracle
+npm run benchmark:verification:oracle -- \
+  --plan fixtures/benchmark/verification-policy-pilot-plan.json \
+  --oracles fixtures/benchmark/verification-policy-pilot-oracles.json \
+  --repo . \
+  --task-manifest <task.json> \
+  --output <oracle.json>
+
+# 6. 生成离线 HTML 可视化回放
+npm run replay -- fixtures/traces/failed-retry.json output/replay/failed-retry.html
+```
+
+---
+
+## 八、接手后的明确执行步骤 (Actionable Next Steps)
+
+1. **第一步（代码归档与 Commit）**：
+   - 审阅当前 30 项 working tree 变更，运行 `npm run check` 后再提交并推送到 `codex/issue-30-qualify-baseline-tasks`。
+2. **第二步（完成剩余四题）**：
+   - 依次完成 `vp_unknown_impact_full_fallback`、`vp_repeat_pass_stop`、`vp_flaky_retry_once`、`vp_public_behavior_test_required` 的 baseline/candidate 配对。
+3. **第三步（重新评估）**：
+   - 用 6 题完整配对数据运行 evaluation；确认 failure recall 安全门禁和证据完整性。
+4. **第四步（扩展正式样本与 PR 治理）**：
+   - 六题链路稳定后，从多个真实 JS/TS 仓库扩展到至少 30 个质量声明任务；按 stacked 依赖顺序审阅 PR，不主动合并。

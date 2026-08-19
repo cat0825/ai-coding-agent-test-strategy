@@ -91,7 +91,7 @@ function resequence(records) {
   return records.map((record, sequence) => ({ ...record, sequence }));
 }
 
-function convert(lifecycle = lifecycleRecords(), stream = streamRecords(), outcomeFilesModified = null) {
+function convert(lifecycle = lifecycleRecords(), stream = streamRecords(), outcomeFilesModified = null, bindingOverrides = {}) {
   const lifecycleContents = lifecycle.map((record) => JSON.stringify(record)).join("\n") + "\n";
   const streamContents = stream.map((record) => JSON.stringify(record)).join("\n") + "\n";
   const observedFiles = lifecycle
@@ -107,8 +107,12 @@ function convert(lifecycle = lifecycleRecords(), stream = streamRecords(), outco
       model: null,
       repository: "jfrog/agent-belt",
       repositoryCommit: revision,
+      mode: "baseline",
+      policyName: "unmanaged-coding-agent-baseline",
+      policyVersion: "1",
       scenarioDefinitionSha256: digest,
       collectorSha256: digest,
+      ...bindingOverrides,
     },
     lifecycleSourceRef: "codex-run.ndjson",
     streamSourceRef: "l2_fix_formatter_bug/turn_0_stream.ndjson",
@@ -131,8 +135,56 @@ test("converts paired lifecycle evidence into a sanitized complete VerifyTrace",
   assert.match(result.data.canonical_command_id, /^baseline:pytest:semantic:[a-f0-9]{64}$/);
   assert.equal(trace.events.at(-1).data.reason, "observed_turn_completed");
   assert.equal(trace.source.scenario_definition_sha256, digest);
+  assert.equal(trace.mode, "baseline");
+  assert.deepEqual(trace.policy, { name: "unmanaged-coding-agent-baseline", version: "1" });
   assert.equal(validateTrace(trace).valid, true);
   assert.doesNotMatch(JSON.stringify(trace), /secret|private|aggregated_output|TOKEN/);
+});
+
+test("direct Codex traces bind the materialized task state", () => {
+  const trace = convert(lifecycleRecords(), streamRecords(), [], {
+    initialChangedFiles: ["src/trace.mjs"],
+    initialStateSha256: "d".repeat(64),
+    finalStateSha256: "d".repeat(64),
+    workspaceStateChanged: false,
+    sourceFormat: "codex-cli-lifecycle-v2",
+  });
+  assert.deepEqual(trace.events[0].data.changed_files, ["src/trace.mjs"]);
+  assert.deepEqual(trace.events[0].data.change_kinds, ["code"]);
+  assert.equal(trace.events[0].data.observation, "materialized_task_state");
+  assert.equal(trace.events[0].raw_event_ref.kind, "codex-cli-lifecycle");
+  assert.equal(trace.source.initial_workspace_state_sha256, "d".repeat(64));
+  assert.equal(trace.source.workspace_state_changed, false);
+  assert.equal(trace.completeness, "complete");
+});
+
+test("post-run oracle matching binds a semantic failure signature without raw output", () => {
+  const lifecycle = lifecycleRecords().map((record) => record.event === "item.completed"
+    ? { ...record, exit_code: 1 }
+    : record);
+  const stream = streamRecords().map((record) => record.type === "item.completed" && record.item?.type === "command_execution"
+    ? { ...record, item: { ...record.item, exit_code: 1 } }
+    : record);
+  const trace = convert(lifecycle, stream, [], {
+    oracleDefinitionSha256: "f".repeat(64),
+    failureSignaturesByCallId: { item_1: "evaluation:quality-claim-regression" },
+  });
+  const result = trace.events.find(({ event_type }) => event_type === "test_result");
+  assert.equal(result.data.failure_signature, "evaluation:quality-claim-regression");
+  assert.equal(trace.source.oracle_definition_sha256, "f".repeat(64));
+  assert.doesNotMatch(JSON.stringify(trace), /aggregated_output/);
+});
+
+test("unobserved workspace changes make a direct trace partial", () => {
+  const trace = convert(lifecycleRecords(), streamRecords(), [], {
+    initialChangedFiles: ["src/trace.mjs"],
+    initialStateSha256: "d".repeat(64),
+    finalStateSha256: "e".repeat(64),
+    workspaceStateChanged: true,
+    sourceFormat: "codex-cli-lifecycle-v2",
+  });
+  assert.equal(trace.completeness, "partial");
+  assert(trace.warnings.includes("workspace_state_changed_without_observed_file_change"));
 });
 
 test("missing command start produces a partial trace without a fabricated duration", () => {
@@ -329,4 +381,8 @@ test("checked-in timestamped traces validate as complete VerifyTrace v1", async 
     assert.equal(validation.valid, true, `${task}: ${JSON.stringify(validation.errors)}`);
     assert.equal(trace.completeness, "complete");
   }
+  const verificationSmoke = JSON.parse(await readFile("fixtures/benchmark/verification-policy-smoke-traces/vp_local_correct_stop.json", "utf8"));
+  assert.equal(validateTrace(verificationSmoke).valid, true);
+  assert.equal(verificationSmoke.completeness, "complete");
+  assert.equal(verificationSmoke.source.format, "codex-cli-lifecycle-v2");
 });

@@ -10,9 +10,15 @@ const TEST_RUNNER_RULES = Object.freeze([
     },
   },
   {
-    pattern: /(?:^|[\s"';&|])(npm|pnpm|yarn|bun)\s+(?:run\s+)?(test|t)(?:\s|$)/i,
+    pattern: /(?:^|[\s"';&|])(npm|pnpm|yarn|bun)\s+(?:run\s+)?(test|t)(?=[\s"']|$)/i,
     normalize(match) {
       return [match[1].toLowerCase(), match[2].toLowerCase() === "t" ? "test" : match[2].toLowerCase()];
+    },
+  },
+  {
+    pattern: /(?:^|[\s"';&|])(npm|pnpm|yarn|bun)\s+(?:run\s+)?(check)(?=[\s"']|$)/i,
+    normalize(match) {
+      return [match[1].toLowerCase(), "run", match[2].toLowerCase()];
     },
   },
   {
@@ -165,6 +171,9 @@ function runnerAt(tokens, index) {
     const script = (tokens[scriptIndex] ?? "").toLowerCase();
     if (script === "test" || script === "t") {
       return { command: [first, "test"], argumentsIndex: scriptIndex + 1 };
+    }
+    if (script === "check") {
+      return { command: [first, "run", "check"], argumentsIndex: scriptIndex + 1 };
     }
   }
 

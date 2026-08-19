@@ -43,6 +43,10 @@ export function environmentManifestDigest(manifest) {
   return digest(manifest);
 }
 
+export function oracleReportDigest(report) {
+  return digest(report);
+}
+
 export function validateCohortManifest(cohort) {
   const errors = [];
   if (!isObject(cohort)) return [{ path: "cohort", message: "must be an object" }];
@@ -88,6 +92,13 @@ export function validateCohortManifest(cohort) {
     if (task.status === "planned") return;
     requiredString(errors, task.trace_id, `${path}.trace_id`);
     requiredString(errors, task.trace_path, `${path}.trace_path`);
+    requiredString(errors, task.oracle_report_path, `${path}.oracle_report_path`);
+    if (!/^[a-f0-9]{64}$/i.test(task.oracle_report_sha256 ?? "")) {
+      error(errors, `${path}.oracle_report_sha256`, "must be a 64-character SHA-256 digest");
+    }
+    if (!/^[a-f0-9]{64}$/i.test(task.oracle_definition_sha256 ?? "")) {
+      error(errors, `${path}.oracle_definition_sha256`, "must be a 64-character SHA-256 digest");
+    }
     if (!/^[a-f0-9]{40}$/i.test(task.repository_commit ?? "")) {
       error(errors, `${path}.repository_commit`, "must be a 40-character Git revision");
     }
@@ -104,15 +115,39 @@ export function validateCohortManifest(cohort) {
     if (!TEST_STATUSES.has(task.evidence.test_status)) error(errors, `${path}.evidence.test_status`, "must be passed or failed");
     if (task.evidence.clean_worktree !== true) error(errors, `${path}.evidence.clean_worktree`, "must be true");
     if (!FAILURE_CLASSES.has(task.evidence.failure_class)) error(errors, `${path}.evidence.failure_class`, "must be a supported failure class");
-    if (!ORACLE_STATUSES.has(task.evidence.oracle_status)) error(errors, `${path}.evidence.oracle_status`, "must be passed or failed");
-    if (!Array.isArray(task.evidence.oracle_failure_signatures) || task.evidence.oracle_failure_signatures.some((signature) => !nonEmptyString(signature))) {
-      error(errors, `${path}.evidence.oracle_failure_signatures`, "must be an array of strings");
+    if (task.evidence.oracle_status !== undefined || task.evidence.oracle_failure_signatures !== undefined) {
+      error(errors, `${path}.evidence`, "must not declare oracle results; reference an independent oracle report");
     }
   });
   return errors;
 }
 
-function taskEligibility(task, environment, trace) {
+function oracleEvidenceReasons(task, environment, oracleReport) {
+  const reasons = [];
+  if (!isObject(oracleReport)) return ["oracle_report_missing"];
+  if (oracleReportDigest(oracleReport) !== task.oracle_report_sha256) reasons.push("oracle_report_digest_mismatch");
+  if (oracleReport.schema_version !== 1 || oracleReport.evidence_class !== "independent_oracle") reasons.push("oracle_report_invalid");
+  if (oracleReport.task_id !== task.task_id) reasons.push("oracle_task_id_mismatch");
+  if (!/^[a-f0-9]{64}$/i.test(oracleReport.oracle?.definition_sha256 ?? "")) reasons.push("oracle_definition_digest_invalid");
+  else if (oracleReport.oracle.definition_sha256 !== task.oracle_definition_sha256) reasons.push("oracle_definition_digest_mismatch");
+  if (oracleReport.environment?.benchmark_id !== environment.benchmark_id) reasons.push("oracle_benchmark_mismatch");
+  if (oracleReport.environment?.repository_identity !== environment.repository.identity) reasons.push("oracle_repository_mismatch");
+  if (oracleReport.environment?.repository_revision !== environment.repository.observed_revision) reasons.push("oracle_revision_mismatch");
+  if (oracleReport.environment?.manifest_digest !== environmentManifestDigest(environment)) reasons.push("oracle_environment_manifest_mismatch");
+  if (!/^[a-f0-9]{64}$/i.test(oracleReport.workspace?.source_tree_sha256 ?? "")) reasons.push("oracle_workspace_digest_invalid");
+  if (!ORACLE_STATUSES.has(oracleReport.result?.status)) reasons.push("oracle_status_invalid");
+  const failureSignatures = oracleReport.result?.failure_signatures;
+  if (!Array.isArray(failureSignatures) || failureSignatures.some((signature) => !nonEmptyString(signature))) {
+    reasons.push("oracle_failure_signatures_invalid");
+  } else if (oracleReport.result.status === "passed" && failureSignatures.length > 0) {
+    reasons.push("oracle_passed_with_failure_signatures");
+  } else if (oracleReport.result.status === "failed" && failureSignatures.length === 0) {
+    reasons.push("oracle_failure_signature_missing");
+  }
+  return reasons;
+}
+
+function taskEligibility(task, environment, trace, oracleReport) {
   const reasons = [];
   if (task.status !== "collected") reasons.push(`task_status:${task.status}`);
   if (task.environment_manifest_digest !== environmentManifestDigest(environment)) reasons.push("environment_manifest_mismatch");
@@ -120,7 +155,7 @@ function taskEligibility(task, environment, trace) {
   if (task.evidence?.failure_class === "environment") reasons.push("environment_failure");
   if (task.evidence?.failure_class === "pre_existing") reasons.push("pre_existing_failure");
   if (task.evidence?.failure_class === "unknown") reasons.push("unattributed_failure");
-  if (task.evidence?.oracle_status === "failed" && task.evidence.oracle_failure_signatures.length === 0) reasons.push("oracle_failure_signature_missing");
+  reasons.push(...oracleEvidenceReasons(task, environment, oracleReport));
   if (!trace) {
     reasons.push("trace_missing");
   } else {
@@ -150,7 +185,7 @@ function assertEnvironment(environment) {
   }
 }
 
-export function auditBaselineCohort({ cohort, environment, traces }) {
+export function auditBaselineCohort({ cohort, environment, traces, oracleReports }) {
   const validationErrors = validateCohortManifest(cohort);
   if (validationErrors.length > 0) throw new CohortValidationError(validationErrors);
   assertEnvironment(environment);
@@ -158,16 +193,17 @@ export function auditBaselineCohort({ cohort, environment, traces }) {
   if (cohort.environment_manifest_digest !== environmentManifestDigest(environment)) throw new Error("Cohort environment manifest digest does not match environment manifest");
 
   const traceMap = traces instanceof Map ? traces : new Map(Object.entries(traces ?? {}));
+  const oracleReportMap = oracleReports instanceof Map ? oracleReports : new Map(Object.entries(oracleReports ?? {}));
   const taskReports = cohort.tasks.map((task) => {
     if (task.status !== "collected") {
       return { task_id: task.task_id, status: task.status, quality_claim_eligible: false, reasons: [`task_status:${task.status}`] };
     }
-    const reasons = taskEligibility(task, environment, traceMap.get(task.task_id));
+    const reasons = taskEligibility(task, environment, traceMap.get(task.task_id), oracleReportMap.get(task.task_id));
     return { task_id: task.task_id, status: task.status, quality_claim_eligible: reasons.length === 0, reasons };
   });
   const eligibleCount = taskReports.filter((task) => task.quality_claim_eligible).length;
   const deficit = Math.max(0, cohort.minimum_baseline_tasks - eligibleCount);
-  const invalidCount = taskReports.filter((task) => task.reasons.some((reason) => reason === "trace_invalid")).length;
+  const invalidCount = taskReports.filter((task) => task.reasons.some((reason) => reason === "trace_invalid" || reason.startsWith("oracle_"))).length;
   const status = invalidCount > 0 ? "invalid" : deficit > 0 ? "evidence_insufficient" : "ready";
   return {
     schema_version: COHORT_SCHEMA_VERSION,

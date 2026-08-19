@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "cohort_id": "verification-policy-paired-dry-run-2026-08-19",
+  "cohort_version": 1,
+  "evidence_class": "observed_benchmark",
+  "external_benchmarks": "deferred",
+  "pairing": {
+    "baseline": {"mode": "baseline", "policy": {"name": "unmanaged-coding-agent-baseline", "version": "1"}},
+    "candidate": {"mode": "shadow", "policy": {"name": "observatory-verification-policy", "version": "0.1"}}
+  },
+  "thresholds": {
+    "minimum_quality_claim_comparisons": 30,
+    "minimum_oracle_failures": 10,
+    "event_completeness": 1,
+    "command_normalization": 1,
+    "diagnostic_precision": 1,
+    "replay_correctness": 1,
+    "comparison_integrity": 1,
+    "final_oracle_match": 1,
+    "failure_recall": 0.95,
+    "minimum_duration_reduction": 0.25,
+    "minimum_command_reduction": 0.30
+  },
+  "traces": [
+    {"id": "vp-local-baseline", "path": "fixtures/benchmark/verification-policy-dry-run-2026-08-19/traces/vp_local_correct_stop-baseline.json", "expected_diagnostics": []},
+    {"id": "vp-local-candidate", "path": "fixtures/benchmark/verification-policy-dry-run-2026-08-19/traces/vp_local_correct_stop-candidate.json", "expected_diagnostics": []},
+    {"id": "vp-affected-baseline", "path": "fixtures/benchmark/verification-policy-dry-run-2026-08-19/traces/vp_affected_failure-baseline.json", "expected_diagnostics": []},
+    {"id": "vp-affected-candidate", "path": "fixtures/benchmark/verification-policy-dry-run-2026-08-19/traces/vp_affected_failure-candidate.json", "expected_diagnostics": []}
+  ],
+  "comparisons": [
+    {"id": "vp-local-correct-stop", "task_id": "vp_local_correct_stop", "baseline_trace": "vp-local-baseline", "candidate_trace": "vp-local-candidate", "quality_claim_eligible": false, "oracle": {"final_status": "completed", "failure_signatures": []}},
+    {"id": "vp-affected-failure", "task_id": "vp_affected_failure", "baseline_trace": "vp-affected-baseline", "candidate_trace": "vp-affected-candidate", "quality_claim_eligible": false, "oracle": {"final_status": "completed", "failure_signatures": ["evaluation:quality-claim-regression"]}}
+  ]
+}

@@ -33,12 +33,12 @@ async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, "utf8"));
 }
 
-function tracePath(cohortPath, relativePath) {
-  if (path.isAbsolute(relativePath)) throw new Error("Task trace_path must be relative to the cohort file");
+function evidencePath(cohortPath, relativePath, label) {
+  if (path.isAbsolute(relativePath)) throw new Error(`${label} must be relative to the cohort file`);
   const base = path.dirname(cohortPath);
   const resolved = path.resolve(base, relativePath);
   const relative = path.relative(base, resolved);
-  if (relative === ".." || relative.startsWith(`..${path.sep}`)) throw new Error("Task trace_path escapes the cohort directory");
+  if (relative === ".." || relative.startsWith(`..${path.sep}`)) throw new Error(`${label} escapes the cohort directory`);
   return resolved;
 }
 
@@ -57,11 +57,13 @@ async function main(argv) {
   const cohort = await readJson(cohortPath);
   const environment = await readJson(environmentPath);
   const traces = new Map();
+  const oracleReports = new Map();
   for (const task of cohort.tasks ?? []) {
     if (task.status !== "collected") continue;
-    traces.set(task.task_id, await readJson(tracePath(cohortPath, task.trace_path)));
+    traces.set(task.task_id, await readJson(evidencePath(cohortPath, task.trace_path, "Task trace_path")));
+    oracleReports.set(task.task_id, await readJson(evidencePath(cohortPath, task.oracle_report_path, "Task oracle_report_path")));
   }
-  const report = auditBaselineCohort({ cohort, environment, traces });
+  const report = auditBaselineCohort({ cohort, environment, traces, oracleReports });
   await mkdir(path.dirname(outputPath), { recursive: true });
   await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   process.stdout.write(`${JSON.stringify({ output: outputPath, status: report.conclusion.status, counts: report.counts })}\n`);

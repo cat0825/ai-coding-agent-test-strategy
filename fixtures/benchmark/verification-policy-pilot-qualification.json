@@ -1,0 +1,127 @@
+{
+  "benchmark_id": "observatory-verification-policy-pilot-v0.1",
+  "conclusion": {
+    "blockers": [
+      "paired_traces_not_collected"
+    ],
+    "quality_claim_eligible": false,
+    "status": "fixture_ready"
+  },
+  "counts": {
+    "failed_tasks": 0,
+    "qualified_tasks": 6,
+    "tasks": 6
+  },
+  "evidence_class": "pilot_fixture_qualification",
+  "schema_version": 1,
+  "tasks": [
+    {
+      "executions": [
+        {
+          "exit_code": 0,
+          "phase": "fast"
+        },
+        {
+          "exit_code": 0,
+          "phase": "fast"
+        },
+        {
+          "exit_code": 1,
+          "phase": "fast"
+        }
+      ],
+      "expected_exit_pattern": [
+        0,
+        0,
+        "nonzero"
+      ],
+      "status": "passed",
+      "task_id": "vp_local_correct_stop"
+    },
+    {
+      "executions": [
+        {
+          "exit_code": 1,
+          "phase": "fast"
+        }
+      ],
+      "expected_exit_pattern": [
+        "nonzero"
+      ],
+      "status": "passed",
+      "task_id": "vp_affected_failure"
+    },
+    {
+      "executions": [
+        {
+          "exit_code": 0,
+          "phase": "fast"
+        },
+        {
+          "exit_code": 0,
+          "phase": "affected"
+        },
+        {
+          "exit_code": 1,
+          "phase": "full"
+        }
+      ],
+      "expected_exit_pattern": [
+        0,
+        0,
+        "nonzero"
+      ],
+      "status": "passed",
+      "task_id": "vp_unknown_impact_full_fallback"
+    },
+    {
+      "executions": [
+        {
+          "exit_code": 0,
+          "phase": "fast"
+        }
+      ],
+      "expected_exit_pattern": [
+        0
+      ],
+      "status": "passed",
+      "task_id": "vp_repeat_pass_stop"
+    },
+    {
+      "executions": [
+        {
+          "exit_code": 1,
+          "phase": "fast"
+        },
+        {
+          "exit_code": 0,
+          "phase": "fast"
+        }
+      ],
+      "expected_exit_pattern": [
+        "nonzero",
+        0
+      ],
+      "status": "passed",
+      "task_id": "vp_flaky_retry_once"
+    },
+    {
+      "executions": [
+        {
+          "exit_code": 0,
+          "phase": "fast"
+        },
+        {
+          "exit_code": 1,
+          "phase": "fast"
+        }
+      ],
+      "expected_exit_pattern": [
+        0,
+        "nonzero"
+      ],
+      "status": "passed",
+      "task_id": "vp_public_behavior_test_required"
+    }
+  ]
+}

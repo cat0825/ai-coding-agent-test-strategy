@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "observatory-verification-policy-pilot-v0.1",
+  "evidence_class": "pilot_design",
+  "minimum_pilot_tasks": 6,
+  "target_claim": "在不降低故障发现和最终正确性的前提下，减少无依据的全量测试、重复测试和测试代码扩张。",
+  "fixtures": [
+    {
+      "fixture_id": "observatory-node",
+      "repository": {
+        "identity": "cat0825/ai-coding-agent-test-strategy",
+        "revision": "e9bd535012d4657534cf3cef69f394d2e7145387"
+      },
+      "runtime": "node>=20",
+      "reset_strategy": "fresh_isolated_clone"
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "vp_local_correct_stop",
+      "semantic_task_key": "verification-policy:local-correct-stop",
+      "mode": "verify_only",
+      "behavior_class": "local_pass",
+      "risk_class": "low",
+      "fixture_id": "observatory-node",
+      "oracle_id": "vp-oracle-local-correct-stop-v1",
+      "scenario_definition_sha256": "4a5d38dc94e22e3085aa58fe06b0227f8569743bde7cce6d7453f3a7ada690d9",
+      "definition": {
+        "instruction": "A small validation change is already applied. Verify the change without editing source or tests, then stop when the evidence is sufficient.",
+        "source": {
+          "kind": "repository_change",
+          "base_revision": "e4fec580b502c4db48d71ce861e10a4661228245",
+          "change_revision": "27003e86236ae6a8a57dd621020f7874a67f4e64"
+        },
+        "changed_files": ["src/trace.mjs"],
+        "command_tiers": {
+          "fast": ["node", "--test", "test/trace.test.mjs"],
+          "affected": ["node", "--test", "test/trace.test.mjs", "test/verifier.test.mjs"],
+          "full": ["npm", "test"]
+        }
+      }
+    },
+    {
+      "task_id": "vp_affected_failure",
+      "semantic_task_key": "verification-policy:affected-regression-detection",
+      "mode": "verify_only",
+      "behavior_class": "affected_failure",
+      "risk_class": "medium",
+      "fixture_id": "observatory-node",
+      "oracle_id": "vp-oracle-affected-failure-v1",
+      "scenario_definition_sha256": "d24a6f86d72256574325a4e4e9ce78f030a377fd198d7f8ab24448697f314181",
+      "definition": {
+        "instruction": "An evaluation change is already applied. Verify it without repairing the workspace, report any real regression, and do not expand after the failure is attributable.",
+        "source": {
+          "kind": "controlled_fault",
+          "base_revision": "e9bd535012d4657534cf3cef69f394d2e7145387",
+          "setup_id": "evaluation-quality-claim-regression-v1"
+        },
+        "changed_files": ["src/evaluation.mjs"],
+        "command_tiers": {
+          "fast": ["node", "--test", "test/evaluation.test.mjs"],
+          "affected": ["node", "--test", "test/evaluation.test.mjs", "test/trace.test.mjs"],
+          "full": ["npm", "test"]
+        }
+      }
+    },
+    {
+      "task_id": "vp_unknown_impact_full_fallback",
+      "semantic_task_key": "verification-policy:unknown-impact-full-fallback",
+      "mode": "verify_only",
+      "behavior_class": "full_fallback",
+      "risk_class": "high",
+      "fixture_id": "observatory-node",
+      "oracle_id": "vp-oracle-unknown-impact-full-fallback-v1",
+      "scenario_definition_sha256": "76224f9ba3d6b1ef4706b17dae45e03e08d6fe9f50b59fa95c6fe33bf3ea545c",
+      "definition": {
+        "instruction": "The shared test-command configuration changed in a way whose affected scope cannot be proven statically. Verify it without editing files and use a conservative fallback only when needed.",
+        "source": {
+          "kind": "controlled_fault",
+          "base_revision": "e9bd535012d4657534cf3cef69f394d2e7145387",
+          "setup_id": "shared-test-command-unknown-impact-v1"
+        },
+        "changed_files": ["package.json", "src/test-command.mjs"],
+        "command_tiers": {
+          "fast": ["node", "--test", "test/test-command.test.mjs"],
+          "affected": ["node", "--test", "test/test-command.test.mjs", "test/agent-belt-trace.test.mjs"],
+          "full": ["npm", "run", "check"]
+        }
+      }
+    },
+    {
+      "task_id": "vp_repeat_pass_stop",
+      "semantic_task_key": "verification-policy:repeat-pass-stop",
+      "mode": "verify_only",
+      "behavior_class": "repeat_stop",
+      "risk_class": "low",
+      "fixture_id": "observatory-node",
+      "oracle_id": "vp-oracle-repeat-pass-stop-v1",
+      "scenario_definition_sha256": "0692defeab3a05f16de0225c37837c2fcf4c3180eb9ddc238cfaf1ff973c2e47",
+      "definition": {
+        "instruction": "A trace-state change is already applied. Verify it without editing files. A passing relevant test with no subsequent state change is sufficient evidence.",
+        "source": {
+          "kind": "repository_change",
+          "base_revision": "00fe0ddeaf0668cae23c02e9964df6ae467e3811",
+          "change_revision": "96836fcd3a6d33dd36b1adc82210d15a7220c56d"
+        },
+        "changed_files": [
+          "src/trace.mjs",
+          "fixtures/traces/conservative-escalation.json",
+          "fixtures/traces/failed-retry.json",
+          "fixtures/traces/success.json",
+          "test/trace.test.mjs"
+        ],
+        "command_tiers": {
+          "fast": ["node", "--test", "test/trace.test.mjs"],
+          "affected": ["node", "--test", "test/trace.test.mjs", "test/diagnostics.test.mjs"],
+          "full": ["npm", "test"]
+        }
+      }
+    },
+    {
+      "task_id": "vp_flaky_retry_once",
+      "semantic_task_key": "verification-policy:flaky-retry-once",
+      "mode": "verify_only",
+      "behavior_class": "flaky_retry",
+      "risk_class": "medium",
+      "fixture_id": "observatory-node",
+      "oracle_id": "vp-oracle-flaky-retry-once-v1",
+      "scenario_definition_sha256": "bb55a1d6865e96a4e33f2434f69eb292770029fa208528953ae4d2d2e182f175",
+      "definition": {
+        "instruction": "A relevant test fails intermittently while the production behavior remains correct. Verify without editing files, allow one attributable retry, then stop and report the instability.",
+        "source": {
+          "kind": "controlled_fault",
+          "base_revision": "e9bd535012d4657534cf3cef69f394d2e7145387",
+          "setup_id": "diagnostic-flaky-test-v1"
+        },
+        "changed_files": ["test/diagnostics.test.mjs"],
+        "command_tiers": {
+          "fast": ["node", "--test", "test/diagnostics.test.mjs"],
+          "affected": ["node", "--test", "test/diagnostics.test.mjs", "test/recommendations.test.mjs"],
+          "full": ["npm", "test"]
+        }
+      }
+    },
+    {
+      "task_id": "vp_public_behavior_test_required",
+      "semantic_task_key": "verification-policy:public-behavior-test-required",
+      "mode": "test_decision",
+      "behavior_class": "test_required",
+      "risk_class": "medium",
+      "fixture_id": "observatory-node",
+      "oracle_id": "vp-oracle-public-behavior-test-required-v1",
+      "scenario_definition_sha256": "0c62807ac5238d40e6adf56bb27a48bdf3006bbba7bafe203e1c3f4eee27e544",
+      "definition": {
+        "instruction": "A new public runtime-probe behavior is already implemented. Decide whether a regression test is required; production code must not be changed. Add only a test that fails against the known faulty variant and run the relevant suite.",
+        "source": {
+          "kind": "repository_change",
+          "base_revision": "d1748ea857d27bfae88cd3655afa85b192bbc7e4",
+          "change_revision": "61235a1673aa7b7e576d12757e94d912a2058e2b"
+        },
+        "changed_files": ["src/benchmark-preflight.mjs"],
+        "command_tiers": {
+          "fast": ["node", "--test", "test/benchmark-preflight.test.mjs"],
+          "affected": ["node", "--test", "test/benchmark-preflight.test.mjs", "test/cohort.test.mjs"],
+          "full": ["npm", "test"]
+        }
+      }
+    }
+  ]
+}

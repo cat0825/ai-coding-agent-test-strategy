@@ -1,0 +1,33 @@
+{
+  "benchmark_id": "observatory-verification-policy-pilot-v0.1",
+  "conclusion": {
+    "blockers": [
+      "task_workspaces_not_materialized",
+      "independent_oracles_not_executed",
+      "paired_traces_not_collected"
+    ],
+    "quality_claim_eligible": false,
+    "status": "design_ready"
+  },
+  "counts": {
+    "behavior_classes": [
+      "affected_failure",
+      "flaky_retry",
+      "full_fallback",
+      "local_pass",
+      "repeat_stop",
+      "test_required"
+    ],
+    "fixtures": 1,
+    "hidden_oracles": 6,
+    "modes": {
+      "end_to_end": 0,
+      "test_decision": 1,
+      "verify_only": 5
+    },
+    "tasks": 6
+  },
+  "evidence_class": "pilot_design_audit",
+  "schema_version": 1,
+  "target_claim": "在不降低故障发现和最终正确性的前提下，减少无依据的全量测试、重复测试和测试代码扩张。"
+}

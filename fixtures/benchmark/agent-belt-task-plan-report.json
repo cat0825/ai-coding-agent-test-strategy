@@ -1,0 +1,301 @@
+{
+  "schema_version": 1,
+  "evidence_class": "planning_audit",
+  "plan": {
+    "id": "agent-belt-generic-baseline-v1",
+    "source_repository": "jfrog/agent-belt",
+    "source_revision": "90bd105b172adc41394f458e33b653dda2b199b0"
+  },
+  "counts": {
+    "audited_experience_scenarios": 41,
+    "selected_experience_scenarios": 4,
+    "rejected_experience_scenarios": 37,
+    "controlled_tasks": 26,
+    "planned_distinct_tasks": 30,
+    "fixtures_represented": 2,
+    "collection_evidence_evaluated": false
+  },
+  "source": {
+    "status": "passed",
+    "revision_status": "passed",
+    "scenario_checks": [
+      {
+        "source_id": "bookstore-api-claude/l1_explain_architecture",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "bookstore-api-claude/l1_security_review",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "bookstore-api-claude/l2_fix_pagination",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "bookstore-api-claude/l2_fix_sql_injection",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "bookstore-api-claude/l3_add_author_tests",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "bookstore-api-claude/l3_add_author_validation",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "bookstore-api-claude/l4_security_audit_and_fix",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "folio/L10_plugin_skill_inventory",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "folio/L1_catalog_search",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "folio/L2_refund_within_policy",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "folio/L3_store_credit_tier",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "folio/L4_escalate_out_of_policy",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "folio/L5_partial_stock_guard",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "folio/L6_unknown_order_no_hallucination",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "folio/L7_place_then_refund_multiturn",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "folio/L8_slash_command_refund",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "folio/L9_plugin_command_lookup",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "programmatic-setup-claude/mcp_get_order",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "programmatic-setup-claude/mcp_list_orders",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "programmatic-setup-claude/plugin_command",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "programmatic-setup-claude/plugin_skill",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "programmatic-setup-claude/skill_invoked",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "programmatic-setup-claude/slash_command",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "tasktracker-claude/l1_explain_architecture",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "tasktracker-claude/l1_find_bug",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "tasktracker-claude/l2_add_completed_at",
+        "decision": "selected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "tasktracker-claude/l2_fix_formatter_bug",
+        "decision": "selected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "tasktracker-claude/l3_add_delete_command",
+        "decision": "selected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "tasktracker-claude/l3_add_json_format",
+        "decision": "selected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "tasktracker-claude/l4_investigate_and_fix",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "tasktracker-cursor/l1_explain_architecture",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "tasktracker-cursor/l1_find_bug",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "tasktracker-cursor/l2_add_completed_at",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "tasktracker-cursor/l2_fix_formatter_bug",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "urlshortener-claude/l1_explain_architecture",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "urlshortener-claude/l1_find_concurrency_bug",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "urlshortener-claude/l2_fix_memory_store",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "urlshortener-claude/l2_validate_url",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "urlshortener-claude/l3_fix_dockerfile",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "urlshortener-claude/l3_graceful_shutdown",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "source_id": "urlshortener-claude/l4_full_review_and_fix",
+        "decision": "rejected",
+        "status": "passed",
+        "reason": null
+      }
+    ],
+    "fixture_revision_checks": [
+      {
+        "fixture_id": "tasktracker",
+        "status": "passed",
+        "reason": null
+      },
+      {
+        "fixture_id": "calculator",
+        "status": "passed",
+        "reason": null
+      }
+    ]
+  },
+  "fixture_preflights": [
+    {
+      "fixture_id": "tasktracker",
+      "status": "passed",
+      "reason": null
+    },
+    {
+      "fixture_id": "calculator",
+      "status": "passed",
+      "reason": null
+    }
+  ],
+  "conclusion": {
+    "status": "planning_ready",
+    "quality_claim_eligible": false,
+    "reasons": [
+      "controlled_oracles_and_baseline_traces_not_collected"
+    ]
+  }
+}

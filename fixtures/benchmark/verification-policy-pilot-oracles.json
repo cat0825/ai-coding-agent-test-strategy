@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "observatory-verification-policy-pilot-v0.1",
+  "evidence_class": "hidden_oracle_design",
+  "oracles": [
+    {
+      "oracle_id": "vp-oracle-local-correct-stop-v1",
+      "task_id": "vp_local_correct_stop",
+      "expected_workspace_status": "passed",
+      "required_failure_signatures": [],
+      "minimum_evidence_phase": "fast",
+      "full_suite_expectation": "avoid",
+      "identical_retry_limit": 0,
+      "production_edits": "forbidden",
+      "test_edits": "forbidden",
+      "independent_oracle_id": "observatory-trace-validation-oracle-v1",
+      "reference_test_paths": ["test/trace.test.mjs"]
+    },
+    {
+      "oracle_id": "vp-oracle-affected-failure-v1",
+      "task_id": "vp_affected_failure",
+      "expected_workspace_status": "failed",
+      "required_failure_signatures": ["evaluation:quality-claim-regression"],
+      "minimum_evidence_phase": "fast",
+      "full_suite_expectation": "avoid",
+      "identical_retry_limit": 0,
+      "production_edits": "forbidden",
+      "test_edits": "forbidden",
+      "independent_oracle_id": "observatory-evaluation-oracle-v1",
+      "reference_test_paths": []
+    },
+    {
+      "oracle_id": "vp-oracle-unknown-impact-full-fallback-v1",
+      "task_id": "vp_unknown_impact_full_fallback",
+      "expected_workspace_status": "failed",
+      "required_failure_signatures": ["configuration:missing-check-entry"],
+      "minimum_evidence_phase": "full",
+      "full_suite_expectation": "required",
+      "identical_retry_limit": 0,
+      "production_edits": "forbidden",
+      "test_edits": "forbidden",
+      "independent_oracle_id": "observatory-full-gate-oracle-v1",
+      "reference_test_paths": []
+    },
+    {
+      "oracle_id": "vp-oracle-repeat-pass-stop-v1",
+      "task_id": "vp_repeat_pass_stop",
+      "expected_workspace_status": "passed",
+      "required_failure_signatures": [],
+      "minimum_evidence_phase": "fast",
+      "full_suite_expectation": "avoid",
+      "identical_retry_limit": 0,
+      "production_edits": "forbidden",
+      "test_edits": "forbidden",
+      "independent_oracle_id": "observatory-trace-state-oracle-v1",
+      "reference_test_paths": []
+    },
+    {
+      "oracle_id": "vp-oracle-flaky-retry-once-v1",
+      "task_id": "vp_flaky_retry_once",
+      "expected_workspace_status": "flaky",
+      "required_failure_signatures": ["diagnostics:intermittent-fixture"],
+      "minimum_evidence_phase": "fast",
+      "full_suite_expectation": "avoid",
+      "identical_retry_limit": 1,
+      "production_edits": "forbidden",
+      "test_edits": "forbidden",
+      "independent_oracle_id": "observatory-flaky-classification-oracle-v1",
+      "reference_test_paths": []
+    },
+    {
+      "oracle_id": "vp-oracle-public-behavior-test-required-v1",
+      "task_id": "vp_public_behavior_test_required",
+      "expected_workspace_status": "passed",
+      "required_failure_signatures": [],
+      "minimum_evidence_phase": "affected",
+      "full_suite_expectation": "allowed",
+      "identical_retry_limit": 0,
+      "production_edits": "forbidden",
+      "test_edits": "required",
+      "independent_oracle_id": "observatory-runtime-probe-mutation-oracle-v1",
+      "reference_test_paths": ["test/benchmark-preflight.test.mjs"]
+    }
+  ]
+}

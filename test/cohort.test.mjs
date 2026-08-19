@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { auditBaselineCohort, environmentManifestDigest, validateCohortManifest } from "../src/cohort.mjs";
+import { auditBaselineCohort, environmentManifestDigest, oracleReportDigest, validateCohortManifest } from "../src/cohort.mjs";
 
 const revision = "a".repeat(40);
 
@@ -28,7 +28,26 @@ function environment() {
   };
 }
 
+function oracleReport(manifest, overrides = {}) {
+  return {
+    schema_version: 1,
+    evidence_class: "independent_oracle",
+    task_id: "task-001",
+    oracle: { id: "fixture-oracle", version: 1, definition_sha256: "c".repeat(64) },
+    environment: {
+      benchmark_id: manifest.benchmark_id,
+      repository_identity: manifest.repository.identity,
+      repository_revision: manifest.repository.observed_revision,
+      manifest_digest: environmentManifestDigest(manifest),
+    },
+    workspace: { source_tree_sha256: "d".repeat(64), source_file_count: 1 },
+    result: { status: "passed", failure_signatures: [] },
+    ...overrides,
+  };
+}
+
 function cohort(manifest, taskOverrides = {}) {
+  const report = oracleReport(manifest);
   return {
     schema_version: 1,
     cohort_id: "fixture-baseline",
@@ -38,7 +57,7 @@ function cohort(manifest, taskOverrides = {}) {
     environment_manifest_digest: environmentManifestDigest(manifest),
     minimum_baseline_tasks: 30,
     tasks: [
-      { task_id: "task-001", status: "collected", trace_id: "trace-task-001", trace_path: "traces/task-001.json", repository_commit: revision, environment_manifest_digest: environmentManifestDigest(manifest), evidence: { environment_status: "eligible", install_status: "passed", build_status: "passed", test_status: "passed", clean_worktree: true, failure_class: "none", oracle_status: "passed", oracle_failure_signatures: [] }, ...taskOverrides },
+      { task_id: "task-001", status: "collected", trace_id: "trace-task-001", trace_path: "traces/task-001.json", oracle_report_path: "oracles/task-001.json", oracle_report_sha256: oracleReportDigest(report), oracle_definition_sha256: report.oracle.definition_sha256, repository_commit: revision, environment_manifest_digest: environmentManifestDigest(manifest), evidence: { environment_status: "eligible", install_status: "passed", build_status: "passed", test_status: "passed", clean_worktree: true, failure_class: "none" }, ...taskOverrides },
       { task_id: "task-002", status: "planned" },
     ],
   };
@@ -47,7 +66,7 @@ function cohort(manifest, taskOverrides = {}) {
 test("derives eligibility and reports the remaining baseline evidence deficit", async () => {
   const manifest = environment();
   const trace = await baseTrace();
-  const report = auditBaselineCohort({ cohort: cohort(manifest), environment: manifest, traces: new Map([["task-001", trace]]) });
+  const report = auditBaselineCohort({ cohort: cohort(manifest), environment: manifest, traces: new Map([["task-001", trace]]), oracleReports: new Map([["task-001", oracleReport(manifest)]]) });
   assert.equal(report.conclusion.status, "evidence_insufficient");
   assert.equal(report.conclusion.quality_claim_eligible, false);
   assert.deepEqual(report.counts, {
@@ -68,11 +87,31 @@ test("does not trust caller-declared eligibility or mismatched evidence", async 
   const invalid = cohort(manifest, { quality_claim_eligible: true });
   assert.ok(validateCohortManifest(invalid).some(({ path }) => path.endsWith("quality_claim_eligible")));
 
+  const declaredOracle = cohort(manifest);
+  declaredOracle.tasks[0].evidence.oracle_status = "passed";
+  assert.ok(validateCohortManifest(declaredOracle).some(({ path: field }) => field.endsWith("evidence")));
+
   const mismatch = cohort(manifest, { environment_manifest_digest: "b".repeat(64) });
   const trace = await baseTrace();
-  const report = auditBaselineCohort({ cohort: { ...mismatch, tasks: [mismatch.tasks[0]] }, environment: manifest, traces: new Map([["task-001", trace]]) });
+  const report = auditBaselineCohort({ cohort: { ...mismatch, tasks: [mismatch.tasks[0]] }, environment: manifest, traces: new Map([["task-001", trace]]), oracleReports: new Map([["task-001", oracleReport(manifest)]]) });
   assert.equal(report.tasks[0].quality_claim_eligible, false);
   assert.deepEqual(report.tasks[0].reasons, ["environment_manifest_mismatch"]);
+});
+
+test("rejects a forged oracle result instead of trusting the cohort manifest", async () => {
+  const manifest = environment();
+  const trace = await baseTrace();
+  const input = cohort(manifest);
+  const forged = oracleReport(manifest, { task_id: "task-999" });
+  input.tasks[0].oracle_report_sha256 = oracleReportDigest(forged);
+  const report = auditBaselineCohort({
+    cohort: input,
+    environment: manifest,
+    traces: new Map([["task-001", trace]]),
+    oracleReports: new Map([["task-001", forged]]),
+  });
+  assert.equal(report.conclusion.status, "invalid");
+  assert.deepEqual(report.tasks[0].reasons, ["oracle_task_id_mismatch"]);
 });
 
 test("does not allow callers to lower the 30-task evidence floor", () => {
@@ -87,7 +126,7 @@ test("excludes infrastructure and pre-existing failures from the eligible count"
   const trace = await baseTrace();
   const task = cohort(manifest).tasks[0];
   task.evidence.failure_class = "environment";
-  const report = auditBaselineCohort({ cohort: { ...cohort(manifest), tasks: [task] }, environment: manifest, traces: new Map([["task-001", trace]]) });
+  const report = auditBaselineCohort({ cohort: { ...cohort(manifest), tasks: [task] }, environment: manifest, traces: new Map([["task-001", trace]]), oracleReports: new Map([["task-001", oracleReport(manifest)]]) });
   assert.equal(report.counts.quality_claim_eligible_tasks, 0);
   assert.deepEqual(report.tasks[0].reasons, ["environment_failure"]);
 });
@@ -97,7 +136,7 @@ test("requires a complete baseline trace tied to the pinned repository", async (
   const trace = await baseTrace();
   trace.completeness = "partial";
   trace.events = trace.events.slice(0, -1);
-  const report = auditBaselineCohort({ cohort: { ...cohort(manifest), tasks: [cohort(manifest).tasks[0]] }, environment: manifest, traces: new Map([["task-001", trace]]) });
+  const report = auditBaselineCohort({ cohort: { ...cohort(manifest), tasks: [cohort(manifest).tasks[0]] }, environment: manifest, traces: new Map([["task-001", trace]]), oracleReports: new Map([["task-001", oracleReport(manifest)]]) });
   assert.equal(report.tasks[0].quality_claim_eligible, false);
   assert.ok(report.tasks[0].reasons.includes("trace_invalid"));
   assert.ok(report.tasks[0].reasons.includes("trace_incomplete"));
@@ -116,11 +155,13 @@ test("CLI writes the explicit evidence deficit and exits with code 2", async (t)
   const root = await mkdtemp(path.join(os.tmpdir(), "baseline-cohort-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, "traces"));
+  await mkdir(path.join(root, "oracles"));
   const manifest = environment();
   const input = cohort(manifest);
   await writeFile(path.join(root, "environment.json"), JSON.stringify(manifest));
   await writeFile(path.join(root, "cohort.json"), JSON.stringify(input));
   await writeFile(path.join(root, "traces", "task-001.json"), JSON.stringify(await baseTrace()));
+  await writeFile(path.join(root, "oracles", "task-001.json"), JSON.stringify(oracleReport(manifest)));
   const cliPath = fileURLToPath(new URL("../src/cohort-cli.mjs", import.meta.url));
   let failure;
   try {

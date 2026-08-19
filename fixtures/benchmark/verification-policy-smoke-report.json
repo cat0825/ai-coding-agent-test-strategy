@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "evidence_class": "verification_policy_integration_smoke",
+  "benchmark_id": "verification-policy-pilot-v0.1",
+  "run_id": "smoke-20260818-vp-local-correct-stop",
+  "task_id": "vp_local_correct_stop",
+  "trace": {
+    "path": "fixtures/benchmark/verification-policy-smoke-traces/vp_local_correct_stop.json",
+    "sha256": "5c1021767a5250254ed811625f638ffda741f29d94f582b16c0f1c76977a4b45",
+    "completeness": "complete",
+    "warnings": []
+  },
+  "binding": {
+    "harness": "codex-cli@0.147.0",
+    "model": "unspecified-cli-default",
+    "model_explicitly_bound": false,
+    "workspace_revision": "943b77b0df861fcdcb120f0ee3609939e2bd79b9",
+    "scenario_definition_sha256": "4a5d38dc94e22e3085aa58fe06b0227f8569743bde7cce6d7453f3a7ada690d9"
+  },
+  "observed": {
+    "agent_elapsed_ms": 88400.395,
+    "shell_commands": 6,
+    "verification_commands": [
+      {
+        "command": [
+          "npm",
+          "run",
+          "check"
+        ],
+        "duration_ms": 517.314959,
+        "exit_code": 0,
+        "scope": "full_or_broader"
+      }
+    ],
+    "workspace_state_changed": false
+  },
+  "independent_oracle": {
+    "oracle_id": "observatory-trace-validation-oracle-v1",
+    "command": [
+      "node",
+      "--test",
+      "test/trace.test.mjs"
+    ],
+    "exit_code": 0,
+    "tests_passed": 6,
+    "workspace_status": "passed"
+  },
+  "assessment": {
+    "correctness": "passed",
+    "edit_discipline": "passed",
+    "verification_scope": "exceeded_minimum_evidence",
+    "reason": "The task required fast evidence and the hidden contract says to avoid the full suite, but the agent ran the repository-wide check script after an additional in-memory assertion.",
+    "formal_baseline_eligible": false
+  },
+  "formal_attempt": {
+    "model": "gpt-5.6-sol",
+    "status": "environment_failed",
+    "failure_class": "workspace_credits_exhausted",
+    "agent_commands_executed": 0
+  },
+  "conclusion": {
+    "status": "integration_smoke_ready",
+    "quality_claim_eligible": false,
+    "blockers": [
+      "smoke_model_not_explicitly_bound",
+      "formal_baseline_not_collected",
+      "candidate_trace_not_collected"
+    ]
+  }
+}
