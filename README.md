@@ -4,16 +4,15 @@
 
 ## 当前进度
 
-**研究、可发布 PDF、shadow 验证器和 Maka pilot 准备已完成；正式评测尚未开始。**
+**主线已锁定为 Agent Verification Observatory：策略研究和 shadow 基础完成，诊断型可视化尚未开始。**
 
+- 研究问题已收敛为：解释 Coding Agent 为什么重复、扩大或延迟测试，以及浪费从哪一个决策点开始。
+- 第一阶段只做诊断型可视化，服务重度使用 Coding Agent 的个人开发者；不做通用 Agent 观测平台。
 - 已完成 Google、OpenAI Codex、Aider、Claude Code、GitHub Copilot、Meta 等实践的横向比较。
-- 已提炼四档验证强度：`off`、`smoke`、`standard`、`thorough`。
-- 已形成 Agent 验证状态机、测试预算、停止规则和可直接放入 `AGENTS.md` 的策略模板。
-- 已修复 PDF 代码块裁切并提供可复现构建入口。
-- 已定义 pilot 指标、预算校准、保守 fallback、命令归一化和 override 审计方案。
+- 已提炼四档验证强度：`off`、`smoke`、`standard`、`thorough`，并形成状态机、预算、停止规则和 fallback。
 - 已实现 `verify.sh`、受影响 workspace 发现、unknown fallback、命令存在性校验和 JSONL 验证账本。
-- 已在 Maka `origin/main@938487ea` 的独立 worktree 完成 dry-run；未改动 Maka 源码。
-- baseline 观测已开始：`format:check` 通过；`typecheck` 和 `npm test` 暂因环境/上游接口问题失败，详见 [STATUS.md](STATUS.md)。
+- 已形成实验指标、任务集调研和 ground-truth 方案；真实 benchmark 尚未开始。
+- 旧 Maka pilot 只作为历史验证记录，不再是本项目当前下一步。
 
 ## 核心结论
 
@@ -29,6 +28,7 @@
 - [完整研究报告](docs/ai-coding-agent-test-strategy.md)：纵向演进、成熟团队案例、状态机、落地顺序和参考资料。
 - [PDF 报告](output/pdf/ai-coding-agent-test-strategy.pdf)：适合阅读和分发的 16 页版本。
 - [实验与校准方案](docs/experiment-and-calibration.md)：pilot 设计、指标、fallback 和审计契约。
+- [验证行为任务集调研](docs/coding-agent-verification-task-set-research.md)：任务来源、轨迹 schema 和实验阶段建议。
 - [当前状态与下一步](STATUS.md)：明确已完成、未完成和下一阶段实现边界。
 - [贡献指南](CONTRIBUTING.md)：Issue/PR 边界、验证命令和证据要求。
 
@@ -68,13 +68,21 @@ npm run replay -- fixtures/traces/failed-retry.json output/replay/failed-retry.h
 
 格式和展示约定见 [静态 trace 回放](docs/trace-replay.md)。
 
-## 后续评测
+## 下一阶段
 
-下一阶段按以下顺序推进：
+只在本仓库内按以下顺序推进：
 
-1. 修复或确认 Maka `origin/main@938487ea` 的 workspace 构建基线，并完成包含 postinstall 的干净安装。
-2. 采集至少 30 个基线任务和 30 个 shadow 任务，比较命令数、耗时、失败漏检和 fallback 比例。
-3. 依据数据校准预算和停止规则，再决定是否在 Agent hook/permission 层启用有限强制。
+完整依赖和验收闸门见 [Observatory MVP 路线图](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/1)：
+
+1. [发布范围、状态与任务集研究](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/2)。
+2. [增加 CI 与贡献闸门](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/3)。
+3. [冻结 VerifyTrace v1 schema 与三类 fixture](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/4)。
+4. [实现确定性 trace 诊断](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/5)。
+5. [生成自包含 HTML 回放](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/6)。
+6. [增加专家模式与简化模式](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/7)。
+7. [建立 MVP 评测与安全闸门](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/8)。
+
+在上述链路跑通前，不启用硬拦截，不宣称真实项目提速或质量不变。
 
 ## 研究时间
 
