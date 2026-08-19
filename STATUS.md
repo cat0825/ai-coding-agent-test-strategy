@@ -12,7 +12,7 @@
 - 提供可直接复制到 `AGENTS.md` 的测试策略模板。
 - 修复 PDF 中 `AGENTS.md` 模板的右侧裁切，加入打印源、构建脚本和 16 页成品。
 - 完成实验与校准方案：指标、初始门槛、fallback、命令归一化和 override 账本。
-- 选定 `maka-agent` 作为首个 pilot 候选；正式实验必须使用干净的独立 worktree。
+- 曾选定 `maka-agent` 作为 pilot 候选，并在独立 worktree 完成 dry-run；该结果保留为历史验证记录，不再作为当前主线的下一步。
 - 实现 `src/verifier.mjs`、`src/cli.mjs` 和 `scripts/verify.sh`，支持 `fast|affected|full`、受影响 workspace 闭包、保守 fallback 和 JSONL 账本。
 - 增加 policy 中 npm script 的存在性校验；Maka policy 已对齐实际的 `format:check`、`typecheck` 和 `test`。
 - 在 `/Users/qianyuhe/Documents/GitHub/maka-agent-test-strategy-pilot` 完成四类 dry-run，worktree 基于 `origin/main@938487ea` 且未修改 Maka 文件。
@@ -20,7 +20,14 @@
 - 实现 expert/simplified 推荐模式；只有低风险、高置信重复可自动处理，推荐与决定均进入可验证 trace。
 - 实现一命令 evaluation harness；本地 7 条 trace 和 4 个配对任务的结论为 `evidence_insufficient`，不支持效率声明。
 
-## 未完成
+## 当前未完成
+
+- 尚未把 JSONL ledger 转成统一的 Observatory trace schema。
+- 尚未实现诊断型可视化回放：时间线、重复/支配测试、失败扩张、成本和停止点。
+- 尚未实现专家模式、傻瓜模式和版本化策略候选。
+- 尚未在本仓库 fixtures 上建立可复现的冗余标签与回放回归测试。
+
+## 历史阻塞（不作为当前执行入口）
 
 - 尚未完成可用于比较的完整 baseline：`format:check` 已通过（4.282s），但 `typecheck` 在 `npm ci --ignore-scripts` 后缺少 workspace dist，7.722s 失败。
 - `npm test` 已进入 `build:test`，但在 `packages/ui` 因 `settledText`、`conversationKey`、`unlockAutoFollow` 等接口不一致失败（12.638s），未进入测试执行。
