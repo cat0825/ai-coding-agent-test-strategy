@@ -23,7 +23,14 @@
 - 将 preflight 从 Node/npm 专用 runtime 扩展为声明式工具探针，兼容 Python/uv、Go、Rust 等工具链；manifest 不保存 probe argv 或原始输出。
 - 首个通用候选 `jfrog/agent-belt@90bd105b` 已通过无代理真实 preflight：`uv sync --locked`、lint、pytest 与 build 全部通过，官方同 revision CI green；脱敏 manifest 已落盘。
 
-## 未完成
+## 当前未完成
+
+- 尚未把 JSONL ledger 转成统一的 Observatory trace schema。
+- 尚未实现诊断型可视化回放：时间线、重复/支配测试、失败扩张、成本和停止点。
+- 尚未实现专家模式、傻瓜模式和版本化策略候选。
+- 尚未在本仓库 fixtures 上建立可复现的冗余标签与回放回归测试。
+
+## 历史阻塞（不作为当前执行入口）
 
 - 尚未按通用选择标准确定最终 coding-agent 仓库/任务集；真实 quality-claim-eligible baseline tasks 为 0/30，审计工具通过不等于效果已经证明。
 - agent-belt 的 Agent 认证与真实场景尚未执行；当前只证明环境可复现，不能证明少写测试、少跑测试或质量不下降。
