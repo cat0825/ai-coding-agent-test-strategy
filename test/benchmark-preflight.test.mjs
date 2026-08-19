@@ -41,7 +41,7 @@ async function fixture(t) {
     spec: {
       schema_version: 1,
       benchmark_id: "fixture-benchmark",
-      repository: { expected_revision: revision, require_clean: true },
+      repository: { identity: "fixture/project", expected_revision: revision, require_clean: true },
       runtime: {
         platform: os.platform(),
         arch: os.arch(),
