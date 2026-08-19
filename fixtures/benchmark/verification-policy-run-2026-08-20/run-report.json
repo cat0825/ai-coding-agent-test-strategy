@@ -1,0 +1,274 @@
+{
+  "schema_version": 1,
+  "evidence_class": "paired_verification_policy_run",
+  "benchmark_id": "observatory-verification-policy-pilot-v0.1",
+  "run_date": "2026-08-20",
+  "harness": "codex-cli@0.147.0",
+  "model": "claude-opus-5",
+  "model_reasoning_effort": "high",
+  "provider_note": "The earlier 401 failures were caused by a shell OPENAI_API_KEY shadowing the valid key in ~/.codex/auth.json, not by an exhausted quota.",
+  "treatment": {
+    "baseline": {
+      "mode": "baseline",
+      "policy": {
+        "name": "unmanaged-coding-agent-baseline",
+        "version": "1"
+      }
+    },
+    "candidate": {
+      "mode": "shadow",
+      "policy": {
+        "name": "observatory-verification-policy",
+        "version": "0.1"
+      },
+      "rules": [
+        "Inspect the current diff and map it to the narrowest relevant existing test.",
+        "For verify_only tasks, do not edit any file.",
+        "Run the targeted test once and stop after a local pass or attributable failure.",
+        "Escalate only when the affected scope cannot be determined.",
+        "Do not run a repository-wide test or check for a local pass or attributable failure."
+      ]
+    }
+  },
+  "counts": {
+    "declared_pilot_tasks": 6,
+    "paired_tasks_this_run": 4,
+    "complete_traces": 6,
+    "partial_traces": 2,
+    "independent_oracles_evaluated": 8,
+    "workspace_digest_matches": 8,
+    "pairs_with_both_traces_complete": 3,
+    "quality_claim_eligible_comparisons": 0,
+    "required_quality_claim_comparisons": 30,
+    "independent_oracle_failure_signatures": 1
+  },
+  "superseded_evidence": {
+    "path": "fixtures/benchmark/verification-policy-dry-run-2026-08-19",
+    "reason": "Collected with gpt-5.6-sol, which the configured provider no longer serves. Model identity is part of comparison integrity, so those two pairs cannot be combined with this run."
+  },
+  "tasks": [
+    {
+      "task_id": "vp_unknown_impact_full_fallback",
+      "pairing_integrity": true,
+      "baseline": {
+        "trace": {
+          "path": "traces/vp_unknown_impact_full_fallback-baseline.json",
+          "sha256": "fa38ec0be4e2ed3364429d9c01cc3d7021395106911e7c0deb774128de10c8c8"
+        },
+        "oracle": {
+          "path": "oracles/vp_unknown_impact_full_fallback-baseline.json",
+          "sha256": "84bb1d8b4047fefc5df177af8cefb1ac2fd73ada790f93be3ee7e3864b8391fe",
+          "status": "passed",
+          "failure_signatures": [
+            "configuration:missing-check-entry"
+          ]
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "verification_commands": 3,
+        "verification_duration_ms": 20733.328,
+        "trace_span_ms": 236822.0,
+        "observed_failure_signatures": [],
+        "post_run_workspace_state_sha256": "832e250b3140f8bc45452f5af3892ca23ebe4de9af1118e85e8b9602780ac17d",
+        "workspace_state_changed": false
+      },
+      "candidate": {
+        "trace": {
+          "path": "traces/vp_unknown_impact_full_fallback-candidate.json",
+          "sha256": "4655b6a0c02061fdc6c88480ead7573fcdea286fad40f9cabc07e5dee190ea80"
+        },
+        "oracle": {
+          "path": "oracles/vp_unknown_impact_full_fallback-candidate.json",
+          "sha256": "84bb1d8b4047fefc5df177af8cefb1ac2fd73ada790f93be3ee7e3864b8391fe",
+          "status": "passed",
+          "failure_signatures": [
+            "configuration:missing-check-entry"
+          ]
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "verification_commands": 1,
+        "verification_duration_ms": 107.881,
+        "trace_span_ms": 73743.0,
+        "observed_failure_signatures": [],
+        "post_run_workspace_state_sha256": "832e250b3140f8bc45452f5af3892ca23ebe4de9af1118e85e8b9602780ac17d",
+        "workspace_state_changed": false
+      },
+      "quality_claim_eligible": true,
+      "observed_reduction": {
+        "verification_commands": 0.666667,
+        "verification_duration": 0.994797
+      }
+    },
+    {
+      "task_id": "vp_repeat_pass_stop",
+      "pairing_integrity": true,
+      "baseline": {
+        "trace": {
+          "path": "traces/vp_repeat_pass_stop-baseline.json",
+          "sha256": "daa67147b490ce37675fd736d41461626a52b1dd54e89c03d8897d1c21c108ee"
+        },
+        "oracle": {
+          "path": "oracles/vp_repeat_pass_stop-baseline.json",
+          "sha256": "63901790489608c128ee2aab5ce94253ab71f359c38eae87b1a37d331cee4189",
+          "status": "passed",
+          "failure_signatures": []
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "verification_commands": 1,
+        "verification_duration_ms": 59.336,
+        "trace_span_ms": 52600.0,
+        "observed_failure_signatures": [],
+        "post_run_workspace_state_sha256": "c4ab2f36708a401b5144bd3863d604d897bf5b0993ee702d4749e22bd3bb1d15",
+        "workspace_state_changed": false
+      },
+      "candidate": {
+        "trace": {
+          "path": "traces/vp_repeat_pass_stop-candidate.json",
+          "sha256": "f214c3d67b0344adcd24b317d04c2b67cf6e1cc19e0d5726b87debd01cfe3b78"
+        },
+        "oracle": {
+          "path": "oracles/vp_repeat_pass_stop-candidate.json",
+          "sha256": "63901790489608c128ee2aab5ce94253ab71f359c38eae87b1a37d331cee4189",
+          "status": "passed",
+          "failure_signatures": []
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "verification_commands": 1,
+        "verification_duration_ms": 71.368,
+        "trace_span_ms": 31041.0,
+        "observed_failure_signatures": [],
+        "post_run_workspace_state_sha256": "c4ab2f36708a401b5144bd3863d604d897bf5b0993ee702d4749e22bd3bb1d15",
+        "workspace_state_changed": false
+      },
+      "quality_claim_eligible": true,
+      "observed_reduction": {
+        "verification_commands": 0.0,
+        "verification_duration": -0.202777
+      }
+    },
+    {
+      "task_id": "vp_flaky_retry_once",
+      "pairing_integrity": true,
+      "baseline": {
+        "trace": {
+          "path": "traces/vp_flaky_retry_once-baseline.json",
+          "sha256": "f1a8a987c6ae572549af10866ab9d0bff0df4fc0e1f1d5f3a6ce599cdce7cd3b"
+        },
+        "oracle": {
+          "path": "oracles/vp_flaky_retry_once-baseline.json",
+          "sha256": "9e937e1136997cf7061486f0939e008e6d41963b077a4b81b7d3b83f09efa9f0",
+          "status": "failed",
+          "failure_signatures": []
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "verification_commands": 2,
+        "verification_duration_ms": 169.177,
+        "trace_span_ms": 77962.0,
+        "observed_failure_signatures": [],
+        "post_run_workspace_state_sha256": "6e96d14e93564c153a1f2d6036da7d0762d1fe6a68a7869b65c058e8278a7dbb",
+        "workspace_state_changed": false
+      },
+      "candidate": {
+        "trace": {
+          "path": "traces/vp_flaky_retry_once-candidate.json",
+          "sha256": "326037923562f2dcd0b30fe030b1e3b1274a7ec3acf962fd22202b281c1a596d"
+        },
+        "oracle": {
+          "path": "oracles/vp_flaky_retry_once-candidate.json",
+          "sha256": "9e937e1136997cf7061486f0939e008e6d41963b077a4b81b7d3b83f09efa9f0",
+          "status": "failed",
+          "failure_signatures": []
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "verification_commands": 2,
+        "verification_duration_ms": 119.731,
+        "trace_span_ms": 53493.0,
+        "observed_failure_signatures": [],
+        "post_run_workspace_state_sha256": "6e96d14e93564c153a1f2d6036da7d0762d1fe6a68a7869b65c058e8278a7dbb",
+        "workspace_state_changed": false
+      },
+      "quality_claim_eligible": true,
+      "observed_reduction": {
+        "verification_commands": 0.0,
+        "verification_duration": 0.292274
+      }
+    },
+    {
+      "task_id": "vp_public_behavior_test_required",
+      "pairing_integrity": true,
+      "baseline": {
+        "trace": {
+          "path": "traces/vp_public_behavior_test_required-baseline.json",
+          "sha256": "b14018576918d74efacc842fcebcbcf92becb4fd069973cb2728615de356b60a"
+        },
+        "oracle": {
+          "path": "oracles/vp_public_behavior_test_required-baseline.json",
+          "sha256": "435829a5c7b54aab45a1ea8f4278c314e9d98bd77031538bf4e28d6f410bc11d",
+          "status": "passed",
+          "failure_signatures": []
+        },
+        "completeness": "partial",
+        "warnings": [
+          "incomplete_command_semantics:item_21:runner_structure_unrecognized",
+          "outcome_file_not_observed:8e5938ebd721bf9d",
+          "workspace_state_changed_without_observed_file_change"
+        ],
+        "verification_commands": 2,
+        "verification_duration_ms": 11293.527,
+        "trace_span_ms": 278623.0,
+        "observed_failure_signatures": [],
+        "post_run_workspace_state_sha256": "2a439472c9d1abb201e7d419780dec839c4bb364ec7e7e1917a51bcee3247c68",
+        "workspace_state_changed": true
+      },
+      "candidate": {
+        "trace": {
+          "path": "traces/vp_public_behavior_test_required-candidate.json",
+          "sha256": "265ff94fd2558ddad16834c20dc07f670c387a57c561e3702429696467ad6996"
+        },
+        "oracle": {
+          "path": "oracles/vp_public_behavior_test_required-candidate.json",
+          "sha256": "c260aac65b84afaa75f8fb96a0ef13deba703c5a89d4feac9d09cae03a1dee13",
+          "status": "passed",
+          "failure_signatures": []
+        },
+        "completeness": "partial",
+        "warnings": [
+          "incomplete_command_semantics:item_13:runner_structure_unrecognized",
+          "outcome_file_not_observed:8e5938ebd721bf9d",
+          "workspace_state_changed_without_observed_file_change"
+        ],
+        "verification_commands": 2,
+        "verification_duration_ms": 8743.875,
+        "trace_span_ms": 140233.0,
+        "observed_failure_signatures": [],
+        "post_run_workspace_state_sha256": "b8a9fa1e92122de5c265c6193a52704ae8226044405484dfe62d441feab9dfda",
+        "workspace_state_changed": true
+      },
+      "quality_claim_eligible": false,
+      "observed_reduction": {
+        "verification_commands": 0.0,
+        "verification_duration": 0.225762
+      }
+    }
+  ],
+  "conclusion": {
+    "status": "paired_run_partial",
+    "quality_claim_eligible": false,
+    "reason_codes": [
+      "only_4_of_6_pilot_tasks_paired",
+      "vp_public_behavior_test_required_traces_are_partial",
+      "minimum_quality_claim_comparisons_not_met",
+      "minimum_oracle_failures_not_met"
+    ],
+    "notes": [
+      "vp_flaky_retry_once produced a failed independent oracle on both sides, so the candidate policy did not hide that fault.",
+      "vp_public_behavior_test_required is a test_decision task: the agent adds a test file, but the collector did not observe that write, so both traces fail closed as partial.",
+      "Observed reductions are calibration data for the collection chain and do not support any efficiency claim."
+    ]
+  }
+}

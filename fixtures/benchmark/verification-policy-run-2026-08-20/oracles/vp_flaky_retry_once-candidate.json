@@ -1,0 +1,50 @@
+{
+  "benchmark_id": "observatory-verification-policy-pilot-v0.1",
+  "environment": {
+    "benchmark_id": "observatory-verification-policy-pilot-v0.1",
+    "repository_identity": "cat0825/ai-coding-agent-test-strategy",
+    "repository_revision": "e9bd535012d4657534cf3cef69f394d2e7145387",
+    "scenario_definition_sha256": "bb55a1d6865e96a4e33f2434f69eb292770029fa208528953ae4d2d2e182f175",
+    "workspace_revision": "586304f4932ed975c01199308d5e1bfe8e20837c"
+  },
+  "evidence_class": "independent_oracle",
+  "execution": {
+    "results": [
+      {
+        "exit_code": 0,
+        "phase": "fast"
+      },
+      {
+        "exit_code": 0,
+        "phase": "fast"
+      }
+    ],
+    "timeout_ms": 120000
+  },
+  "oracle": {
+    "definition_sha256": "6c16f97aab38c6e35ddd6ef2927a1031049b742eeff09b2c5ce284fd5fd982bc",
+    "id": "vp-oracle-flaky-retry-once-v1"
+  },
+  "result": {
+    "expected_failure_signatures": [
+      "diagnostics:intermittent-fixture"
+    ],
+    "failure_signatures": [],
+    "status": "failed",
+    "workspace_status": "flaky"
+  },
+  "schema_version": 1,
+  "task_id": "vp_flaky_retry_once",
+  "workspace": {
+    "agent_changed_files": [],
+    "changed_files": [
+      "test/diagnostics.test.mjs"
+    ],
+    "edit_policy_satisfied": true,
+    "initial_workspace_state_sha256": "6e96d14e93564c153a1f2d6036da7d0762d1fe6a68a7869b65c058e8278a7dbb",
+    "post_run_workspace_state_sha256": "6e96d14e93564c153a1f2d6036da7d0762d1fe6a68a7869b65c058e8278a7dbb",
+    "production_edits": [],
+    "test_edits": []
+  }
+}
+

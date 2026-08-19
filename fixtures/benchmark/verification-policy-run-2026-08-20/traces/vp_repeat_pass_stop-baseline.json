@@ -1,0 +1,166 @@
+{
+  "completeness": "complete",
+  "events": [
+    {
+      "data": {
+        "change_kinds": [
+          "code",
+          "fixture",
+          "test"
+        ],
+        "changed_files": [
+          "fixtures/traces/conservative-escalation.json",
+          "fixtures/traces/failed-retry.json",
+          "fixtures/traces/success.json",
+          "src/trace.mjs",
+          "test/trace.test.mjs"
+        ],
+        "observation": "materialized_task_state",
+        "repository_commit": "00fe0ddeaf0668cae23c02e9964df6ae467e3811",
+        "state_id": "6d2892146544d85ad7f98eed20b2b95fef43cef646fc0e6feeb501dc50ac66ba"
+      },
+      "event_index": 0,
+      "event_type": "diff",
+      "raw_event_ref": {
+        "event": "turn.started",
+        "kind": "codex-cli-lifecycle",
+        "line": 3,
+        "source_ref": "codex-1787156893590496000-85928-99c164b2.ndjson"
+      },
+      "timestamp": "2026-08-19T16:28:13.909Z"
+    },
+    {
+      "data": {
+        "fallback": true,
+        "reasons": [
+          "baseline_unmanaged_agent"
+        ],
+        "risk_level": "standard"
+      },
+      "event_index": 1,
+      "event_type": "risk",
+      "raw_event_ref": {
+        "event": "turn.started",
+        "kind": "codex-cli-lifecycle",
+        "line": 3,
+        "source_ref": "codex-1787156893590496000-85928-99c164b2.ndjson"
+      },
+      "timestamp": "2026-08-19T16:28:13.909Z"
+    },
+    {
+      "data": {
+        "affected_workspaces": [],
+        "commands": [
+          {
+            "argv": [
+              "node",
+              "--test"
+            ],
+            "id": "baseline:node:--test:semantic:5ff5332649bc623c6b37f9adddda376f08715ebc211a167a9a1eb3608ea7eba2"
+          }
+        ],
+        "requested_phase": "affected",
+        "selected_phase": "affected",
+        "selection_source": "observed_verification_calls"
+      },
+      "event_index": 2,
+      "event_type": "test_selection",
+      "raw_event_ref": {
+        "event": "turn.started",
+        "kind": "codex-cli-lifecycle",
+        "line": 3,
+        "source_ref": "codex-1787156893590496000-85928-99c164b2.ndjson"
+      },
+      "timestamp": "2026-08-19T16:28:13.909Z"
+    },
+    {
+      "data": {
+        "canonical_command_id": "baseline:node:--test:semantic:5ff5332649bc623c6b37f9adddda376f08715ebc211a167a9a1eb3608ea7eba2",
+        "command": [
+          "node",
+          "--test"
+        ],
+        "command_semantics": {
+          "arguments_sha256": "720a63161e631c379bf51a74616237b71a7107fe1baa3cc24d872f2846591788",
+          "complete": true,
+          "cwd_sha256": "41a4f58be11752c0f2e01918ed0de6a31054a5e4add2950d1648ac8005489527",
+          "environment_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "reason": null,
+          "semantic_sha256": "5ff5332649bc623c6b37f9adddda376f08715ebc211a167a9a1eb3608ea7eba2",
+          "version": 1
+        },
+        "duration_ms": 59.33575,
+        "exit_code": 0,
+        "failure_class": null,
+        "failure_signature": null,
+        "override": null,
+        "signal": null
+      },
+      "event_index": 3,
+      "event_type": "test_result",
+      "raw_event_ref": {
+        "call_id": "item_7",
+        "event": "item.completed",
+        "kind": "codex-cli-lifecycle",
+        "line": 11,
+        "source_ref": "codex-1787156893590496000-85928-99c164b2.ndjson",
+        "start_line": 10,
+        "stream_completion_line": 14,
+        "stream_source_ref": "vp-stream-vp_repeat_pass_stop-baseline.ndjson",
+        "stream_start_line": 13
+      },
+      "timestamp": "2026-08-19T16:28:42.302Z"
+    },
+    {
+      "data": {
+        "reason": "observed_turn_completed",
+        "status": "completed"
+      },
+      "event_index": 4,
+      "event_type": "stop",
+      "raw_event_ref": {
+        "event": "turn.completed",
+        "kind": "codex-cli-lifecycle",
+        "line": 14,
+        "source_ref": "codex-1787156893590496000-85928-99c164b2.ndjson"
+      },
+      "timestamp": "2026-08-19T16:29:06.509Z"
+    }
+  ],
+  "harness": "codex-cli@0.147.0",
+  "mode": "baseline",
+  "model": "claude-opus-5",
+  "policy": {
+    "name": "unmanaged-coding-agent-baseline",
+    "version": "1"
+  },
+  "repository": "cat0825/ai-coding-agent-test-strategy",
+  "repository_commit": "00fe0ddeaf0668cae23c02e9964df6ae467e3811",
+  "run_id": "vp-vp_repeat_pass_stop-baseline-20260820",
+  "schema_version": 1,
+  "source": {
+    "collector_sha256": "9404d97212ea19959119df8c5c580814d6483e43cbd195f705da151ed3a37b40",
+    "final_workspace_state_sha256": "c4ab2f36708a401b5144bd3863d604d897bf5b0993ee702d4749e22bd3bb1d15",
+    "format": "codex-cli-lifecycle-v2",
+    "ignored_generated_files": 0,
+    "initial_changed_files": 5,
+    "initial_workspace_state_sha256": "c4ab2f36708a401b5144bd3863d604d897bf5b0993ee702d4749e22bd3bb1d15",
+    "lifecycle_sha256": "f73049830d3c4c1d972659a44f217d9561623d8c2dbe7ca0255932ce3bc77508",
+    "lifecycle_source_ref": "codex-1787156893590496000-85928-99c164b2.ndjson",
+    "oracle_definition_sha256": "aa2ad9addb0f91176619c0215afb6f1bbf064f13d2b13ae21961afb6673f496b",
+    "outcome_files_modified": 0,
+    "outcome_sha256": "cf0f908876dfb7287965a6471f0057269db449987b63efdf0603e0417826f7b8",
+    "post_run_workspace_sha256": "c4ab2f36708a401b5144bd3863d604d897bf5b0993ee702d4749e22bd3bb1d15",
+    "record_count": 35,
+    "scenario_definition_sha256": "0692defeab3a05f16de0225c37837c2fcf4c3180eb9ddc238cfaf1ff973c2e47",
+    "source_tree": "caa411ebd34fb96bf3660fbba93b8538aeeb55cd",
+    "state_evidence_complete": true,
+    "stream_sha256": "8a63536d58505941e17e7c6558400d8f7b7bcde504f4d10faa31de5b946c4e62",
+    "stream_source_ref": "vp-stream-vp_repeat_pass_stop-baseline.ndjson",
+    "workspace_revision": "f5b0f4d2b89947514b87ac0f5f84b515e2358ee6",
+    "workspace_state_changed": false
+  },
+  "task_id": "vp_repeat_pass_stop",
+  "trace_id": "trace-c7fea14cb5041e33a8bde77f432878dc71be00ad4f8325002dd492eb7af488f9",
+  "warnings": []
+}
