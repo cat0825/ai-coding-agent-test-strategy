@@ -60,6 +60,14 @@ npm run check
 
 默认是 plan-only shadow 模式；加 `--execute --mode baseline` 才会执行并把每条命令的耗时、退出码写入 JSONL 账本。
 
+将已验证的 VerifyTrace 生成为无需服务器或网络的静态回放：
+
+```sh
+npm run replay -- fixtures/traces/failed-retry.json output/replay/failed-retry.html
+```
+
+格式和展示约定见 [静态 trace 回放](docs/trace-replay.md)。
+
 ## 下一阶段
 
 只在本仓库内按以下顺序推进：

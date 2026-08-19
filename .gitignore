@@ -6,3 +6,5 @@ dist/
 coverage/
 tmp/
 output/ledger/
+output/playwright/
+output/replay/
