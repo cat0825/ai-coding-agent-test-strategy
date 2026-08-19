@@ -30,7 +30,14 @@
 - 4 个 editing task 的本轮 diff 独立 oracle 为 4/4 passed；cohort auditor 输出 `quality_claim_eligible_tasks: 4`、`evidence_deficit: 26`、`evidence_insufficient`。
 - Issue #33 的 state-aware collector v2 已实现：记录脱敏文件变化和起始目录摘要；命令 canonical id 保留 cwd、环境和目标语义摘要；证据不完整时不输出 `exact_repeat` 或 `unattributed_retry`。
 
-## 未完成
+## 当前未完成
+
+- 尚未把 JSONL ledger 转成统一的 Observatory trace schema。
+- 尚未实现诊断型可视化回放：时间线、重复/支配测试、失败扩张、成本和停止点。
+- 尚未实现专家模式、傻瓜模式和版本化策略候选。
+- 尚未在本仓库 fixtures 上建立可复现的冗余标签与回放回归测试。
+
+## 历史阻塞（不作为当前执行入口）
 
 - agent-belt 探索性 go/no-go 与 timestamped rerun 均通过；当前只有 4 个 editing task 同时具备完整 baseline VerifyTrace 与独立 oracle，read-only task 没有稳定响应 oracle，配对 candidate run 也未开始，真实 eligible baseline 为 4/30。
 - 三个未显式标记 `test-required` 的场景新增了测试，这只是 `unspecified` 观察，不能据此断言测试无价值；本轮没有任务超过两次即时测试预算，1 个任务超过单测试文件预算。

@@ -6,11 +6,10 @@
 
 **Observatory MVP 代码和本地 calibration 已完成；state-aware 5-task baseline 已采集，4/30 任务具备完整功能与 trace 证据，当前仍不足以支持总体效率或质量声明。**
 
+- 研究问题已收敛为：解释 Coding Agent 为什么重复、扩大或延迟测试，以及浪费从哪一个决策点开始。
+- 第一阶段只做诊断型可视化，服务重度使用 Coding Agent 的个人开发者；不做通用 Agent 观测平台。
 - 已完成 Google、OpenAI Codex、Aider、Claude Code、GitHub Copilot、Meta 等实践的横向比较。
-- 已提炼四档验证强度：`off`、`smoke`、`standard`、`thorough`。
-- 已形成 Agent 验证状态机、测试预算、停止规则和可直接放入 `AGENTS.md` 的策略模板。
-- 已修复 PDF 代码块裁切并提供可复现构建入口。
-- 已定义 pilot 指标、预算校准、保守 fallback、命令归一化和 override 审计方案。
+- 已提炼四档验证强度：`off`、`smoke`、`standard`、`thorough`，并形成状态机、预算、停止规则和 fallback。
 - 已实现 `verify.sh`、受影响 workspace 发现、unknown fallback、命令存在性校验和 JSONL 验证账本。
 - 已用 Maka 的固定 CI-green revision 完成一次真实 preflight，作为仓库无关实现的验证样本；未改动 Maka 源码。
 - 通用 baseline cohort 已采集 4 个 editing task；cohort auditor 输出 `4/30`、`evidence_insufficient`，详见 [STATUS.md](STATUS.md) 与 [agent-belt-baseline-report.json](fixtures/benchmark/agent-belt-baseline-report.json)。
@@ -29,6 +28,7 @@
 - [完整研究报告](docs/ai-coding-agent-test-strategy.md)：纵向演进、成熟团队案例、状态机、落地顺序和参考资料。
 - [PDF 报告](output/pdf/ai-coding-agent-test-strategy.pdf)：适合阅读和分发的 16 页版本。
 - [实验与校准方案](docs/experiment-and-calibration.md)：pilot 设计、指标、fallback 和审计契约。
+- [验证行为任务集调研](docs/coding-agent-verification-task-set-research.md)：任务来源、轨迹 schema 和实验阶段建议。
 - [当前状态与下一步](STATUS.md)：明确已完成、未完成和下一阶段实现边界。
 - [贡献指南](CONTRIBUTING.md)：Issue/PR 边界、验证命令和证据要求。
 
@@ -144,9 +144,9 @@ npm run benchmark:trace -- \
 
 Collector v2 不保存命令、输出、凭据或绝对工作区路径；它保存脱敏后的相对文件变化和起始目录摘要。转换器为工作目录、环境和目标参数生成不可逆摘要，将文件变化按观察时间写入 trace，并只从 `turn.completed` / `turn.failed` 生成 stop。缺失、重复、乱序、不匹配或无法解释的证据一律 fail closed。旧 collector-v1 trace 仍可回放，但不能产出重复测试结论。集成与安全边界见 [Agent-belt timestamped VerifyTrace collection](docs/agent-belt-timestamped-trace-v1.md)。
 
-## 后续评测
+## 下一阶段
 
-下一阶段按以下顺序推进：
+只在本仓库内按以下顺序推进：
 
 1. 扩充 agent-belt 的合格任务集，补足 26 个 baseline task；不拿旧 trace 或重复 trial 补数量。
 2. 在同一合格仓库/任务集上采集至少 30 个基线任务，再实现并采集 30 个 shadow task。
