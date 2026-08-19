@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { assertValidTrace, TRACE_SCHEMA_VERSION } from "./trace.mjs";
-import { canonicalTestCommandId, normalizeTestRunnerCommand } from "./test-command.mjs";
+import { analyzeTestRunnerCommand } from "./test-command.mjs";
 
 const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const TERMINAL_EVENTS = new Set(["turn.completed", "turn.failed"]);
+const FILE_CHANGE_KINDS = new Set(["add", "delete", "update"]);
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -76,16 +77,45 @@ function groupEvents(entries, eventType) {
   return grouped;
 }
 
-function groupStreamItems(entries, eventType) {
+function groupStreamItems(entries, eventType, itemType = "command_execution") {
   const grouped = new Map();
   for (const entry of entries) {
-    if (entry.record.type !== eventType || entry.record.item?.type !== "command_execution") continue;
+    if (entry.record.type !== eventType || entry.record.item?.type !== itemType) continue;
     const callId = entry.record.item.id;
     if (!safeCallId(callId)) continue;
     if (!grouped.has(callId)) grouped.set(callId, []);
     grouped.get(callId).push(entry);
   }
   return grouped;
+}
+
+function normalizedChangedFile(value) {
+  if (!nonEmptyString(value) || value.includes("\0")
+    || value.startsWith("/") || value.startsWith("\\") || /^[a-zA-Z]:[\\/]/.test(value)) return null;
+  const parts = value.replaceAll("\\", "/").split("/");
+  if (parts.includes("..")) return null;
+  const normalized = parts.filter((part) => part !== "" && part !== ".").join("/");
+  return normalized || null;
+}
+
+function changeKindForPath(file) {
+  const normalized = file.toLowerCase();
+  const parts = normalized.split("/");
+  const name = parts.at(-1);
+  if (parts.some((part) => part === "fixtures" || part === "fixture" || part === "testdata")) return "fixture";
+  if (parts.some((part) => part === "tests" || part === "test" || part === "__tests__")
+    || /(?:^|[._-])(test|spec)\.[^.]+$/.test(name)) return "test";
+  if (["package.json", "pyproject.toml", "cargo.toml", "go.mod", "tsconfig.json", "tox.ini", "pytest.ini"].includes(name)
+    || /\.(?:ya?ml|toml|ini|lock)$/.test(name)) return "config";
+  if (/\.(?:md|mdx|rst|txt)$/.test(name)) return "docs";
+  return "code";
+}
+
+function isGeneratedRuntimeArtifact(file) {
+  const parts = file.toLowerCase().split("/");
+  const name = parts.at(-1);
+  return parts.some((part) => ["__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"].includes(part))
+    || /\.(?:pyc|pyo)$/.test(name);
 }
 
 function validObservedAt(value) {
@@ -111,6 +141,7 @@ export function convertAgentBeltLifecycleToTrace({
   lifecycleContents = null,
   streamContents = null,
   outcomeSha256 = null,
+  outcomeFilesModified = null,
 }) {
   validateBinding(binding);
   if (!Array.isArray(lifecycle) || lifecycle.length === 0) throw new Error("Lifecycle evidence must be non-empty");
@@ -118,6 +149,11 @@ export function convertAgentBeltLifecycleToTrace({
   if (!safeSourceReference(lifecycleSourceRef) || !safeSourceReference(streamSourceRef)) throw new Error("Safe relative source references are required");
 
   const warnings = new Set();
+  const stateWarnings = new Set();
+  const warnState = (warning) => {
+    warnings.add(warning);
+    stateWarnings.add(warning);
+  };
   let previousMonotonic = -1;
   let previousTimestamp = -1;
   lifecycle.forEach((entry, index) => {
@@ -141,8 +177,10 @@ export function convertAgentBeltLifecycleToTrace({
 
   const collector = firstEntry(lifecycle, (record) => record.event === "collector.started");
   if (!collector) throw new Error("Lifecycle evidence is missing collector.started");
-  if (collector.record.collector_sha256 !== binding.collectorSha256) warnings.add("collector_digest_mismatch");
-  if (collector.record.collector_version !== "1") warnings.add("collector_version_mismatch");
+  if (collector.record.collector_sha256 !== binding.collectorSha256) warnState("collector_digest_mismatch");
+  if (collector.record.collector_version !== "2") warnState("collector_version_mismatch");
+  const cwdSha256 = collector.record.cwd_sha256;
+  if (!/^[a-f0-9]{64}$/i.test(cwdSha256 ?? "")) warnState("missing_collector_cwd_digest");
   const turnStartedEntries = lifecycle.filter(({ record }) => record.event === "turn.started");
   if (turnStartedEntries.length === 0) warnings.add("missing_turn_started");
   if (turnStartedEntries.length > 1) warnings.add("duplicate_turn_started");
@@ -167,7 +205,7 @@ export function convertAgentBeltLifecycleToTrace({
     warnings.add("unsafe_stream_call_id");
   }
   const callIds = new Set([...starts.keys(), ...completions.keys(), ...streamStarts.keys(), ...streamCompletions.keys()]);
-  const pairedResults = [];
+  const pairedCommands = [];
 
   for (const callId of [...callIds].sort()) {
     const callStarts = starts.get(callId) ?? [];
@@ -194,19 +232,113 @@ export function convertAgentBeltLifecycleToTrace({
       warnings.add(`command_exit_code_mismatch:${callId}`);
       continue;
     }
-    const normalized = normalizeTestRunnerCommand(rawStarts[0].record.item.command);
-    if (!normalized) continue;
-    pairedResults.push({
+    const analysis = analyzeTestRunnerCommand(rawStarts[0].record.item.command, { cwdSha256 });
+    if (analysis && analysis.semantics.complete !== true) {
+      warnings.add(`incomplete_command_semantics:${callId}:${analysis.semantics.reason}`);
+    }
+    pairedCommands.push({
       callId,
       start,
       completion,
       rawStart: rawStarts[0],
       rawCompletion: rawCompletions[0],
-      command: normalized,
-      canonicalId: canonicalTestCommandId(normalized),
+      analysis,
       durationMs: (completion.record.monotonic_ns - start.record.monotonic_ns) / 1_000_000,
       exitCode: lifecycleExit,
     });
+  }
+
+  const lifecycleFileChanges = groupEvents(lifecycle, "file_change.completed");
+  const streamFileChanges = groupStreamItems(stream, "item.completed", "file_change");
+  if (lifecycle.some(({ record }) => record.event === "file_change.completed" && !safeCallId(record.call_id))) {
+    warnState("unsafe_file_change_call_id");
+  }
+  if (stream.some(({ record }) => record.type === "item.completed"
+    && record.item?.type === "file_change" && !safeCallId(record.item.id))) {
+    warnState("unsafe_stream_file_change_call_id");
+  }
+  const fileChangeIds = new Set([...lifecycleFileChanges.keys(), ...streamFileChanges.keys()]);
+  const pairedFileChanges = [];
+  for (const callId of [...fileChangeIds].sort()) {
+    const observed = lifecycleFileChanges.get(callId) ?? [];
+    const raw = streamFileChanges.get(callId) ?? [];
+    if (observed.length !== 1) warnState(`${observed.length === 0 ? "missing" : "duplicate"}_file_change_lifecycle:${callId}`);
+    if (raw.length !== 1) warnState(`${raw.length === 0 ? "missing" : "duplicate"}_file_change_stream:${callId}`);
+    if (observed.length !== 1 || raw.length !== 1) continue;
+
+    const entry = observed[0];
+    const streamEntry = raw[0];
+    if (entry.record.status !== streamEntry.record.item.status
+      || !["completed", "failed"].includes(entry.record.status)) {
+      warnState(`file_change_status_mismatch:${callId}`);
+      continue;
+    }
+    const changes = entry.record.changes;
+    const streamChanges = streamEntry.record.item.changes;
+    if (!Array.isArray(changes) || !Array.isArray(streamChanges) || changes.length !== streamChanges.length) {
+      warnState(`file_change_count_mismatch:${callId}`);
+      continue;
+    }
+    const sanitized = [];
+    let valid = true;
+    for (let index = 0; index < changes.length; index += 1) {
+      const change = changes[index];
+      const streamChange = streamChanges[index];
+      if (!isObject(change) || !isObject(streamChange)
+        || normalizedChangedFile(change.path) !== change.path
+        || !FILE_CHANGE_KINDS.has(change.kind)
+        || streamChange.kind !== change.kind) {
+        warnState(`invalid_file_change:${callId}:${index}`);
+        valid = false;
+        continue;
+      }
+      const streamPath = normalizedChangedFile(streamChange.path);
+      if (streamPath && streamPath !== change.path) {
+        warnState(`file_change_path_mismatch:${callId}:${index}`);
+        valid = false;
+        continue;
+      }
+      sanitized.push({ path: change.path, kind: change.kind });
+    }
+    if (!valid) continue;
+    pairedFileChanges.push({
+      callId,
+      entry,
+      streamEntry,
+      status: entry.record.status,
+      changes: sanitized,
+    });
+  }
+
+  let outcomeFileCount = 0;
+  let ignoredGeneratedFileCount = 0;
+  if (!Array.isArray(outcomeFilesModified)) {
+    warnState("missing_outcome_file_manifest");
+  } else {
+    const outcomeFiles = new Set();
+    for (const [index, file] of outcomeFilesModified.entries()) {
+      const normalized = normalizedChangedFile(file);
+      if (!normalized) {
+        warnState(`invalid_outcome_file:${index}`);
+        continue;
+      }
+      outcomeFiles.add(normalized);
+    }
+    outcomeFileCount = outcomeFiles.size;
+    const relevantOutcomeFiles = new Set([...outcomeFiles].filter((file) => {
+      if (!isGeneratedRuntimeArtifact(file)) return true;
+      ignoredGeneratedFileCount += 1;
+      return false;
+    }));
+    const observedFiles = new Set(pairedFileChanges
+      .filter(({ status }) => status === "completed")
+      .flatMap(({ changes }) => changes.map(({ path: file }) => file)));
+    for (const file of relevantOutcomeFiles) {
+      if (!observedFiles.has(file)) warnState(`outcome_file_not_observed:${sha256(file).slice(0, 16)}`);
+    }
+    for (const file of observedFiles) {
+      if (!relevantOutcomeFiles.has(file)) warnState(`observed_file_not_in_outcome:${sha256(file).slice(0, 16)}`);
+    }
   }
 
   const terminals = lifecycle.filter(({ record }) => TERMINAL_EVENTS.has(record.event));
@@ -218,19 +350,40 @@ export function convertAgentBeltLifecycleToTrace({
 
   const bootstrapMonotonic = Number.isInteger(bootstrap.record.monotonic_ns) ? bootstrap.record.monotonic_ns : 0;
   const terminalMonotonic = terminal?.record.monotonic_ns;
-  const usableResults = pairedResults
-    .filter((result) => {
-      if (result.completion.record.monotonic_ns < bootstrapMonotonic) {
-        warnings.add(`test_result_precedes_turn:${result.callId}`);
+  const usableCommands = pairedCommands
+    .filter((command) => {
+      if (command.completion.record.monotonic_ns < bootstrapMonotonic) {
+        warnings.add(`command_precedes_turn:${command.callId}`);
         return false;
       }
-      if (Number.isInteger(terminalMonotonic) && result.completion.record.monotonic_ns > terminalMonotonic) {
-        warnings.add(`test_result_follows_terminal:${result.callId}`);
+      if (Number.isInteger(terminalMonotonic) && command.completion.record.monotonic_ns > terminalMonotonic) {
+        warnings.add(`command_follows_terminal:${command.callId}`);
         return false;
       }
-      return validObservedAt(result.completion.record.observed_at);
+      return validObservedAt(command.completion.record.observed_at);
     })
     .sort((left, right) => left.completion.record.monotonic_ns - right.completion.record.monotonic_ns);
+  const usableResults = usableCommands
+    .filter((command) => command.analysis !== null)
+    .map((command) => ({
+      ...command,
+      command: command.analysis.command,
+      canonicalId: command.analysis.canonicalId,
+      semantics: command.analysis.semantics,
+    }));
+  const usableFileChanges = pairedFileChanges
+    .filter((change) => {
+      if (change.entry.record.monotonic_ns < bootstrapMonotonic) {
+        warnState(`file_change_precedes_turn:${change.callId}`);
+        return false;
+      }
+      if (Number.isInteger(terminalMonotonic) && change.entry.record.monotonic_ns > terminalMonotonic) {
+        warnState(`file_change_follows_terminal:${change.callId}`);
+        return false;
+      }
+      return validObservedAt(change.entry.record.observed_at);
+    })
+    .sort((left, right) => left.entry.record.monotonic_ns - right.entry.record.monotonic_ns);
 
   const events = [
     {
@@ -240,8 +393,9 @@ export function convertAgentBeltLifecycleToTrace({
       data: {
         changed_files: [],
         repository_commit: binding.repositoryCommit,
-        state_id: binding.scenarioDefinitionSha256,
+        state_id: sha256(JSON.stringify({ repository_commit: binding.repositoryCommit })),
         change_kinds: [],
+        observation: "pinned_repository_state",
       },
       raw_event_ref: rawReference(bootstrap, lifecycleSourceRef, bootstrap.record.event),
     },
@@ -271,7 +425,87 @@ export function convertAgentBeltLifecycleToTrace({
     },
   ];
 
-  for (const result of usableResults) {
+  const firstResultMonotonic = usableResults[0]?.completion.record.monotonic_ns ?? null;
+  const lastResultMonotonic = usableResults.at(-1)?.completion.record.monotonic_ns ?? null;
+  const unknownStateCommands = usableCommands.filter((command) => command.analysis === null
+    && firstResultMonotonic !== null
+    && command.completion.record.monotonic_ns > firstResultMonotonic
+    && command.completion.record.monotonic_ns < lastResultMonotonic);
+  const activities = [
+    ...usableResults.map((result) => ({
+      kind: "test_result",
+      monotonicNs: result.completion.record.monotonic_ns,
+      value: result,
+    })),
+    ...usableFileChanges
+      .filter((change) => change.status === "completed" && change.changes.length > 0)
+      .map((change) => ({
+        kind: "file_change",
+        monotonicNs: change.entry.record.monotonic_ns,
+        value: change,
+      })),
+    ...unknownStateCommands.map((command) => ({
+      kind: "unknown_state",
+      monotonicNs: command.completion.record.monotonic_ns,
+      value: command,
+    })),
+  ].sort((left, right) => left.monotonicNs - right.monotonicNs
+    || Number(left.kind === "test_result") - Number(right.kind === "test_result"));
+
+  let observedStateId = events[0].data.state_id;
+  for (const activity of activities) {
+    if (activity.kind === "file_change") {
+      const change = activity.value;
+      observedStateId = observedStateId === null ? null : sha256(JSON.stringify({
+        previous_state_id: observedStateId,
+        changes: change.changes,
+      }));
+      events.push({
+        event_index: events.length,
+        event_type: "diff",
+        timestamp: change.entry.record.observed_at,
+        data: {
+          changed_files: [...new Set(change.changes.map(({ path: file }) => file))].sort(),
+          repository_commit: binding.repositoryCommit,
+          state_id: observedStateId,
+          change_kinds: [...new Set(change.changes.map(({ path: file }) => changeKindForPath(file)))].sort(),
+          observation: "completed_file_change",
+        },
+        raw_event_ref: {
+          ...rawReference(change.entry, lifecycleSourceRef),
+          call_id: change.callId,
+          stream_source_ref: streamSourceRef,
+          stream_completion_line: change.streamEntry.line,
+        },
+      });
+      continue;
+    }
+    if (activity.kind === "unknown_state") {
+      const command = activity.value;
+      observedStateId = null;
+      events.push({
+        event_index: events.length,
+        event_type: "diff",
+        timestamp: command.completion.record.observed_at,
+        data: {
+          changed_files: [],
+          repository_commit: binding.repositoryCommit,
+          state_id: null,
+          change_kinds: [],
+          observation: "unknown_after_non_test_command",
+        },
+        raw_event_ref: {
+          ...rawReference(command.completion, lifecycleSourceRef),
+          call_id: command.callId,
+          stream_source_ref: streamSourceRef,
+          stream_start_line: command.rawStart.line,
+          stream_completion_line: command.rawCompletion.line,
+        },
+      });
+      continue;
+    }
+
+    const result = activity.value;
     events.push({
       event_index: events.length,
       event_type: "test_result",
@@ -279,6 +513,7 @@ export function convertAgentBeltLifecycleToTrace({
       data: {
         canonical_command_id: result.canonicalId,
         command: result.command,
+        command_semantics: result.semantics,
         duration_ms: result.durationMs,
         exit_code: result.exitCode,
         signal: null,
@@ -328,7 +563,7 @@ export function convertAgentBeltLifecycleToTrace({
     mode: "baseline",
     completeness: complete ? "complete" : "partial",
     source: {
-      format: "agent-belt-codex-lifecycle-v1",
+      format: "agent-belt-codex-lifecycle-v2",
       record_count: lifecycle.length + stream.length,
       lifecycle_source_ref: lifecycleSourceRef,
       lifecycle_sha256: lifecycleDigest,
@@ -337,6 +572,9 @@ export function convertAgentBeltLifecycleToTrace({
       outcome_sha256: outcomeSha256,
       scenario_definition_sha256: binding.scenarioDefinitionSha256,
       collector_sha256: binding.collectorSha256,
+      state_evidence_complete: stateWarnings.size === 0,
+      outcome_files_modified: outcomeFileCount,
+      ignored_generated_files: ignoredGeneratedFileCount,
     },
     warnings: warningList,
     events,

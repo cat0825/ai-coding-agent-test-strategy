@@ -12,6 +12,8 @@ The v1 diagnostic rules consume a validated VerifyTrace and emit deterministic e
 
 Documentation-only changes are not relevant state changes for these rules. A diff with a null `state_id` or empty `change_kinds` is treated as unknown; the rules emit no repeat label across that boundary.
 
+Agent-belt lifecycle traces have an additional fail-closed requirement: `source.state_evidence_complete` must be true and both compared test results must carry complete `command_semantics`. Older traces and partial state evidence can still be replayed, but they cannot produce `exact_repeat` or `unattributed_retry` findings.
+
 ## Output
 
 Each finding includes:

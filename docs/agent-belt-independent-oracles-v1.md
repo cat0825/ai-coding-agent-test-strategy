@@ -26,6 +26,6 @@ Each report binds the task to the qualified agent-belt revision, environment man
 
 ## Real pilot evidence
 
-The four saved reports under [fixtures/benchmark/oracles](../fixtures/benchmark/oracles) were produced from isolated worktrees reconstructed by applying each timestamped rerun outcome's captured `git_diff` to the pinned tasktracker fixture. The oracle bundle was not present during the agent runs. All four functional oracles passed.
+The four saved reports under [fixtures/benchmark/oracles](../fixtures/benchmark/oracles) were regenerated from state-aware run `20260818-162534-870bcfcf`. Each isolated worktree was reconstructed by applying the outcome's captured `git_diff` to the pinned tasktracker fixture; generated `__pycache__` binary changes were excluded from reconstruction. The oracle bundle was not present during the agent runs. All four functional oracles passed.
 
 This closes the independent-oracle gap only for the four editing tasks. The matching complete traces and cohort decision are recorded in [agent-belt-baseline-report.json](../fixtures/benchmark/agent-belt-baseline-report.json): 4 tasks are eligible, the remaining deficit is 26, and the cohort remains `evidence_insufficient`. Individual oracle reports keep `baseline_quality_claim_eligible: false` because an oracle result alone is never sufficient to grant a baseline claim.

@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { convertAgentBeltLifecycleToTrace, parseNdjson } from "../src/agent-belt-trace.mjs";
+import { diagnoseTrace } from "../src/diagnostics.mjs";
 import { validateTrace } from "../src/trace.mjs";
 
 const revision = "9".repeat(40);
@@ -24,7 +25,7 @@ function lifecycleRecord(sequence, event, milliseconds, fields = {}) {
 
 function lifecycleRecords() {
   return [
-    lifecycleRecord(0, "collector.started", 0, { collector_version: "1", collector_sha256: digest }),
+    lifecycleRecord(0, "collector.started", 0, { collector_version: "2", collector_sha256: digest, cwd_sha256: "c".repeat(64) }),
     lifecycleRecord(1, "thread.started", 10, { thread_id: "thread-1" }),
     lifecycleRecord(2, "turn.started", 20),
     lifecycleRecord(3, "item.started", 100, { call_id: "item_1", item_type: "command_execution" }),
@@ -44,6 +45,44 @@ function streamRecords() {
   ];
 }
 
+function repeatedLifecycleRecords({ includeFileChange = true } = {}) {
+  const records = [
+    lifecycleRecord(0, "collector.started", 0, { collector_version: "2", collector_sha256: digest, cwd_sha256: "c".repeat(64) }),
+    lifecycleRecord(1, "thread.started", 10, { thread_id: "thread-1" }),
+    lifecycleRecord(2, "turn.started", 20),
+    lifecycleRecord(3, "item.started", 100, { call_id: "item_1", item_type: "command_execution" }),
+    lifecycleRecord(4, "item.completed", 200, { call_id: "item_1", item_type: "command_execution", exit_code: 0, status: "completed" }),
+  ];
+  if (includeFileChange) {
+    records.push(lifecycleRecord(5, "file_change.completed", 250, {
+      call_id: "patch_1",
+      status: "completed",
+      changes: [{ path: "src/api.py", path_sha256: null, kind: "update" }],
+    }));
+  }
+  records.push(
+    lifecycleRecord(records.length, "item.started", 300, { call_id: "item_2", item_type: "command_execution" }),
+    lifecycleRecord(records.length + 1, "item.completed", 400, { call_id: "item_2", item_type: "command_execution", exit_code: 0, status: "completed" }),
+    lifecycleRecord(records.length + 2, "turn.completed", 500),
+    lifecycleRecord(records.length + 3, "process.exited", 510, { exit_code: 0 }),
+  );
+  return records;
+}
+
+function repeatedStreamRecords() {
+  const command = "pytest tests/test_api.py";
+  return [
+    { type: "thread.started", thread_id: "thread-1" },
+    { type: "turn.started" },
+    { type: "item.started", item: { id: "item_1", type: "command_execution", command, status: "in_progress" } },
+    { type: "item.completed", item: { id: "item_1", type: "command_execution", command, aggregated_output: "", exit_code: 0, status: "completed" } },
+    { type: "item.completed", item: { id: "patch_1", type: "file_change", changes: [{ path: "src/api.py", kind: "update" }], status: "completed" } },
+    { type: "item.started", item: { id: "item_2", type: "command_execution", command, status: "in_progress" } },
+    { type: "item.completed", item: { id: "item_2", type: "command_execution", command, aggregated_output: "", exit_code: 0, status: "completed" } },
+    { type: "turn.completed", usage: { input_tokens: 10 } },
+  ];
+}
+
 function entries(records) {
   return records.map((record, index) => ({ line: index + 1, record }));
 }
@@ -52,9 +91,12 @@ function resequence(records) {
   return records.map((record, sequence) => ({ ...record, sequence }));
 }
 
-function convert(lifecycle = lifecycleRecords(), stream = streamRecords()) {
+function convert(lifecycle = lifecycleRecords(), stream = streamRecords(), outcomeFilesModified = null) {
   const lifecycleContents = lifecycle.map((record) => JSON.stringify(record)).join("\n") + "\n";
   const streamContents = stream.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  const observedFiles = lifecycle
+    .filter(({ event, status }) => event === "file_change.completed" && status === "completed")
+    .flatMap(({ changes }) => changes.map(({ path: file }) => file));
   return convertAgentBeltLifecycleToTrace({
     lifecycle: entries(lifecycle),
     stream: entries(stream),
@@ -73,6 +115,7 @@ function convert(lifecycle = lifecycleRecords(), stream = streamRecords()) {
     lifecycleContents,
     streamContents,
     outcomeSha256: "b".repeat(64),
+    outcomeFilesModified: outcomeFilesModified ?? observedFiles,
   });
 }
 
@@ -84,6 +127,8 @@ test("converts paired lifecycle evidence into a sanitized complete VerifyTrace",
   assert.deepEqual(result.data.command, ["pytest"]);
   assert.equal(result.data.duration_ms, 500);
   assert.equal(result.data.exit_code, 0);
+  assert.equal(result.data.command_semantics.complete, true);
+  assert.match(result.data.canonical_command_id, /^baseline:pytest:semantic:[a-f0-9]{64}$/);
   assert.equal(trace.events.at(-1).data.reason, "observed_turn_completed");
   assert.equal(trace.source.scenario_definition_sha256, digest);
   assert.equal(validateTrace(trace).valid, true);
@@ -133,7 +178,66 @@ test("reordered lifecycle events fail closed", () => {
   assert(trace.warnings.includes("command_events_reordered:item_1"));
 });
 
-test("Codex wrapper forwards stdout and records lifecycle fields only", async (t) => {
+test("ordered file-change evidence turns a repeat into necessary revalidation", () => {
+  const trace = convert(repeatedLifecycleRecords(), repeatedStreamRecords());
+  const diff = trace.events.find((event, index) => index > 0 && event.event_type === "diff");
+  const diagnostics = diagnoseTrace(trace);
+
+  assert.equal(trace.completeness, "complete");
+  assert.deepEqual(diff.data.changed_files, ["src/api.py"]);
+  assert.deepEqual(diff.data.change_kinds, ["code"]);
+  assert.match(diff.data.state_id, /^[a-f0-9]{64}$/);
+  assert.deepEqual(diagnostics.findings.map(({ label }) => label), ["necessary_revalidation"]);
+});
+
+test("a stream file change without lifecycle evidence fails closed", () => {
+  const trace = convert(repeatedLifecycleRecords({ includeFileChange: false }), repeatedStreamRecords());
+
+  assert.equal(trace.completeness, "partial");
+  assert.equal(trace.source.state_evidence_complete, false);
+  assert(trace.warnings.includes("missing_file_change_lifecycle:patch_1"));
+  assert.deepEqual(diagnoseTrace(trace).findings, []);
+});
+
+test("the final outcome manifest detects unobserved source changes but ignores runtime caches", () => {
+  const complete = convert(
+    repeatedLifecycleRecords(),
+    repeatedStreamRecords(),
+    ["src/api.py", "src/__pycache__/api.cpython-312.pyc"],
+  );
+  const mismatched = convert(repeatedLifecycleRecords(), repeatedStreamRecords(), ["src/other.py"]);
+
+  assert.equal(complete.completeness, "complete");
+  assert.equal(complete.source.ignored_generated_files, 1);
+  assert.equal(mismatched.completeness, "partial");
+  assert.equal(mismatched.source.state_evidence_complete, false);
+  assert(mismatched.warnings.some((warning) => warning.startsWith("outcome_file_not_observed:")));
+});
+
+test("an intervening non-test command makes state unknown instead of claiming a repeat", () => {
+  const lifecycle = repeatedLifecycleRecords({ includeFileChange: false });
+  lifecycle.splice(
+    5,
+    0,
+    lifecycleRecord(5, "item.started", 240, { call_id: "edit_1", item_type: "command_execution" }),
+    lifecycleRecord(6, "item.completed", 260, { call_id: "edit_1", item_type: "command_execution", exit_code: 0, status: "completed" }),
+  );
+  const stream = repeatedStreamRecords().filter(({ item }) => item?.type !== "file_change");
+  stream.splice(
+    4,
+    0,
+    { type: "item.started", item: { id: "edit_1", type: "command_execution", command: "python tools/rewrite.py", status: "in_progress" } },
+    { type: "item.completed", item: { id: "edit_1", type: "command_execution", command: "python tools/rewrite.py", aggregated_output: "", exit_code: 0, status: "completed" } },
+  );
+  const trace = convert(resequence(lifecycle), stream);
+  const unknown = trace.events.find(({ data }) => data.observation === "unknown_after_non_test_command");
+
+  assert.equal(trace.completeness, "complete");
+  assert.equal(unknown.data.state_id, null);
+  assert.deepEqual(diagnoseTrace(trace).findings, []);
+});
+
+test("Codex wrapper forwards stdout and records sanitized lifecycle fields", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "codex-lifecycle-wrapper-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const wrapper = path.join(directory, "codex");
@@ -142,12 +246,14 @@ test("Codex wrapper forwards stdout and records lifecycle fields only", async (t
   await mkdir(lifecycleDir);
   await copyFile(path.resolve("scripts/codex-lifecycle-wrapper.py"), wrapper);
   await chmod(wrapper, 0o700);
+  const changedFile = path.join(directory, "src", "main.py");
   await writeFile(realCodex, `#!/bin/sh
 printf '%s\\n' '{"type":"thread.started","thread_id":"thread-wrapper"}'
 printf '%s\\n' '{"type":"turn.started"}'
 printf '%s\\n' '{"type":"item.started","item":{"id":"call-1","type":"command_execution","command":"pytest SECRET=hidden"}}'
 sleep 0.02
 printf '%s\\n' '{"type":"item.completed","item":{"id":"call-1","type":"command_execution","command":"pytest SECRET=hidden","aggregated_output":"do not retain","exit_code":0,"status":"completed"}}'
+printf '%s\\n' '${JSON.stringify({ type: "item.completed", item: { id: "patch-1", type: "file_change", changes: [{ path: changedFile, kind: "update" }], status: "completed" } })}'
 printf '%s\\n' '{"type":"turn.completed","usage":{}}'
 `, { mode: 0o700 });
   await chmod(realCodex, 0o700);
@@ -158,14 +264,19 @@ printf '%s\\n' '{"type":"turn.completed","usage":{}}'
     collector_sha256: digest,
   })}\n`);
 
-  const stdout = execFileSync(wrapper, ["exec", "--json"], { encoding: "utf8" });
+  const stdout = execFileSync(wrapper, ["exec", "--json"], { cwd: directory, encoding: "utf8" });
   assert.match(stdout, /aggregated_output/);
   const files = await readdir(lifecycleDir);
   assert.equal(files.length, 1);
   const sidecar = await readFile(path.join(lifecycleDir, files[0]), "utf8");
   const records = parseNdjson(sidecar).map(({ record }) => record);
   assert.deepEqual(records.filter((record) => record.event.startsWith("item.")).map((record) => record.event), ["item.started", "item.completed"]);
+  assert.equal(records[0].collector_version, "2");
+  assert.match(records[0].cwd_sha256, /^[a-f0-9]{64}$/);
   assert(records[4].monotonic_ns > records[3].monotonic_ns);
+  const fileChange = records.find((record) => record.event === "file_change.completed");
+  assert.deepEqual(fileChange.changes, [{ path: "src/main.py", path_sha256: null, kind: "update" }]);
+  assert.equal(sidecar.includes(directory), false);
   assert.doesNotMatch(sidecar, /SECRET|hidden|aggregated_output|do not retain|real-codex/);
 });
 
@@ -192,7 +303,7 @@ test("batch CLI maps lifecycle evidence to a scenario by thread id", async (t) =
   await writeFile(path.join(run, "benchmark-card.json"), `${JSON.stringify(benchmarkCard)}\n`);
   await writeFile(path.join(run, "results.json"), `${JSON.stringify(results)}\n`);
   await writeFile(path.join(run, "l2_fix_formatter_bug", "turn_0_stream.ndjson"), streamRecords().map(JSON.stringify).join("\n") + "\n");
-  await writeFile(path.join(run, "l2_fix_formatter_bug", "turn_0_output.json"), '{"schema_version":"1"}\n');
+  await writeFile(path.join(run, "l2_fix_formatter_bug", "turn_0_output.json"), '{"schema_version":"1","files_modified":[]}\n');
   const collectorSha256 = createHash("sha256").update(await readFile("scripts/codex-lifecycle-wrapper.py")).digest("hex");
   const cliLifecycle = lifecycleRecords().map((record) => record.event === "collector.started"
     ? { ...record, collector_sha256: collectorSha256 }

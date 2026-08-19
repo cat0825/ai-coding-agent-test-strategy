@@ -8,8 +8,10 @@ collector-specific environment variable needs to enter the agent process.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import re
 import secrets
 import signal
 import subprocess
@@ -29,10 +31,37 @@ SUPPORTED_EVENTS = {
     "turn.completed",
     "turn.failed",
 }
+FILE_CHANGE_KINDS = {"add", "delete", "update"}
 
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def safe_workspace_path(value: Any, workspace_root: Path) -> tuple[str | None, str | None]:
+    if not isinstance(value, str) or not value or "\x00" in value:
+        return None, None
+    portable = value.replace("\\", "/")
+    if re.match(r"^[A-Za-z]:/", portable):
+        return None, sha256_text(portable)
+    candidate = Path(portable)
+    if candidate.is_absolute():
+        try:
+            relative = candidate.resolve(strict=False).relative_to(workspace_root.resolve(strict=False))
+        except ValueError:
+            return None, sha256_text(portable)
+        portable = relative.as_posix()
+    raw_parts = portable.split("/")
+    if any(part == ".." for part in raw_parts):
+        return None, sha256_text(portable)
+    parts = [part for part in raw_parts if part not in {"", "."}]
+    if not parts:
+        return None, sha256_text(portable)
+    return "/".join(parts), None
 
 
 def load_config() -> dict[str, Any]:
@@ -48,7 +77,7 @@ def load_config() -> dict[str, Any]:
 
 
 class LifecycleWriter:
-    def __init__(self, directory: Path, collector_sha256: str) -> None:
+    def __init__(self, directory: Path, collector_sha256: str, cwd_sha256: str) -> None:
         directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         filename = f"codex-{time.time_ns()}-{os.getpid()}-{secrets.token_hex(4)}.ndjson"
         path = directory / filename
@@ -56,7 +85,12 @@ class LifecycleWriter:
         self._handle = os.fdopen(descriptor, "w", encoding="utf-8", buffering=1)
         self._started_ns = time.monotonic_ns()
         self._sequence = 0
-        self.write("collector.started", collector_sha256=collector_sha256, collector_version="1")
+        self.write(
+            "collector.started",
+            collector_sha256=collector_sha256,
+            collector_version="2",
+            cwd_sha256=cwd_sha256,
+        )
 
     def write(self, event: str, **fields: Any) -> None:
         record = {
@@ -74,7 +108,7 @@ class LifecycleWriter:
         self._handle.close()
 
 
-def lifecycle_fields(event: dict[str, Any]) -> tuple[str, dict[str, Any]] | None:
+def lifecycle_fields(event: dict[str, Any], workspace_root: Path) -> tuple[str, dict[str, Any]] | None:
     event_type = event.get("type")
     if event_type not in SUPPORTED_EVENTS:
         return None
@@ -83,7 +117,32 @@ def lifecycle_fields(event: dict[str, Any]) -> tuple[str, dict[str, Any]] | None
         return event_type, {"thread_id": thread_id} if isinstance(thread_id, str) else {}
     if event_type in {"item.started", "item.completed"}:
         item = event.get("item")
-        if not isinstance(item, dict) or item.get("type") != "command_execution":
+        if not isinstance(item, dict):
+            return None
+        if item.get("type") == "file_change":
+            if event_type != "item.completed":
+                return None
+            changes = item.get("changes")
+            sanitized_changes: list[dict[str, Any]] = []
+            if isinstance(changes, list):
+                for change in changes:
+                    if not isinstance(change, dict):
+                        sanitized_changes.append({"path": None, "path_sha256": None, "kind": None})
+                        continue
+                    safe_path, path_sha256 = safe_workspace_path(change.get("path"), workspace_root)
+                    kind = change.get("kind")
+                    sanitized_changes.append({
+                        "path": safe_path,
+                        "path_sha256": path_sha256,
+                        "kind": kind if kind in FILE_CHANGE_KINDS else None,
+                    })
+            status = item.get("status")
+            return "file_change.completed", {
+                "call_id": str(item.get("id", "")),
+                "status": status if isinstance(status, str) else None,
+                "changes": sanitized_changes,
+            }
+        if item.get("type") != "command_execution":
             return None
         fields: dict[str, Any] = {
             "call_id": str(item.get("id", "")),
@@ -104,7 +163,12 @@ def run() -> int:
     if not sys.argv[1:] or sys.argv[1] != "exec":
         return subprocess.run(command, check=False).returncode
 
-    writer = LifecycleWriter(Path(config["lifecycle_dir"]), config["collector_sha256"])
+    workspace_root = Path.cwd()
+    writer = LifecycleWriter(
+        Path(config["lifecycle_dir"]),
+        config["collector_sha256"],
+        sha256_text(str(workspace_root.resolve(strict=False))),
+    )
     process = subprocess.Popen(
         command,
         stdin=None,
@@ -131,7 +195,7 @@ def run() -> int:
                 writer.write("stream.invalid_json")
                 continue
             if isinstance(event, dict):
-                lifecycle = lifecycle_fields(event)
+                lifecycle = lifecycle_fields(event, workspace_root)
                 if lifecycle is not None:
                     event_type, fields = lifecycle
                     writer.write(event_type, **fields)

@@ -4,7 +4,7 @@
 
 ## 当前进度
 
-**Observatory MVP 代码和本地 calibration 已完成；首个 timestamped 5-task baseline 已采集，4/30 任务具备质量声明所需证据，当前仍不足以支持效率或质量声明。**
+**Observatory MVP 代码和本地 calibration 已完成；state-aware 5-task baseline 已采集，4/30 任务具备完整功能与 trace 证据，当前仍不足以支持总体效率或质量声明。**
 
 - 研究问题已收敛为：解释 Coding Agent 为什么重复、扩大或延迟测试，以及浪费从哪一个决策点开始。
 - 第一阶段只做诊断型可视化，服务重度使用 Coding Agent 的个人开发者；不做通用 Agent 观测平台。
@@ -142,15 +142,15 @@ npm run benchmark:trace -- \
   --output-dir output/benchmark/traces
 ```
 
-采集器不保存命令、输出、凭据或绝对工作区路径；转换器只保留归一化后的测试 runner 标识、观察到的 duration/exit code，并只从 `turn.completed` / `turn.failed` 生成 stop。缺失、重复、乱序或不匹配的证据一律生成 partial trace。集成与安全边界见 [Agent-belt timestamped VerifyTrace collection v1](docs/agent-belt-timestamped-trace-v1.md)。
+Collector v2 不保存命令、输出、凭据或绝对工作区路径；它保存脱敏后的相对文件变化和起始目录摘要。转换器为工作目录、环境和目标参数生成不可逆摘要，将文件变化按观察时间写入 trace，并只从 `turn.completed` / `turn.failed` 生成 stop。缺失、重复、乱序、不匹配或无法解释的证据一律 fail closed。旧 collector-v1 trace 仍可回放，但不能产出重复测试结论。集成与安全边界见 [Agent-belt timestamped VerifyTrace collection](docs/agent-belt-timestamped-trace-v1.md)。
 
 ## 下一阶段
 
 只在本仓库内按以下顺序推进：
 
-1. 扩充 agent-belt 的合格任务集，补足 26 个 baseline task；当前 4 个 editing task 的完整 trace 与独立 oracle 均通过。
-2. 在同一合格仓库/任务集上采集至少 30 个基线任务和 30 个 shadow 任务，比较命令数、耗时、失败漏检和 fallback 比例。
-3. 依据数据校准预算和停止规则，再决定是否在 Agent hook/permission 层启用有限强制。
+1. 扩充 agent-belt 的合格任务集，补足 26 个 baseline task；不拿旧 trace 或重复 trial 补数量。
+2. 在同一合格仓库/任务集上采集至少 30 个基线任务，再实现并采集 30 个 shadow task。
+3. 依据配对结果和 oracle safety gate 决定是否启用有限强制；在此之前不做效率宣传。
 
 ## 研究时间
 

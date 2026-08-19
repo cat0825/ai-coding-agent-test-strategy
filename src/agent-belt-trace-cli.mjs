@@ -134,6 +134,7 @@ async function main(argv) {
       lifecycleContents: lifecycleSource.contents,
       streamContents,
       outcomeSha256: outcome.sha256,
+      outcomeFilesModified: outcome.value.files_modified,
     });
     traces.push(trace);
   }

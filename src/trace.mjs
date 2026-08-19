@@ -24,10 +24,10 @@ const DECISION_OUTCOMES = new Set(["applied", "accepted", "rejected", "deferred"
 const DECISION_ACTORS = new Set(["system", "user"]);
 
 const NEXT_EVENT_TYPES = Object.freeze({
-  diff: new Set(["risk"]),
+  diff: new Set(["diff", "risk", "test_result", "stop"]),
   risk: new Set(["test_selection"]),
-  test_selection: new Set(["test_result", "stop"]),
-  test_result: new Set(["test_result", "retry", "expand", "recommendation", "stop"]),
+  test_selection: new Set(["diff", "test_result", "stop"]),
+  test_result: new Set(["diff", "test_result", "retry", "expand", "recommendation", "stop"]),
   retry: new Set(["diff", "test_selection"]),
   expand: new Set(["test_selection"]),
   recommendation: new Set(["recommendation", "decision", "stop"]),
@@ -78,6 +78,29 @@ function validateCommandShape(errors, command, path) {
   }
 }
 
+function validateCommandSemantics(errors, semantics, path) {
+  if (!isObject(semantics)) {
+    addError(errors, path, "must be an object");
+    return;
+  }
+  if (semantics.version !== 1) addError(errors, `${path}.version`, "must be 1");
+  if (typeof semantics.complete !== "boolean") addError(errors, `${path}.complete`, "must be a boolean");
+  if (semantics.complete === true && semantics.reason !== null) addError(errors, `${path}.reason`, "must be null when complete");
+  if (semantics.complete === false && !nonEmptyString(semantics.reason)) {
+    addError(errors, `${path}.reason`, "must explain incomplete evidence");
+  }
+  for (const field of ["cwd_sha256", "environment_sha256", "arguments_sha256", "semantic_sha256"]) {
+    const value = semantics[field];
+    if (value !== null && (typeof value !== "string" || !/^[a-f0-9]{64}$/i.test(value))) {
+      addError(errors, `${path}.${field}`, "must be null or a SHA-256 digest");
+    }
+  }
+  if (semantics.complete === true
+    && ["cwd_sha256", "environment_sha256", "arguments_sha256", "semantic_sha256"].some((field) => semantics[field] === null)) {
+    addError(errors, path, "complete evidence requires all semantic digests");
+  }
+}
+
 function validateEventData(errors, event) {
   const path = `events[${event.event_index}].data`;
   if (!isObject(event.data)) {
@@ -116,6 +139,9 @@ function validateEventData(errors, event) {
     addRequiredString(errors, event.data.canonical_command_id, `${path}.canonical_command_id`);
     if (!Array.isArray(event.data.command) || event.data.command.some((value) => typeof value !== "string")) {
       addError(errors, `${path}.command`, "must be an array of strings");
+    }
+    if (event.data.command_semantics !== undefined) {
+      validateCommandSemantics(errors, event.data.command_semantics, `${path}.command_semantics`);
     }
     if (!Number.isFinite(event.data.duration_ms) || event.data.duration_ms < 0) {
       addError(errors, `${path}.duration_ms`, "must be a non-negative number");

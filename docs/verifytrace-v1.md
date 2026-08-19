@@ -43,7 +43,7 @@ Each event has `event_index` starting at zero, a UTC `timestamp`, type-specific 
 | `decision` | recommendation id, outcome, actor, and reason |
 | `stop` | status and reason |
 
-The valid lifecycle is:
+The policy-led lifecycle is:
 
 ```text
 diff -> risk -> test_selection -> test_result
@@ -56,6 +56,8 @@ diff -> risk -> test_selection -> test_result
 ```
 
 `retry` and `expand` always reference an earlier event. Multiple `test_result` events are allowed for one selection because a plan can contain several commands.
+
+Observed baseline collectors may also insert `diff` directly after `test_selection`, `test_result`, or another observed `diff`. This records an externally observed file change or an explicit unknown-state boundary; it does not invent a policy retry. Such a `diff` may be followed by another observed `diff`, a `test_result`, or `stop`.
 
 `recommendation` and `decision` events are optional audit records emitted by the recommendation modes. A recommendation must reference earlier diagnostic evidence. A decision must refer to an earlier recommendation, and can be made by `system` only when the simplified mode marks the action as automatic-eligible; expert and confirmation-required recommendations remain auditable until a `user` decision is recorded.
 

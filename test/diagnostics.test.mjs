@@ -57,6 +57,30 @@ test("unknown state changes do not produce false repeat labels", async () => {
   assert.equal(result.first_candidate_waste_event_index, null);
 });
 
+test("incomplete command semantics do not produce false repeat labels", async () => {
+  const trace = await fixture("diagnostics", "exact-repeat.json");
+  for (const event of trace.events.filter(({ event_type: type }) => type === "test_result")) {
+    event.data.command_semantics = {
+      version: 1,
+      complete: false,
+      reason: "unparseable_shell_command",
+      cwd_sha256: null,
+      environment_sha256: null,
+      arguments_sha256: null,
+      semantic_sha256: "d".repeat(64),
+    };
+  }
+
+  assert.deepEqual(diagnoseTrace(trace).findings, []);
+});
+
+test("legacy agent-belt traces without explicit evidence never claim exact repeats", async () => {
+  const trace = await fixture("diagnostics", "exact-repeat.json");
+  trace.source.format = "agent-belt-codex-lifecycle-v1";
+
+  assert.deepEqual(diagnoseTrace(trace).findings, []);
+});
+
 test("single runs and different commands produce no findings", async () => {
   const traces = await Promise.all([
     fixture("traces", "success.json"),

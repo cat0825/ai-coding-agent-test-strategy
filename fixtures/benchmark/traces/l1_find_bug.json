@@ -5,8 +5,9 @@
       "data": {
         "change_kinds": [],
         "changed_files": [],
+        "observation": "pinned_repository_state",
         "repository_commit": "90bd105b172adc41394f458e33b653dda2b199b0",
-        "state_id": "5350d1dbdd8e66fc8ab6b121131aaefc1f04c64cab7b553bc21de028cd12cee8"
+        "state_id": "35a0c5209ae7a021b800a10cfc98bd184769d6381d5420c751fdbca799c70584"
       },
       "event_index": 0,
       "event_type": "diff",
@@ -14,9 +15,9 @@
         "event": "turn.started",
         "kind": "agent-belt-lifecycle",
         "line": 3,
-        "source_ref": "codex-1787032798560085000-77696-40aa25d2.ndjson"
+        "source_ref": "codex-1787041536720813000-46942-0132f58b.ndjson"
       },
-      "timestamp": "2026-08-18T05:59:59.259Z"
+      "timestamp": "2026-08-18T08:25:39.148Z"
     },
     {
       "data": {
@@ -32,9 +33,9 @@
         "event": "turn.started",
         "kind": "agent-belt-lifecycle",
         "line": 3,
-        "source_ref": "codex-1787032798560085000-77696-40aa25d2.ndjson"
+        "source_ref": "codex-1787041536720813000-46942-0132f58b.ndjson"
       },
-      "timestamp": "2026-08-18T05:59:59.259Z"
+      "timestamp": "2026-08-18T08:25:39.148Z"
     },
     {
       "data": {
@@ -50,9 +51,9 @@
         "event": "turn.started",
         "kind": "agent-belt-lifecycle",
         "line": 3,
-        "source_ref": "codex-1787032798560085000-77696-40aa25d2.ndjson"
+        "source_ref": "codex-1787041536720813000-46942-0132f58b.ndjson"
       },
-      "timestamp": "2026-08-18T05:59:59.259Z"
+      "timestamp": "2026-08-18T08:25:39.148Z"
     },
     {
       "data": {
@@ -64,10 +65,10 @@
       "raw_event_ref": {
         "event": "turn.completed",
         "kind": "agent-belt-lifecycle",
-        "line": 16,
-        "source_ref": "codex-1787032798560085000-77696-40aa25d2.ndjson"
+        "line": 10,
+        "source_ref": "codex-1787041536720813000-46942-0132f58b.ndjson"
       },
-      "timestamp": "2026-08-18T06:00:54.018Z"
+      "timestamp": "2026-08-18T08:28:13.681Z"
     }
   ],
   "harness": "agent-belt@0.2.1+90bd105b172adc41394f458e33b653dda2b199b0",
@@ -79,20 +80,23 @@
   },
   "repository": "jfrog/agent-belt",
   "repository_commit": "90bd105b172adc41394f458e33b653dda2b199b0",
-  "run_id": "20260818-135957-7eedf656",
+  "run_id": "20260818-162534-870bcfcf",
   "schema_version": 1,
   "source": {
-    "collector_sha256": "f94126b0162fdcdc7649c8543c4f755121eb094a825f6784d5ca3236d78154e2",
-    "format": "agent-belt-codex-lifecycle-v1",
-    "lifecycle_sha256": "fa256e43b66133dc8101f5f2a0537446077a0919ffd5ee2d444db0a26bc317cd",
-    "lifecycle_source_ref": "codex-1787032798560085000-77696-40aa25d2.ndjson",
-    "outcome_sha256": "f77fb9b024274c765ccd9a6994139bc2b90575901eb1e68877a58070166049bd",
-    "record_count": 36,
+    "collector_sha256": "9404d97212ea19959119df8c5c580814d6483e43cbd195f705da151ed3a37b40",
+    "format": "agent-belt-codex-lifecycle-v2",
+    "ignored_generated_files": 0,
+    "lifecycle_sha256": "cd28bddfe9534754dc8a7144eee61afb2d390bccc2847b9b4c31715ade2a0e95",
+    "lifecycle_source_ref": "codex-1787041536720813000-46942-0132f58b.ndjson",
+    "outcome_files_modified": 0,
+    "outcome_sha256": "55f94379beb73836ed697b04653c14b133d8681e1d9164c22612b538384f873d",
+    "record_count": 29,
     "scenario_definition_sha256": "5350d1dbdd8e66fc8ab6b121131aaefc1f04c64cab7b553bc21de028cd12cee8",
-    "stream_sha256": "9052031ddab45d9c814d5343577f635afa9dd1fad6cb23f2c6934152614b73f1",
+    "state_evidence_complete": true,
+    "stream_sha256": "d183fd4ffb564f9d40c5c9cc9ad996458b0e2a763fb0e0600091292266d8627a",
     "stream_source_ref": "l1_find_bug/turn_0_stream.ndjson"
   },
   "task_id": "l1_find_bug",
-  "trace_id": "trace-d7d6e353b4aeb7d0d13d032fa36101eb70035f78f9fd7712917e30e02d846bc1",
+  "trace_id": "trace-21ed123881b3e93981ce7598e56293738b0392a81ef66aa69fffb865d659ab10",
   "warnings": []
 }
