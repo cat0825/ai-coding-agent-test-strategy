@@ -36,6 +36,14 @@ function assertMajor(value, name) {
   if (!Number.isInteger(value) || value < 0) throw new Error(`${name} must be a non-negative integer`);
 }
 
+function assertRuntimeTool(tool, name) {
+  assertObject(tool, name);
+  assertNonEmptyString(tool.id, `${name}.id`);
+  if (!Array.isArray(tool.argv) || tool.argv.length === 0) throw new Error(`${name}.argv must be a non-empty array`);
+  for (const [index, argument] of tool.argv.entries()) assertNonEmptyString(argument, `${name}.argv[${index}]`);
+  if (tool.major !== undefined) assertMajor(tool.major, `${name}.major`);
+}
+
 function assertCommand(command, name) {
   assertObject(command, name);
   if (command.status !== undefined) throw new Error(`${name}.status is not accepted; status is observed by preflight`);
@@ -89,10 +97,20 @@ export function validateBenchmarkSpec(spec) {
   if (spec.repository.require_clean !== true) throw new Error("repository.require_clean must be true");
 
   assertObject(spec.runtime, "runtime");
-  assertMajor(spec.runtime.node_major, "runtime.node_major");
-  assertMajor(spec.runtime.npm_major, "runtime.npm_major");
   assertNonEmptyString(spec.runtime.platform, "runtime.platform");
   assertNonEmptyString(spec.runtime.arch, "runtime.arch");
+  if (spec.runtime.tools !== undefined) {
+    if (!Array.isArray(spec.runtime.tools) || spec.runtime.tools.length === 0) throw new Error("runtime.tools must be a non-empty array");
+    const toolIds = new Set();
+    for (const [index, tool] of spec.runtime.tools.entries()) {
+      assertRuntimeTool(tool, `runtime.tools[${index}]`);
+      if (toolIds.has(tool.id)) throw new Error(`Duplicate runtime tool id: ${tool.id}`);
+      toolIds.add(tool.id);
+    }
+  } else {
+    assertMajor(spec.runtime.node_major, "runtime.node_major");
+    assertMajor(spec.runtime.npm_major, "runtime.npm_major");
+  }
 
   assertObject(spec.install, "install");
   if (spec.install.status !== undefined) {
@@ -181,6 +199,21 @@ async function executeConfiguredCommand(command, repoRoot, name) {
   }
 }
 
+async function probeRuntimeTool(tool, repoRoot) {
+  try {
+    const { stdout, stderr } = await execFileAsync(tool.argv[0], tool.argv.slice(1), {
+      cwd: repoRoot,
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024,
+      timeout: 30 * 1000,
+    });
+    const version = `${stdout ?? ""}\n${stderr ?? ""}`.trim();
+    return { id: tool.id, status: "passed", major: major(version) };
+  } catch {
+    return { id: tool.id, status: "failed", major: null };
+  }
+}
+
 function commandDefinitionSha256(command) {
   return sha256Json({
     argv: command.argv,
@@ -190,7 +223,7 @@ function commandDefinitionSha256(command) {
 }
 
 function major(version) {
-  const match = /^(?:v)?(\d+)/.exec(version ?? "");
+  const match = /\b(?:v)?(\d+)(?=\.|\b)/i.exec(version ?? "");
   return match ? Number.parseInt(match[1], 10) : null;
 }
 
@@ -208,6 +241,22 @@ function topologicalCommands(commands) {
 
   for (const command of commands) visit(command);
   return ordered;
+}
+
+function runtimeExpectation(runtime) {
+  const expected = {
+    platform: runtime.platform,
+    arch: runtime.arch,
+  };
+  if (runtime.tools === undefined) {
+    expected.node_major = runtime.node_major;
+    expected.npm_major = runtime.npm_major;
+  } else {
+    expected.tools = [...runtime.tools]
+      .sort((left, right) => left.id.localeCompare(right.id))
+      .map((tool) => ({ id: tool.id, ...(tool.major === undefined ? {} : { major: tool.major }) }));
+  }
+  return expected;
 }
 
 export async function generateBenchmarkManifest({ repoRoot, spec }) {
@@ -228,12 +277,9 @@ export async function generateBenchmarkManifest({ repoRoot, spec }) {
     ["status", "--porcelain=v1", "--untracked-files=normal"],
     resolvedRepoRoot,
   );
-  const npmVersion = await commandOutput("npm", ["--version"], resolvedRepoRoot);
   const observedRuntime = {
     platform: os.platform(),
     arch: os.arch(),
-    node_version: process.version.replace(/^v/, ""),
-    npm_version: npmVersion,
   };
 
   const reasons = [];
@@ -243,8 +289,25 @@ export async function generateBenchmarkManifest({ repoRoot, spec }) {
   else if (initialWorktreeStatus !== "") reasons.push("repository_dirty");
   if (observedRuntime.platform !== spec.runtime.platform) reasons.push("runtime_platform_mismatch");
   if (observedRuntime.arch !== spec.runtime.arch) reasons.push("runtime_arch_mismatch");
-  if (major(observedRuntime.node_version) !== spec.runtime.node_major) reasons.push("runtime_node_major_mismatch");
-  if (major(observedRuntime.npm_version) !== spec.runtime.npm_major) reasons.push("runtime_npm_major_mismatch");
+  if (spec.runtime.tools === undefined) {
+    const npmVersion = await commandOutput("npm", ["--version"], resolvedRepoRoot);
+    observedRuntime.node_version = process.version.replace(/^v/, "");
+    observedRuntime.npm_version = npmVersion;
+    observedRuntime.tools = [
+      { id: "node", status: "passed", major: major(observedRuntime.node_version) },
+      { id: "npm", status: npmVersion === null ? "failed" : "passed", major: major(observedRuntime.npm_version) },
+    ];
+    if (major(observedRuntime.node_version) !== spec.runtime.node_major) reasons.push("runtime_node_major_mismatch");
+    if (major(observedRuntime.npm_version) !== spec.runtime.npm_major) reasons.push("runtime_npm_major_mismatch");
+  } else {
+    observedRuntime.tools = [];
+    for (const tool of [...spec.runtime.tools].sort((left, right) => left.id.localeCompare(right.id))) {
+      const observed = await probeRuntimeTool(tool, resolvedRepoRoot);
+      observedRuntime.tools.push(observed);
+      if (observed.status !== "passed") reasons.push(`runtime_tool_unavailable:${tool.id}`);
+      else if (tool.major !== undefined && observed.major !== tool.major) reasons.push(`runtime_tool_major_mismatch:${tool.id}`);
+    }
+  }
 
   const lockfilePath = safeRepositoryPath(resolvedRepoRoot, spec.install.lockfile.path, "install.lockfile.path");
   const lockfilePresent = await fileExists(lockfilePath);
@@ -350,7 +413,7 @@ export async function generateBenchmarkManifest({ repoRoot, spec }) {
       clean: finalWorktreeStatus === "",
     },
     runtime: {
-      expected: { ...spec.runtime },
+      expected: runtimeExpectation(spec.runtime),
       observed: observedRuntime,
     },
     install: {
