@@ -68,6 +68,14 @@ npm run replay -- fixtures/traces/failed-retry.json output/replay/failed-retry.h
 
 格式和展示约定见 [静态 trace 回放](docs/trace-replay.md)。
 
+查看 expert/simplified 推荐并可选生成带审计事件的新 trace：
+
+```sh
+npm run recommend -- expert fixtures/diagnostics/exact-repeat.json
+```
+
+安全边界和决定记录格式见 [推荐模式 v1](docs/recommendation-modes-v1.md)。
+
 ## 下一阶段
 
 只在本仓库内按以下顺序推进：

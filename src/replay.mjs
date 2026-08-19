@@ -8,6 +8,8 @@ const EVENT_LABELS = Object.freeze({
   test_result: "Test completed",
   retry: "Retry requested",
   expand: "Scope expanded",
+  recommendation: "Recommendation issued",
+  decision: "Decision recorded",
   stop: "Verification stopped",
 });
 
@@ -97,6 +99,26 @@ function eventFacts(event) {
     return [
       fact("Reason", display(data.reason)),
       fact("From event", `<a href="#event-${data.from_event_index}">#${data.from_event_index}</a>`),
+    ];
+  }
+  if (event.event_type === "recommendation") {
+    return [
+      fact("Candidate", code(data.candidate)),
+      fact("Action", code(data.action)),
+      fact("Diagnostic labels", list(data.diagnostic_labels)),
+      fact("Reason codes", list(data.reason_codes)),
+      fact("Rulesets", `recommendation v${data.recommendation_ruleset_version} / diagnostic v${data.diagnostic_ruleset_version}`),
+      fact("Risk / confidence", `${display(data.risk_level)} / ${display(data.confidence)}`),
+      fact("Authorization", data.automatic_eligible ? "Automatic eligible" : "Confirmation required"),
+      fact("Evidence", data.evidence_event_indexes.map((index) => `<a href="#event-${index}">#${index}</a>`).join(" ")),
+    ];
+  }
+  if (event.event_type === "decision") {
+    return [
+      fact("Recommendation", code(data.recommendation_id)),
+      fact("Outcome", `<strong>${display(data.outcome)}</strong>`),
+      fact("Actor", display(data.actor)),
+      fact("Reason", display(data.reason)),
     ];
   }
   return [
@@ -244,6 +266,8 @@ export function renderTraceReplay(trace) {
     .event::before { position: absolute; top: 21px; left: -35px; width: 12px; height: 12px; border: 3px solid var(--paper); border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 1px var(--line-strong); content: ""; }
     .event-test_result::before { background: var(--green); }
     .event-retry::before, .event-expand::before { background: var(--amber); }
+    .event-recommendation::before { background: var(--blue); }
+    .event-decision::before { background: var(--teal); }
     .event-stop::before { background: var(--ink); }
     .event-waste::before { background: var(--red); }
     .event article { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }

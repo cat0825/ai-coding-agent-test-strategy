@@ -8,6 +8,8 @@ export const TRACE_EVENT_TYPES = Object.freeze([
   "test_result",
   "retry",
   "expand",
+  "recommendation",
+  "decision",
   "stop",
 ]);
 
@@ -15,14 +17,21 @@ const PHASES = new Set(["fast", "affected", "full"]);
 const RISK_LEVELS = new Set(["off", "smoke", "standard", "thorough"]);
 const MODES = new Set(["shadow", "baseline"]);
 const COMPLETENESS = new Set(["partial", "complete"]);
+const RECOMMENDATION_MODES = new Set(["expert", "simplified"]);
+const RECOMMENDATION_RISKS = new Set(["low", "medium", "high"]);
+const RECOMMENDATION_CONFIDENCE = new Set(["high", "medium", "low"]);
+const DECISION_OUTCOMES = new Set(["applied", "accepted", "rejected", "deferred"]);
+const DECISION_ACTORS = new Set(["system", "user"]);
 
 const NEXT_EVENT_TYPES = Object.freeze({
   diff: new Set(["risk"]),
   risk: new Set(["test_selection"]),
   test_selection: new Set(["test_result"]),
-  test_result: new Set(["test_result", "retry", "expand", "stop"]),
+  test_result: new Set(["test_result", "retry", "expand", "recommendation", "stop"]),
   retry: new Set(["diff", "test_selection"]),
   expand: new Set(["test_selection"]),
+  recommendation: new Set(["recommendation", "decision", "stop"]),
+  decision: new Set(["recommendation", "retry", "expand", "test_selection", "stop"]),
   stop: new Set(),
 });
 
@@ -128,6 +137,41 @@ function validateEventData(errors, event) {
     if (event.event_type === "retry" && typeof event.data.attributed !== "boolean") {
       addError(errors, `${path}.attributed`, "must be a boolean");
     }
+  } else if (event.event_type === "recommendation") {
+    addRequiredString(errors, event.data.recommendation_id, `${path}.recommendation_id`);
+    addRequiredString(errors, event.data.candidate, `${path}.candidate`);
+    addRequiredString(errors, event.data.action, `${path}.action`);
+    if (!Array.isArray(event.data.diagnostic_labels) || event.data.diagnostic_labels.length === 0 || event.data.diagnostic_labels.some((label) => !nonEmptyString(label))) {
+      addError(errors, `${path}.diagnostic_labels`, "must be a non-empty array of strings");
+    }
+    if (!Array.isArray(event.data.reason_codes) || event.data.reason_codes.length === 0 || event.data.reason_codes.some((reason) => !nonEmptyString(reason))) {
+      addError(errors, `${path}.reason_codes`, "must be a non-empty array of strings");
+    }
+    if (!RECOMMENDATION_MODES.has(event.data.mode)) addError(errors, `${path}.mode`, "must be expert or simplified");
+    if (!RECOMMENDATION_RISKS.has(event.data.risk_level)) addError(errors, `${path}.risk_level`, "must be low, medium, or high");
+    if (!RECOMMENDATION_CONFIDENCE.has(event.data.confidence)) addError(errors, `${path}.confidence`, "must be high, medium, or low");
+    if (!Number.isInteger(event.data.diagnostic_ruleset_version) || event.data.diagnostic_ruleset_version < 1) {
+      addError(errors, `${path}.diagnostic_ruleset_version`, "must be a positive integer");
+    }
+    if (!Number.isInteger(event.data.recommendation_ruleset_version) || event.data.recommendation_ruleset_version < 1) {
+      addError(errors, `${path}.recommendation_ruleset_version`, "must be a positive integer");
+    }
+    if (typeof event.data.automatic_eligible !== "boolean") addError(errors, `${path}.automatic_eligible`, "must be a boolean");
+    if (typeof event.data.requires_confirmation !== "boolean") addError(errors, `${path}.requires_confirmation`, "must be a boolean");
+    if (event.data.automatic_eligible === event.data.requires_confirmation) {
+      addError(errors, `${path}.requires_confirmation`, "must be the inverse of automatic_eligible");
+    }
+    if (event.data.automatic_eligible === true && (event.data.mode !== "simplified" || event.data.risk_level !== "low" || event.data.confidence !== "high")) {
+      addError(errors, `${path}.automatic_eligible`, "requires simplified mode, low risk, and high confidence");
+    }
+    if (!Array.isArray(event.data.evidence_event_indexes) || event.data.evidence_event_indexes.length === 0 || event.data.evidence_event_indexes.some((index) => !Number.isInteger(index) || index < 0 || index >= event.event_index)) {
+      addError(errors, `${path}.evidence_event_indexes`, "must contain earlier event indexes");
+    }
+  } else if (event.event_type === "decision") {
+    addRequiredString(errors, event.data.recommendation_id, `${path}.recommendation_id`);
+    if (!DECISION_OUTCOMES.has(event.data.outcome)) addError(errors, `${path}.outcome`, "must be applied, accepted, rejected, or deferred");
+    if (!DECISION_ACTORS.has(event.data.actor)) addError(errors, `${path}.actor`, "must be system or user");
+    addRequiredString(errors, event.data.reason, `${path}.reason`);
   } else if (event.event_type === "stop") {
     addRequiredString(errors, event.data.status, `${path}.status`);
     addRequiredString(errors, event.data.reason, `${path}.reason`);
@@ -202,6 +246,24 @@ export function validateTrace(trace, { allowPartial = false } = {}) {
       }
     } else if (event.event_type !== "diff") {
       addError(errors, `${path}.event_type`, "must start with diff");
+    }
+  });
+
+  const recommendationsById = new Map();
+  trace.events.forEach((event, index) => {
+    if (event?.event_type === "recommendation") {
+      if (recommendationsById.has(event.data?.recommendation_id)) {
+        addError(errors, `events[${index}].data.recommendation_id`, "must be unique");
+      }
+      if (event.data?.recommendation_id) recommendationsById.set(event.data.recommendation_id, event.data);
+    }
+    if (event?.event_type === "decision") {
+      const recommendation = recommendationsById.get(event.data?.recommendation_id);
+      if (!recommendation) {
+        addError(errors, `events[${index}].data.recommendation_id`, "must refer to an earlier recommendation");
+      } else if (event.data?.actor === "system" && (recommendation.automatic_eligible !== true || recommendation.requires_confirmation !== false || event.data.outcome !== "applied")) {
+        addError(errors, `events[${index}].data.actor`, "system decisions require an automatic-eligible recommendation and applied outcome");
+      }
     }
   });
 
