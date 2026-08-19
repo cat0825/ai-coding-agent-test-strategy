@@ -36,3 +36,7 @@ The pinned run `20260818-023916-8af90bb9` used Codex CLI 0.147.0 against the tas
 - Total agent execution time was 489.63 seconds.
 
 The checked-in report is [agent-belt-pilot-report.json](../fixtures/benchmark/agent-belt-pilot-report.json). It returns `pilot_decision: go`, but its quality-claim status remains `evidence_insufficient`. Independent functional oracle evidence was subsequently added for the four editing tasks; the read-only task remains excluded. None of the original outcomes has a complete baseline VerifyTrace or paired candidate run, so the baseline remains 0/30 and no efficiency or preserved-quality claim is allowed.
+
+## Timestamped rerun
+
+Issue #28 added a pinned local Codex lifecycle collector and reran the same five scenarios at agent-belt revision `90bd105b172adc41394f458e33b653dda2b199b0`. Run `20260818-135957-7eedf656` passed 5/5 scenarios and 32/32 rules checks. The generated collection report is [traces/report.json](../fixtures/benchmark/traces/report.json): 5/5 traces are complete, 10 observed test results total 5000.681 ms, and the agent-belt run total is 802390 ms. The four editing diffs pass independent oracles and are counted by [agent-belt-baseline-report.json](../fixtures/benchmark/agent-belt-baseline-report.json) as 4/30 eligible tasks. This is evidence completeness, not an efficiency claim.

@@ -1,0 +1,59 @@
+{
+  "counts": {
+    "complete_traces": 5,
+    "partial_traces": 0,
+    "test_results": 10,
+    "traces": 5
+  },
+  "environment_sha256": "00aaacf941ecbe46937f59f40740d127e92e45cd805a19858a6a537f86fd457b",
+  "evidence_class": "timestamped_agent_belt_trace_collection",
+  "harness_revision": "90bd105b172adc41394f458e33b653dda2b199b0",
+  "run_id": "20260818-135957-7eedf656",
+  "schema_version": 1,
+  "timing": {
+    "agent_total_ms": 802390,
+    "observed_test_duration_ms": 5000.681
+  },
+  "traces": [
+    {
+      "completeness": "complete",
+      "observed_test_duration_ms": 0,
+      "task_id": "l1_find_bug",
+      "test_results": 0,
+      "trace_id": "trace-d7d6e353b4aeb7d0d13d032fa36101eb70035f78f9fd7712917e30e02d846bc1",
+      "warnings": []
+    },
+    {
+      "completeness": "complete",
+      "observed_test_duration_ms": 1507.695,
+      "task_id": "l2_add_completed_at",
+      "test_results": 3,
+      "trace_id": "trace-8e2cfca77a61228a828eca9f8a42e2a25f0eaa7b20bbe5cc0e9c7f893b6ba449",
+      "warnings": []
+    },
+    {
+      "completeness": "complete",
+      "observed_test_duration_ms": 1482.324,
+      "task_id": "l2_fix_formatter_bug",
+      "test_results": 3,
+      "trace_id": "trace-49072908ca3d7e5523abee2e4806e1f0c2ab5620261f48ec4c58a8e7465aa7b9",
+      "warnings": []
+    },
+    {
+      "completeness": "complete",
+      "observed_test_duration_ms": 1170.25,
+      "task_id": "l3_add_delete_command",
+      "test_results": 2,
+      "trace_id": "trace-e39355c8cd37018f6395c5d6c224ed01a0d0653768e27687636e55a849ea9ab0",
+      "warnings": []
+    },
+    {
+      "completeness": "complete",
+      "observed_test_duration_ms": 840.412,
+      "task_id": "l3_add_json_format",
+      "test_results": 2,
+      "trace_id": "trace-409b960aa56304abe47469ff30791073565a4d1e532af6672e7f6f7f44555b74",
+      "warnings": []
+    }
+  ]
+}

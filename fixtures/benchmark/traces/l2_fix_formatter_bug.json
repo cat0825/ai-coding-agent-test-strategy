@@ -1,0 +1,189 @@
+{
+  "completeness": "complete",
+  "events": [
+    {
+      "data": {
+        "change_kinds": [],
+        "changed_files": [],
+        "repository_commit": "90bd105b172adc41394f458e33b653dda2b199b0",
+        "state_id": "ce539c54ca0987650159e3ff8ef1515b0085e52df9bf6e46f19adf60e702e947"
+      },
+      "event_index": 0,
+      "event_type": "diff",
+      "raw_event_ref": {
+        "event": "turn.started",
+        "kind": "agent-belt-lifecycle",
+        "line": 3,
+        "source_ref": "codex-1787033071722618000-79032-eb036995.ndjson"
+      },
+      "timestamp": "2026-08-18T06:04:32.129Z"
+    },
+    {
+      "data": {
+        "fallback": true,
+        "reasons": [
+          "baseline_unmanaged_agent"
+        ],
+        "risk_level": "standard"
+      },
+      "event_index": 1,
+      "event_type": "risk",
+      "raw_event_ref": {
+        "event": "turn.started",
+        "kind": "agent-belt-lifecycle",
+        "line": 3,
+        "source_ref": "codex-1787033071722618000-79032-eb036995.ndjson"
+      },
+      "timestamp": "2026-08-18T06:04:32.129Z"
+    },
+    {
+      "data": {
+        "affected_workspaces": [],
+        "commands": [
+          {
+            "argv": [
+              "pytest"
+            ],
+            "id": "baseline:pytest"
+          }
+        ],
+        "requested_phase": "affected",
+        "selected_phase": "affected",
+        "selection_source": "observed_test_runner_calls"
+      },
+      "event_index": 2,
+      "event_type": "test_selection",
+      "raw_event_ref": {
+        "event": "turn.started",
+        "kind": "agent-belt-lifecycle",
+        "line": 3,
+        "source_ref": "codex-1787033071722618000-79032-eb036995.ndjson"
+      },
+      "timestamp": "2026-08-18T06:04:32.129Z"
+    },
+    {
+      "data": {
+        "canonical_command_id": "baseline:pytest",
+        "command": [
+          "pytest"
+        ],
+        "duration_ms": 638.32775,
+        "exit_code": 2,
+        "failure_class": null,
+        "failure_signature": null,
+        "override": null,
+        "signal": null
+      },
+      "event_index": 3,
+      "event_type": "test_result",
+      "raw_event_ref": {
+        "call_id": "item_9",
+        "event": "item.completed",
+        "kind": "agent-belt-lifecycle",
+        "line": 15,
+        "source_ref": "codex-1787033071722618000-79032-eb036995.ndjson",
+        "start_line": 14,
+        "stream_completion_line": 20,
+        "stream_source_ref": "l2_fix_formatter_bug/turn_0_stream.ndjson",
+        "stream_start_line": 19
+      },
+      "timestamp": "2026-08-18T06:06:11.065Z"
+    },
+    {
+      "data": {
+        "canonical_command_id": "baseline:pytest",
+        "command": [
+          "pytest"
+        ],
+        "duration_ms": 457.385291,
+        "exit_code": 1,
+        "failure_class": null,
+        "failure_signature": null,
+        "override": null,
+        "signal": null
+      },
+      "event_index": 4,
+      "event_type": "test_result",
+      "raw_event_ref": {
+        "call_id": "item_12",
+        "event": "item.completed",
+        "kind": "agent-belt-lifecycle",
+        "line": 19,
+        "source_ref": "codex-1787033071722618000-79032-eb036995.ndjson",
+        "start_line": 17,
+        "stream_completion_line": 25,
+        "stream_source_ref": "l2_fix_formatter_bug/turn_0_stream.ndjson",
+        "stream_start_line": 23
+      },
+      "timestamp": "2026-08-18T06:06:22.815Z"
+    },
+    {
+      "data": {
+        "canonical_command_id": "baseline:pytest",
+        "command": [
+          "pytest"
+        ],
+        "duration_ms": 386.611,
+        "exit_code": 0,
+        "failure_class": null,
+        "failure_signature": null,
+        "override": null,
+        "signal": null
+      },
+      "event_index": 5,
+      "event_type": "test_result",
+      "raw_event_ref": {
+        "call_id": "item_17",
+        "event": "item.completed",
+        "kind": "agent-belt-lifecycle",
+        "line": 25,
+        "source_ref": "codex-1787033071722618000-79032-eb036995.ndjson",
+        "start_line": 24,
+        "stream_completion_line": 34,
+        "stream_source_ref": "l2_fix_formatter_bug/turn_0_stream.ndjson",
+        "stream_start_line": 33
+      },
+      "timestamp": "2026-08-18T06:06:51.946Z"
+    },
+    {
+      "data": {
+        "reason": "observed_turn_completed",
+        "status": "completed"
+      },
+      "event_index": 6,
+      "event_type": "stop",
+      "raw_event_ref": {
+        "event": "turn.completed",
+        "kind": "agent-belt-lifecycle",
+        "line": 30,
+        "source_ref": "codex-1787033071722618000-79032-eb036995.ndjson"
+      },
+      "timestamp": "2026-08-18T06:07:29.262Z"
+    }
+  ],
+  "harness": "agent-belt@0.2.1+90bd105b172adc41394f458e33b653dda2b199b0",
+  "mode": "baseline",
+  "model": null,
+  "policy": {
+    "name": "unmanaged-coding-agent-baseline",
+    "version": "1"
+  },
+  "repository": "jfrog/agent-belt",
+  "repository_commit": "90bd105b172adc41394f458e33b653dda2b199b0",
+  "run_id": "20260818-135957-7eedf656",
+  "schema_version": 1,
+  "source": {
+    "collector_sha256": "f94126b0162fdcdc7649c8543c4f755121eb094a825f6784d5ca3236d78154e2",
+    "format": "agent-belt-codex-lifecycle-v1",
+    "lifecycle_sha256": "7184e6b987d6faed9b07961bc77c59cea9a615d37dec39fd757cf55cccea8325",
+    "lifecycle_source_ref": "codex-1787033071722618000-79032-eb036995.ndjson",
+    "outcome_sha256": "b23db781b02270ca237e3914c8d02828d81c9577dfbf57abf153f633f6e5e71d",
+    "record_count": 71,
+    "scenario_definition_sha256": "ce539c54ca0987650159e3ff8ef1515b0085e52df9bf6e46f19adf60e702e947",
+    "stream_sha256": "3f82bd6efe9eae9b3e736b0497a47755384948c2789217c540fd770a2bcfff02",
+    "stream_source_ref": "l2_fix_formatter_bug/turn_0_stream.ndjson"
+  },
+  "task_id": "l2_fix_formatter_bug",
+  "trace_id": "trace-49072908ca3d7e5523abee2e4806e1f0c2ab5620261f48ec4c58a8e7465aa7b9",
+  "warnings": []
+}

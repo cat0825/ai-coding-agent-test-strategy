@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "cohort_id": "agent-belt-tasktracker-baseline",
+  "cohort_version": 1,
+  "evidence_class": "observed_benchmark",
+  "repository": {
+    "identity": "jfrog/agent-belt",
+    "kind": "coding-agent"
+  },
+  "environment_manifest_digest": "0a9f5458397cc40211ebe10e43bdee59fec4d47334b8ef1b3d75bdc920cc4165",
+  "minimum_baseline_tasks": 30,
+  "tasks": [
+    {
+      "task_id": "l1_find_bug",
+      "status": "excluded",
+      "exclusion_reason": "read_only_task_has_no_stable_independent_oracle"
+    },
+    {
+      "task_id": "l2_add_completed_at",
+      "status": "collected",
+      "trace_id": "trace-8e2cfca77a61228a828eca9f8a42e2a25f0eaa7b20bbe5cc0e9c7f893b6ba449",
+      "trace_path": "traces/l2_add_completed_at.json",
+      "repository_commit": "90bd105b172adc41394f458e33b653dda2b199b0",
+      "environment_manifest_digest": "0a9f5458397cc40211ebe10e43bdee59fec4d47334b8ef1b3d75bdc920cc4165",
+      "evidence": {
+        "environment_status": "eligible",
+        "install_status": "passed",
+        "build_status": "passed",
+        "test_status": "passed",
+        "clean_worktree": true,
+        "failure_class": "none",
+        "oracle_status": "passed",
+        "oracle_failure_signatures": []
+      }
+    },
+    {
+      "task_id": "l2_fix_formatter_bug",
+      "status": "collected",
+      "trace_id": "trace-49072908ca3d7e5523abee2e4806e1f0c2ab5620261f48ec4c58a8e7465aa7b9",
+      "trace_path": "traces/l2_fix_formatter_bug.json",
+      "repository_commit": "90bd105b172adc41394f458e33b653dda2b199b0",
+      "environment_manifest_digest": "0a9f5458397cc40211ebe10e43bdee59fec4d47334b8ef1b3d75bdc920cc4165",
+      "evidence": {
+        "environment_status": "eligible",
+        "install_status": "passed",
+        "build_status": "passed",
+        "test_status": "passed",
+        "clean_worktree": true,
+        "failure_class": "none",
+        "oracle_status": "passed",
+        "oracle_failure_signatures": []
+      }
+    },
+    {
+      "task_id": "l3_add_delete_command",
+      "status": "collected",
+      "trace_id": "trace-e39355c8cd37018f6395c5d6c224ed01a0d0653768e27687636e55a849ea9ab0",
+      "trace_path": "traces/l3_add_delete_command.json",
+      "repository_commit": "90bd105b172adc41394f458e33b653dda2b199b0",
+      "environment_manifest_digest": "0a9f5458397cc40211ebe10e43bdee59fec4d47334b8ef1b3d75bdc920cc4165",
+      "evidence": {
+        "environment_status": "eligible",
+        "install_status": "passed",
+        "build_status": "passed",
+        "test_status": "passed",
+        "clean_worktree": true,
+        "failure_class": "none",
+        "oracle_status": "passed",
+        "oracle_failure_signatures": []
+      }
+    },
+    {
+      "task_id": "l3_add_json_format",
+      "status": "collected",
+      "trace_id": "trace-409b960aa56304abe47469ff30791073565a4d1e532af6672e7f6f7f44555b74",
+      "trace_path": "traces/l3_add_json_format.json",
+      "repository_commit": "90bd105b172adc41394f458e33b653dda2b199b0",
+      "environment_manifest_digest": "0a9f5458397cc40211ebe10e43bdee59fec4d47334b8ef1b3d75bdc920cc4165",
+      "evidence": {
+        "environment_status": "eligible",
+        "install_status": "passed",
+        "build_status": "passed",
+        "test_status": "passed",
+        "clean_worktree": true,
+        "failure_class": "none",
+        "oracle_status": "passed",
+        "oracle_failure_signatures": []
+      }
+    }
+  ]
+}

@@ -26,7 +26,7 @@ const DECISION_ACTORS = new Set(["system", "user"]);
 const NEXT_EVENT_TYPES = Object.freeze({
   diff: new Set(["risk"]),
   risk: new Set(["test_selection"]),
-  test_selection: new Set(["test_result"]),
+  test_selection: new Set(["test_result", "stop"]),
   test_result: new Set(["test_result", "retry", "expand", "recommendation", "stop"]),
   retry: new Set(["diff", "test_selection"]),
   expand: new Set(["test_selection"]),

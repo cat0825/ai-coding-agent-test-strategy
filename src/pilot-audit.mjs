@@ -1,21 +1,11 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { stableJson } from "./benchmark-preflight.mjs";
+import { isTestRunnerCommand } from "./test-command.mjs";
 
 export const PILOT_AUDIT_SCHEMA_VERSION = 1;
 export const PILOT_TEST_FILE_BUDGET = 1;
 export const PILOT_TEST_INVOCATION_BUDGET = 2;
-
-const TEST_RUNNER_PATTERNS = [
-  /(?:^|[\s"';&|])(?:uv\s+run\s+)?(?:python(?:3)?\s+-m\s+)?pytest(?:\s|$)/i,
-  /(?:^|[\s"';&|])(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:test|t)(?:\s|$)/i,
-  /(?:^|[\s"';&|])(?:(?:npx|pnpm\s+exec|yarn\s+dlx|bunx)\s+)?(?:vitest|jest|mocha|ava)(?:\s|$)/i,
-  /(?:^|[\s"';&|])(?:node\s+--test|deno\s+test)(?:\s|$)/i,
-  /(?:^|[\s"';&|])go\s+test(?:\s|$)/i,
-  /(?:^|[\s"';&|])cargo\s+test(?:\s|$)/i,
-  /(?:^|[\s"';&|])dotnet\s+test(?:\s|$)/i,
-  /(?:^|[\s"';&|])(?:\.\/)?(?:mvnw?|gradlew?)\s+test(?:\s|$)/i,
-];
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -66,10 +56,6 @@ function isTestFile(filePath) {
     || basename.startsWith("test_")
     || /_test\.[^.]+$/.test(basename)
     || /\.(?:test|spec)\.[^.]+$/.test(basename);
-}
-
-function isTestRunnerCommand(command) {
-  return TEST_RUNNER_PATTERNS.some((pattern) => pattern.test(command));
 }
 
 function round(value, digits = 2) {
