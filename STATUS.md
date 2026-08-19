@@ -43,12 +43,13 @@
 
 ## 当前未完成
 
-- 尚未把 JSONL ledger 转成统一的 Observatory trace schema。
-- 尚未实现诊断型可视化回放：时间线、重复/支配测试、失败扩张、成本和停止点。
-- 尚未实现专家模式、傻瓜模式和版本化策略候选。
-- 尚未在本仓库 fixtures 上建立可复现的冗余标签与回放回归测试。
+- 剩余 4/6 pilot 题的 baseline/candidate 配对未采集，硬阻塞是 provider 凭据 401（两次尝试的 `agent_commands_executed` 均为 0）。
+- 正式质量样本为 0/30，独立 oracle 失败样本为 1/10，两个门槛都未达到。
+- 正式任务仍未绑定外部仓库固定 revision，当前 6 题全部来自本仓库历史（#39）。
+- VerifyTrace 缺 `wait` 事件类型，轮询会被 `exact_repeat` 误判（#38）。
+- candidate 仍只有 shadow 观察模式，未启用 hook 或 permission 强制。
 
-## 历史阻塞（不作为当前执行入口）
+## 证据边界与历史决策（仍然生效的约束）
 
 - agent-belt 探索性 go/no-go 与 timestamped rerun 均通过；当前只有 4 个 editing task 同时具备完整 baseline VerifyTrace 与独立 oracle，read-only task 没有稳定响应 oracle，配对 candidate run 也未开始，真实 eligible baseline 为 4/30。
 - 原 26 个受控任务不再继续实现 oracle；旧 planning manifest 只保留为决策历史，不能当成 30/30。
@@ -60,6 +61,14 @@
 - 两题 dry run 的耗时/命令数下降只能作为采集链校准观察，不能声称策略已经节省测试时间或 CI 成本。
 - smoke run 未显式固定模型，只能证明链路与现象；固定 `gpt-5.6-sol` 的两次尝试因 provider 凭据 401 失败且未执行任何 Agent 命令，不能计入正式配对。
 - 当前 6 题都来自本仓库历史或受控故障，只用于隔离测评合同；正式 30 题仍需从多个真实 JS/TS 仓库选取。
+
+## Issue 与 PR 现状（2026-08-19）
+
+- MVP 的 7 个实现 issue(#2 到 #8)全部关闭并合入默认分支;17 个 PR 已全部合并,Open PR 为 0。
+- #30 已关闭:6 题定义与资格检查完成,采集工作转入 #36。
+- 仍开启:#36(六题配对,当前 2/6)、#16(baseline cohort,当前 4/30)、#17(candidate cohort 与安全门,当前 0/30)、#1(roadmap)。
+- 新增 #38:VerifyTrace 缺 `wait` 事件类型,轮询会被误判为 `exact_repeat`;本机遥测显示轮询占墙钟 9.3%,高于测试类的 8.6%。
+- 新增 #39:正式任务需改为绑定外部仓库固定 revision,当前 6 题全部来自本仓库历史,样本自指。
 
 ## 下一阶段
 
