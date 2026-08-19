@@ -1,0 +1,233 @@
+{
+  "schema_version": 1,
+  "evidence_class": "exploratory_pilot",
+  "pilot": {
+    "run_id": "20260818-023916-8af90bb9",
+    "harness": {
+      "name": "agent-belt",
+      "version": "0.2.1",
+      "revision": "90bd105b172adc41394f458e33b653dda2b199b0"
+    },
+    "agents": [
+      {
+        "name": "codex",
+        "adapter": "CodexAgentAdapter",
+        "cli_version": "codex-cli 0.147.0"
+      }
+    ],
+    "environment": {
+      "benchmark_id": "coding-agent-agent-belt-pilot",
+      "repository_identity": "jfrog/agent-belt",
+      "repository_revision": "90bd105b172adc41394f458e33b653dda2b199b0",
+      "manifest_digest": "0a9f5458397cc40211ebe10e43bdee59fec4d47334b8ef1b3d75bdc920cc4165"
+    }
+  },
+  "sources": {
+    "benchmark_card_sha256": "51c0e941343885f2a9518dc8ce286a02a963746581f9b59e6c2a42a0e7fe7566",
+    "results_sha256": "544426a8c9efa573fd5d5503eb06de80d281f6b3115ef7fb67755c7b0533794f",
+    "environment_sha256": "00aaacf941ecbe46937f59f40740d127e92e45cd805a19858a6a537f86fd457b",
+    "scenario_outputs": [
+      {
+        "scenario_name": "l1_find_bug",
+        "sha256": "50e9992037f5328595adf9a3f7f488f9d25eabaa7ef656e676b6e475c220f09b"
+      },
+      {
+        "scenario_name": "l2_add_completed_at",
+        "sha256": "4741add4b7018956187d5ce524b1065c6f5445c3269c3cd2e1d498419e0d76b0"
+      },
+      {
+        "scenario_name": "l2_fix_formatter_bug",
+        "sha256": "c5d9c6cf97c2f0bfbf1582ffce547d3e3756bfc069dd68acb46a8582fb8082cc"
+      },
+      {
+        "scenario_name": "l3_add_delete_command",
+        "sha256": "f74ff7b7c9e6f119ab73e34bfbf158aca5b576d727a62b4eeb54df2c030b3fec"
+      },
+      {
+        "scenario_name": "l3_add_json_format",
+        "sha256": "aab2f4aaf36f8045ed51a15e3434a0d984ca739f684ae3945e56740c8dc96956"
+      }
+    ]
+  },
+  "counts": {
+    "scenarios": 5,
+    "passed_scenarios": 5,
+    "failed_scenarios": 0,
+    "scenarios_with_explicit_test_requirement": 1,
+    "scenarios_with_test_file_changes": 3,
+    "scenarios_with_unspecified_test_changes": 2,
+    "scenarios_missing_required_tests": 0,
+    "test_files_modified": 3,
+    "shell_invocations": 63,
+    "test_runner_invocations": 10,
+    "failed_test_runner_invocations": 6,
+    "scenarios_exceeding_test_file_budget": 0,
+    "scenarios_exceeding_test_invocation_budget": 2,
+    "baseline_quality_claim_eligible_tasks": 0,
+    "required_baseline_tasks": 30,
+    "baseline_evidence_deficit": 30
+  },
+  "timing": {
+    "total_seconds": 489.63,
+    "mean_seconds": 97.93
+  },
+  "scenarios": [
+    {
+      "scenario_name": "l1_find_bug",
+      "tags": [
+        "L1",
+        "bug-finding",
+        "read-only",
+        "tasktracker",
+        "verification-policy-pilot"
+      ],
+      "passed": true,
+      "duration_seconds": 39.29,
+      "files_modified": [],
+      "test_files_modified": [],
+      "test_change": "none",
+      "shell_invocations": 5,
+      "test_runner_invocations": 0,
+      "failed_test_runner_invocations": 0,
+      "budgets": {
+        "test_file_limit": 1,
+        "test_file_exceeded": false,
+        "test_invocation_limit": 2,
+        "test_invocation_exceeded": false
+      },
+      "definition_sha256": "5350d1dbdd8e66fc8ab6b121131aaefc1f04c64cab7b553bc21de028cd12cee8"
+    },
+    {
+      "scenario_name": "l2_add_completed_at",
+      "tags": [
+        "L2",
+        "feature",
+        "single-file",
+        "tasktracker",
+        "verification-policy-pilot"
+      ],
+      "passed": true,
+      "duration_seconds": 116.62,
+      "files_modified": [
+        "src/tasktracker/cli.py",
+        "src/tasktracker/models.py"
+      ],
+      "test_files_modified": [],
+      "test_change": "none",
+      "shell_invocations": 15,
+      "test_runner_invocations": 2,
+      "failed_test_runner_invocations": 1,
+      "budgets": {
+        "test_file_limit": 1,
+        "test_file_exceeded": false,
+        "test_invocation_limit": 2,
+        "test_invocation_exceeded": false
+      },
+      "definition_sha256": "64ccf4acb9b7342a7658128f75d2f8a4ab0488f3047de2c2a6cc1f247fb81567"
+    },
+    {
+      "scenario_name": "l2_fix_formatter_bug",
+      "tags": [
+        "L2",
+        "bugfix",
+        "single-file",
+        "tasktracker",
+        "verification-policy-pilot"
+      ],
+      "passed": true,
+      "duration_seconds": 109.55,
+      "files_modified": [
+        "src/tasktracker/formatters.py",
+        "tests/test_formatters.py"
+      ],
+      "test_files_modified": [
+        "tests/test_formatters.py"
+      ],
+      "test_change": "unspecified",
+      "shell_invocations": 11,
+      "test_runner_invocations": 3,
+      "failed_test_runner_invocations": 2,
+      "budgets": {
+        "test_file_limit": 1,
+        "test_file_exceeded": false,
+        "test_invocation_limit": 2,
+        "test_invocation_exceeded": true
+      },
+      "definition_sha256": "ce539c54ca0987650159e3ff8ef1515b0085e52df9bf6e46f19adf60e702e947"
+    },
+    {
+      "scenario_name": "l3_add_delete_command",
+      "tags": [
+        "L3",
+        "feature",
+        "multi-file",
+        "tasktracker",
+        "test-required",
+        "verification-policy-pilot"
+      ],
+      "passed": true,
+      "duration_seconds": 87.88,
+      "files_modified": [
+        "src/tasktracker/cli.py",
+        "src/tasktracker/storage.py",
+        "tests/test_storage.py"
+      ],
+      "test_files_modified": [
+        "tests/test_storage.py"
+      ],
+      "test_change": "required",
+      "shell_invocations": 14,
+      "test_runner_invocations": 2,
+      "failed_test_runner_invocations": 1,
+      "budgets": {
+        "test_file_limit": 1,
+        "test_file_exceeded": false,
+        "test_invocation_limit": 2,
+        "test_invocation_exceeded": false
+      },
+      "definition_sha256": "0f8b3d0c15394585cd21a7f6903b70ba5216e947bed519a2e36e28b5bfeccef1"
+    },
+    {
+      "scenario_name": "l3_add_json_format",
+      "tags": [
+        "L3",
+        "feature",
+        "multi-file",
+        "tasktracker",
+        "verification-policy-pilot"
+      ],
+      "passed": true,
+      "duration_seconds": 136.3,
+      "files_modified": [
+        "src/tasktracker/cli.py",
+        "tests/test_cli.py"
+      ],
+      "test_files_modified": [
+        "tests/test_cli.py"
+      ],
+      "test_change": "unspecified",
+      "shell_invocations": 18,
+      "test_runner_invocations": 3,
+      "failed_test_runner_invocations": 2,
+      "budgets": {
+        "test_file_limit": 1,
+        "test_file_exceeded": false,
+        "test_invocation_limit": 2,
+        "test_invocation_exceeded": true
+      },
+      "definition_sha256": "ec227374c01121d7330d2f39895595f96c070dabca90c71000bfcf14daa54d71"
+    }
+  ],
+  "conclusion": {
+    "pilot_decision": "go",
+    "quality_claim_status": "evidence_insufficient",
+    "quality_claim_eligible": false,
+    "efficiency_claim": "blocked",
+    "reasons": [
+      "complete_baseline_verifytrace_missing",
+      "independent_oracle_missing",
+      "paired_candidate_run_missing",
+      "minimum_baseline_tasks_not_met"
+    ]
+  }
+}
