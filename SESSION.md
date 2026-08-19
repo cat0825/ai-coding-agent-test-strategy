@@ -1,37 +1,40 @@
-# Handoff 2026-08-17
+# Handoff 2026-08-18
 
 ## 目标
 
-只在本仓库把现有测试策略和 shadow ledger 发展为 **Agent Verification Observatory**：用可回放的诊断型可视化解释 Coding Agent 的过度验证行为。
+完成 Agent Verification Observatory MVP，并以一个 Issue 对应一个 PR 的 stacked 方式推进审阅与合并。
 
 ## 进度
 
-- 方向与研究边界：100%
-- 策略研究与 shadow 基础：已完成
-- Observatory 可视化与策略闭环：0%，这是当前唯一主线
-- 检查点：不再续跑 Maka baseline，先在本仓库完成事件 schema、trace 回放和最小 fixtures。
+- 百分比：MVP 实现与本地 calibration 100%；真实 benchmark 0%。
+- 检查点：Issue #1-#8、Milestone `Observatory MVP` 与 PR #9-#15 已建立；最终实现分支为 `codex/evaluation-gates`。
 
 ## 已完成（含证据）
 
-- 策略仓库：`/Users/qianyuhe/Documents/ChatGPT/llm test`，分支 `codex/observatory-roadmap`。
-- 2026-08-17 fresh check：`npm test` 7/7 通过；`node --check src/verifier.mjs`、`node --check src/cli.mjs`、`bash -n scripts/verify.sh` 通过。
-- 四类 dry-run 已验证：docs-only 走 `format:check`；core 变更包含直接依赖闭包；storage migration 和 unknown 文件 fallback 到 `npm test`。
-- 已建立 [Observatory MVP 路线图 #1](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/1) 和执行 Issue #2-#8；当前分支只处理文档发布 Issue #2。
+- 当前仓库：`/Users/qianyuhe/Documents/ChatGPT/llm test`；远端：`https://github.com/cat0825/ai-coding-agent-test-strategy.git`。
+- 路线图与任务：Issue #1-#8 均已进入 `Observatory MVP` Milestone。
+- PR #9：范围、状态与任务集研究；PR #10：CI 与贡献闸门。
+- PR #11-#15：VerifyTrace v1、确定性诊断、HTML 回放、推荐模式与 evaluation gate。
+- `npm run check`：38/38 tests 通过；PR #9-#15 的 Node 20/24 CI 已通过。
+- `npm run evaluate`：报告为 `evidence_insufficient`，`efficiency_claim` 为 `not_supported`；canonical fixture 仅用于结构校准。
+- 合并前审计已隔离 calibration 与 quality-claim 指标；不合格 comparison 不再影响声明 gate。
+- VerifyTrace 现在拒绝缺失或类型错误的 `test_selection.data.affected_workspaces`；修复已从 PR #11 传播到 #12-#15。
 
 ## 未完成
 
-- 尚未定义并冻结 `diff → risk → test → result → retry/expand → stop` 的 v1 事件 schema。
-- 尚未生成可回放的 trace fixture 和诊断型 HTML 视图。
-- 尚未实现专家/傻瓜模式的版本化策略候选和证据面板。
-- 尚未有真实 benchmark；不能宣称减少耗时或降低质量风险。
+- PR #9-#15 尚待按依赖关系审阅和合并，Issue 由 GitHub 合并流程关闭。
+- 尚无真实仓库 benchmark：quality-claim-eligible comparison 为 0/30，eligible oracle failure 为 0/10。
+- Maka baseline 仍受 workspace 构建接口不一致与 `dugite-native` postinstall 下载链路阻塞。
+- 未启用 Agent hook/permission 强制；没有证据支持真实效率或质量声明。
 
 ## 下一步（可直接执行）
 
-1. 合并 [#2](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/2) 的范围与研究文档。
-2. 通过 [#3](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/3) 建立 CI 与 PR 证据闸门。
-3. 从 [#4](https://github.com/cat0825/ai-coding-agent-test-strategy/issues/4) 开始实现 ledger 到 VerifyTrace v1 的数据闭环。
+1. 先合并 PR #10；随后处理 PR #9，并按 #11 -> #12 -> #13 -> #14 -> #15 的顺序审阅合并实现栈。
+2. 在干净 Maka worktree 修复或确认 baseline 构建阻塞，保留安装与 oracle 失败证据。
+3. 采集至少 30 个 eligible baseline/candidate 对和 10 个 eligible oracle failures，再运行 evaluation gate。
 
 ## 风险/红线
 
-- 只修改本仓库；不触碰 `testguard`、`research-console-private`、Maka、VPS/Hermes。
-- 在回放、标签和安全指标稳定前，不启用硬拦截，也不宣称“减少测试”。
+- 不直接推送 `main`/`master`；一个实现 Issue 对应一个 PR。
+- canonical fixture 不能替代真实 benchmark；证据不足时必须保持 shadow。
+- 在 final oracle 或 failure recall 退化时，不得发布效率声明或启用硬拦截。

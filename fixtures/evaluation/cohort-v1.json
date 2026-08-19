@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "cohort_id": "observatory-mvp-local-calibration",
+  "cohort_version": 1,
+  "evidence_class": "canonical_fixture",
+  "external_benchmarks": "deferred",
+  "thresholds": {
+    "minimum_quality_claim_comparisons": 30,
+    "minimum_oracle_failures": 10,
+    "event_completeness": 1,
+    "command_normalization": 1,
+    "diagnostic_precision": 1,
+    "replay_correctness": 1,
+    "comparison_integrity": 1,
+    "final_oracle_match": 1,
+    "failure_recall": 0.95,
+    "minimum_duration_reduction": 0.25,
+    "minimum_command_reduction": 0.30
+  },
+  "traces": [
+    {"id": "success", "path": "fixtures/traces/success.json", "expected_diagnostics": []},
+    {"id": "failed-retry", "path": "fixtures/traces/failed-retry.json", "expected_diagnostics": [{"event_index": 8, "label": "necessary_revalidation"}]},
+    {"id": "conservative-escalation", "path": "fixtures/traces/conservative-escalation.json", "expected_diagnostics": []},
+    {"id": "exact-repeat", "path": "fixtures/diagnostics/exact-repeat.json", "expected_diagnostics": [{"event_index": 4, "label": "exact_repeat"}]},
+    {"id": "unattributed-retry", "path": "fixtures/diagnostics/unattributed-retry.json", "expected_diagnostics": [{"event_index": 6, "label": "exact_repeat"}, {"event_index": 6, "label": "unattributed_retry"}]},
+    {"id": "exact-repeat-suppressed", "path": "fixtures/evaluation/exact-repeat-suppressed.json", "expected_diagnostics": []},
+    {"id": "unattributed-retry-suppressed", "path": "fixtures/evaluation/unattributed-retry-suppressed.json", "expected_diagnostics": []}
+  ],
+  "comparisons": [
+    {"id": "repeat-pass", "task_id": "diagnostic-exact-repeat", "baseline_trace": "exact-repeat", "candidate_trace": "exact-repeat-suppressed", "quality_claim_eligible": false, "oracle": {"final_status": "passed", "failure_signatures": []}},
+    {"id": "repeat-failure", "task_id": "diagnostic-unattributed-retry", "baseline_trace": "unattributed-retry", "candidate_trace": "unattributed-retry-suppressed", "quality_claim_eligible": false, "oracle": {"final_status": "failed", "failure_signatures": ["assertion:expected-42"]}},
+    {"id": "necessary-revalidation", "task_id": "fixture-failed-retry", "baseline_trace": "failed-retry", "candidate_trace": "failed-retry", "quality_claim_eligible": false, "oracle": {"final_status": "passed", "failure_signatures": ["assertion:parser"]}},
+    {"id": "conservative-expansion", "task_id": "fixture-conservative-escalation", "baseline_trace": "conservative-escalation", "candidate_trace": "conservative-escalation", "quality_claim_eligible": false, "oracle": {"final_status": "passed", "failure_signatures": ["storage:unknown"]}}
+  ]
+}

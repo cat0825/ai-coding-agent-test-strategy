@@ -4,7 +4,7 @@
 
 ## 当前进度
 
-**主线已锁定为 Agent Verification Observatory：策略研究和 shadow 基础完成，诊断型可视化尚未开始。**
+**Observatory MVP 代码和本地 calibration 已完成；真实 benchmark 尚未开始，当前证据不足以支持效率或质量声明。**
 
 - 研究问题已收敛为：解释 Coding Agent 为什么重复、扩大或延迟测试，以及浪费从哪一个决策点开始。
 - 第一阶段只做诊断型可视化，服务重度使用 Coding Agent 的个人开发者；不做通用 Agent 观测平台。
@@ -75,6 +75,14 @@ npm run recommend -- expert fixtures/diagnostics/exact-repeat.json
 ```
 
 安全边界和决定记录格式见 [推荐模式 v1](docs/recommendation-modes-v1.md)。
+
+运行本地 calibration cohort 评测并生成版本化报告：
+
+```sh
+npm run evaluate
+```
+
+评测报告会明确区分 `evidence_insufficient`、`rejected` 和可支持效率声明的状态；外部 P1/P2 benchmark 不在 MVP 内。
 
 ## 下一阶段
 

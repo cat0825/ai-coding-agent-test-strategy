@@ -8,6 +8,7 @@
   },
   "scripts": {
     "check": "node --check src/verifier.mjs && node --check src/cli.mjs && bash -n scripts/verify.sh && npm test",
+    "evaluate": "node src/evaluate-cli.mjs",
     "recommend": "node src/recommend-cli.mjs",
     "test": "node --test test/*.test.mjs",
     "replay": "node src/replay-cli.mjs",
