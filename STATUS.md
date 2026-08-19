@@ -21,7 +21,14 @@
 - 实现一命令 evaluation harness；本地 7 条 trace 和 4 个配对任务的结论为 `evidence_insufficient`，不支持效率声明。
 - 实现 fail-closed baseline cohort 审计器：任务资格只能由合格环境、固定 revision、完整 baseline VerifyTrace 和失败分类推导，调用方不能自报合格，也不能把 30-task 门槛调低。
 
-## 未完成
+## 当前未完成
+
+- 尚未把 JSONL ledger 转成统一的 Observatory trace schema。
+- 尚未实现诊断型可视化回放：时间线、重复/支配测试、失败扩张、成本和停止点。
+- 尚未实现专家模式、傻瓜模式和版本化策略候选。
+- 尚未在本仓库 fixtures 上建立可复现的冗余标签与回放回归测试。
+
+## 历史阻塞（不作为当前执行入口）
 
 - 尚未按通用选择标准确定最终 coding-agent 仓库/任务集；真实 quality-claim-eligible baseline tasks 为 0/30，审计工具通过不等于效果已经证明。
 - Maka 固定 CI-green revision 已通过 `npm ci`、`format:check`、`build:test`、`typecheck` 的真实 preflight，但完整 `npm test` 仍含 PTY、macOS 路径规范化和本机认证能力相关失败；只作为验证样本和环境分类证据。
