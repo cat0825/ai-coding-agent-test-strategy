@@ -114,11 +114,24 @@ npm run benchmark:pilot -- \
 
 该命令从结构化 outcome 统计测试文件改动、测试 runner 次数、非零次数和预算观察，不保留原始命令、输出、绝对路径或认证信息。`pilot_decision: go` 只允许继续采集，不会把探索性任务计入 baseline；契约与首个 5-task 结果见 [Agent-belt pilot audit v1](docs/agent-belt-pilot-audit-v1.md)。
 
+对 agent 完成后的隔离工作区执行外置功能 oracle：
+
+```sh
+npm run benchmark:oracle -- \
+  --task l2_fix_formatter_bug \
+  --repo /path/to/post-agent-worktree \
+  --environment fixtures/benchmark/agent-belt-environment.json \
+  --output output/benchmark/oracles/l2_fix_formatter_bug.json \
+  --allow-host
+```
+
+当前 4 个 editing task 的独立 oracle 均通过，且未使用 agent 自己编写的测试；`l1_find_bug` 因缺少稳定响应 oracle 被排除。Host 模式必须显式开启且只传最小环境，它仍不是 sandbox，不应用于未经审查的 agent 代码。完整边界见 [Agent-belt independent oracles v1](docs/agent-belt-independent-oracles-v1.md)。
+
 ## 下一阶段
 
 只在本仓库内按以下顺序推进：
 
-1. 为 agent-belt pilot 任务绑定独立 oracle 并采集完整 baseline VerifyTrace；在此之前保持 0/30。
+1. 为 agent-belt pilot editing task 采集完整 timestamped baseline VerifyTrace；现有独立 oracle 通过，但在 trace 完整前保持 0/30。
 2. 在同一合格仓库/任务集上采集至少 30 个基线任务和 30 个 shadow 任务，比较命令数、耗时、失败漏检和 fallback 比例。
 3. 依据数据校准预算和停止规则，再决定是否在 Agent hook/permission 层启用有限强制。
 
