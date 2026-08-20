@@ -33,6 +33,35 @@ SUPPORTED_EVENTS = {
 }
 FILE_CHANGE_KINDS = {"add", "delete", "update"}
 
+# Directories never traversed when observing shell-driven workspace writes. They
+# are either version-control internals or regenerated build/runtime artifacts, so
+# hashing them would cost far more than it reveals.
+SNAPSHOT_EXCLUDED_DIRS = {
+    ".git",
+    ".hg",
+    ".svn",
+    "node_modules",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
+    "venv",
+    ".next",
+    ".nuxt",
+    ".turbo",
+    ".gradle",
+    "target",
+    "dist",
+    "build",
+    "coverage",
+}
+# Bounds keep the observation cheap. Exceeding either bound marks the snapshot
+# truncated, which makes the verifier fail closed instead of trusting a partial view.
+SNAPSHOT_MAX_FILES = 20000
+SNAPSHOT_MAX_FILE_BYTES = 8 * 1024 * 1024
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
@@ -62,6 +91,86 @@ def safe_workspace_path(value: Any, workspace_root: Path) -> tuple[str | None, s
     if not parts:
         return None, sha256_text(portable)
     return "/".join(parts), None
+
+
+def _entry_digest(entry: os.DirEntry[str]) -> tuple[str, bool]:
+    """Content digest for one workspace entry. Contents never leave this function."""
+    try:
+        if entry.is_symlink():
+            return "symlink\0" + sha256_text(os.readlink(entry.path)), True
+        stat_result = entry.stat(follow_symlinks=False)
+        if not entry.is_file(follow_symlinks=False):
+            return "other", True
+        if stat_result.st_size > SNAPSHOT_MAX_FILE_BYTES:
+            return f"oversize\0{stat_result.st_size}", False
+        digest = hashlib.sha256()
+        with open(entry.path, "rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return "file\0" + digest.hexdigest(), True
+    except OSError:
+        return "unreadable", False
+
+
+def snapshot_workspace(
+    workspace_root: Path,
+    excluded_paths: set[Path] | None = None,
+) -> tuple[dict[str, str], bool]:
+    """Map workspace-relative path -> content digest.
+
+    Returns the map and whether the walk was truncated. Only digests are kept, so
+    no file contents are retained beyond the hashing above.
+    """
+    snapshot: dict[str, str] = {}
+    truncated = False
+    excluded_paths = {path.resolve(strict=False) for path in (excluded_paths or set())}
+    stack = [workspace_root]
+    while stack:
+        directory = stack.pop()
+        if directory.resolve(strict=False) in excluded_paths:
+            continue
+        try:
+            entries = list(os.scandir(directory))
+        except OSError:
+            truncated = True
+            continue
+        for entry in entries:
+            if entry.is_dir(follow_symlinks=False):
+                if entry.name in SNAPSHOT_EXCLUDED_DIRS:
+                    continue
+                stack.append(Path(entry.path))
+                continue
+            if len(snapshot) >= SNAPSHOT_MAX_FILES:
+                truncated = True
+                continue
+            try:
+                relative = Path(entry.path).relative_to(workspace_root).as_posix()
+            except ValueError:
+                truncated = True
+                continue
+            digest, entry_complete = _entry_digest(entry)
+            snapshot[relative] = digest
+            if not entry_complete:
+                truncated = True
+    return snapshot, truncated
+
+
+def diff_snapshots(before: dict[str, str], after: dict[str, str]) -> list[dict[str, str]]:
+    """Classify the delta between two snapshots as add/update/delete."""
+    changes: list[dict[str, str]] = []
+    for path_value in sorted(set(before) | set(after)):
+        previous = before.get(path_value)
+        current = after.get(path_value)
+        if previous == current:
+            continue
+        if previous is None:
+            kind = "add"
+        elif current is None:
+            kind = "delete"
+        else:
+            kind = "update"
+        changes.append({"path": path_value, "kind": kind})
+    return changes
 
 
 def load_config() -> dict[str, Any]:
@@ -169,6 +278,11 @@ def run() -> int:
         config["collector_sha256"],
         sha256_text(str(workspace_root.resolve(strict=False))),
     )
+    snapshot_excluded_paths = {Path(config["lifecycle_dir"]).resolve(strict=False)}
+    observed_snapshot, observed_snapshot_truncated = snapshot_workspace(
+        workspace_root,
+        snapshot_excluded_paths,
+    )
     process = subprocess.Popen(
         command,
         stdin=None,
@@ -199,6 +313,27 @@ def run() -> int:
                 if lifecycle is not None:
                     event_type, fields = lifecycle
                     writer.write(event_type, **fields)
+                    call_id = fields.get("call_id")
+                    if fields.get("item_type") == "command_execution" and isinstance(call_id, str) and call_id:
+                        if event_type == "item.completed":
+                            after, after_truncated = snapshot_workspace(workspace_root, snapshot_excluded_paths)
+                            writer.write(
+                                "shell_file_change.completed",
+                                call_id=call_id,
+                                status=fields.get("status"),
+                                complete=not (observed_snapshot_truncated or after_truncated),
+                                changes=diff_snapshots(observed_snapshot, after),
+                            )
+                            observed_snapshot = after
+                            observed_snapshot_truncated = after_truncated
+                    elif event_type == "file_change.completed":
+                        # Native file-change events already carry the attributable
+                        # delta. Advance the baseline so the next shell command does
+                        # not claim the same edit a second time.
+                        observed_snapshot, observed_snapshot_truncated = snapshot_workspace(
+                            workspace_root,
+                            snapshot_excluded_paths,
+                        )
         return_code = process.wait()
         writer.write("process.exited", exit_code=return_code)
         return return_code

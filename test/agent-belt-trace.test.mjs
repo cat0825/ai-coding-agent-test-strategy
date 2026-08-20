@@ -187,6 +187,50 @@ test("unobserved workspace changes make a direct trace partial", () => {
   assert(trace.warnings.includes("workspace_state_changed_without_observed_file_change"));
 });
 
+test("shell snapshot evidence makes an observed workspace change complete", () => {
+  const lifecycle = lifecycleRecords();
+  lifecycle.splice(5, 0, lifecycleRecord(5, "shell_file_change.completed", 650, {
+    call_id: "item_1",
+    status: "completed",
+    complete: true,
+    changes: [{ path: "test/new.test.mjs", kind: "add" }],
+  }));
+  const trace = convert(resequence(lifecycle), streamRecords(), ["test/new.test.mjs"], {
+    initialChangedFiles: ["src/trace.mjs"],
+    initialStateSha256: "d".repeat(64),
+    finalStateSha256: "e".repeat(64),
+    workspaceStateChanged: true,
+    sourceFormat: "codex-cli-lifecycle-v2",
+  });
+  const diff = trace.events.find(({ data }) => data.observation === "completed_shell_file_change");
+
+  assert.equal(trace.completeness, "complete");
+  assert.deepEqual(diff.data.changed_files, ["test/new.test.mjs"]);
+  assert.equal(trace.warnings.includes("workspace_state_changed_without_observed_file_change"), false);
+  assert.equal(validateTrace(trace).valid, true);
+});
+
+test("incomplete shell snapshot evidence still fails closed", () => {
+  const lifecycle = lifecycleRecords();
+  lifecycle.splice(5, 0, lifecycleRecord(5, "shell_file_change.completed", 650, {
+    call_id: "item_1",
+    status: "completed",
+    complete: false,
+    changes: [{ path: "test/new.test.mjs", kind: "add" }],
+  }));
+  const trace = convert(resequence(lifecycle), streamRecords(), ["test/new.test.mjs"], {
+    initialChangedFiles: ["src/trace.mjs"],
+    initialStateSha256: "d".repeat(64),
+    finalStateSha256: "e".repeat(64),
+    workspaceStateChanged: true,
+    sourceFormat: "codex-cli-lifecycle-v2",
+  });
+
+  assert.equal(trace.completeness, "partial");
+  assert(trace.warnings.includes("incomplete_shell_file_change_snapshot:item_1"));
+  assert(trace.warnings.includes("workspace_state_changed_without_observed_file_change"));
+});
+
 test("missing command start produces a partial trace without a fabricated duration", () => {
   const records = resequence(lifecycleRecords().filter((record) => record.event !== "item.started"));
   const trace = convert(records);
@@ -330,6 +374,43 @@ printf '%s\\n' '{"type":"turn.completed","usage":{}}'
   assert.deepEqual(fileChange.changes, [{ path: "src/main.py", path_sha256: null, kind: "update" }]);
   assert.equal(sidecar.includes(directory), false);
   assert.doesNotMatch(sidecar, /SECRET|hidden|aggregated_output|do not retain|real-codex/);
+});
+
+test("Codex wrapper attributes shell-created files without retaining contents", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-shell-observer-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const wrapper = path.join(directory, "codex");
+  const realCodex = path.join(directory, "real-codex");
+  const lifecycleDir = path.join(directory, "lifecycle");
+  await mkdir(lifecycleDir);
+  await copyFile(path.resolve("scripts/codex-lifecycle-wrapper.py"), wrapper);
+  await chmod(wrapper, 0o700);
+  await writeFile(realCodex, `#!/bin/sh
+printf '%s\\n' '{"type":"thread.started","thread_id":"thread-shell"}'
+printf '%s\\n' '{"type":"turn.started"}'
+printf '%s\\n' '{"type":"item.started","item":{"id":"shell-1","type":"command_execution","command":"printf secret > test/new.test.mjs"}}'
+mkdir -p test
+printf 'secret test contents\\n' > test/new.test.mjs
+printf '%s\\n' '{"type":"item.completed","item":{"id":"shell-1","type":"command_execution","command":"printf secret > test/new.test.mjs","aggregated_output":"secret output","exit_code":0,"status":"completed"}}'
+printf '%s\\n' '{"type":"turn.completed","usage":{}}'
+`, { mode: 0o700 });
+  await chmod(realCodex, 0o700);
+  await writeFile(path.join(directory, "codex-lifecycle-config.json"), `${JSON.stringify({
+    schema_version: 1,
+    real_codex: realCodex,
+    lifecycle_dir: lifecycleDir,
+    collector_sha256: digest,
+  })}\n`);
+
+  execFileSync(wrapper, ["exec", "--json"], { cwd: directory, encoding: "utf8" });
+  const files = await readdir(lifecycleDir);
+  const sidecar = await readFile(path.join(lifecycleDir, files[0]), "utf8");
+  const records = parseNdjson(sidecar).map(({ record }) => record);
+  const shellChange = records.find((record) => record.event === "shell_file_change.completed");
+
+  assert.deepEqual(shellChange.changes, [{ path: "test/new.test.mjs", kind: "add" }]);
+  assert.equal(shellChange.complete, true);
+  assert.doesNotMatch(sidecar, /secret|test contents|aggregated_output|real-codex/);
 });
 
 test("batch CLI maps lifecycle evidence to a scenario by thread id", async (t) => {

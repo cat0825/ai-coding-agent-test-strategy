@@ -346,8 +346,64 @@ export function convertAgentBeltLifecycleToTrace({
       changes: sanitized,
     });
   }
-  if (binding.workspaceStateChanged === true
-    && !pairedFileChanges.some(({ status, changes }) => status === "completed" && changes.length > 0)) {
+  // Codex only emits file_change items for apply_patch. When the agent writes a
+  // file through a shell redirect the stream stays silent, so the collector
+  // attributes a before/after workspace snapshot diff to the owning command.
+  // These records have no stream counterpart by construction and are therefore
+  // validated on their own terms rather than through two-channel pairing.
+  const shellFileChanges = [];
+  const commandsByCallId = new Map(pairedCommands.map((command) => [command.callId, command]));
+  for (const entry of lifecycle) {
+    if (entry.record.event !== "shell_file_change.completed") continue;
+    const callId = entry.record.call_id;
+    if (!safeCallId(callId)) {
+      warnState("unsafe_shell_file_change_call_id");
+      continue;
+    }
+    if (entry.record.complete !== true) {
+      warnState(`incomplete_shell_file_change_snapshot:${callId}`);
+      continue;
+    }
+    const command = commandsByCallId.get(callId);
+    if (!command) {
+      warnState(`shell_file_change_without_command:${callId}`);
+      continue;
+    }
+    if (entry.record.status !== command.completion.record.status) {
+      warnState(`shell_file_change_status_mismatch:${callId}`);
+      continue;
+    }
+    const changes = entry.record.changes;
+    if (!Array.isArray(changes)) {
+      warnState(`invalid_shell_file_change:${callId}`);
+      continue;
+    }
+    const sanitized = [];
+    let valid = true;
+    for (const [index, change] of changes.entries()) {
+      if (!isObject(change)
+        || normalizedChangedFile(change.path) !== change.path
+        || !FILE_CHANGE_KINDS.has(change.kind)) {
+        warnState(`invalid_shell_file_change:${callId}:${index}`);
+        valid = false;
+        continue;
+      }
+      sanitized.push({ path: change.path, kind: change.kind });
+    }
+    if (!valid) continue;
+    if (sanitized.length === 0) continue;
+    shellFileChanges.push({
+      callId,
+      entry,
+      streamEntry: command.rawCompletion,
+      status: entry.record.status,
+      changes: sanitized,
+    });
+  }
+
+  const observedStateChange = pairedFileChanges.some(({ status, changes }) => status === "completed" && changes.length > 0)
+    || shellFileChanges.some(({ status, changes }) => status === "completed" && changes.length > 0);
+  if (binding.workspaceStateChanged === true && !observedStateChange) {
     warnState("workspace_state_changed_without_observed_file_change");
   }
 
@@ -371,7 +427,7 @@ export function convertAgentBeltLifecycleToTrace({
       ignoredGeneratedFileCount += 1;
       return false;
     }));
-    const observedFiles = new Set(pairedFileChanges
+    const observedFiles = new Set([...pairedFileChanges, ...shellFileChanges]
       .filter(({ status }) => status === "completed")
       .flatMap(({ changes }) => changes.map(({ path: file }) => file)));
     for (const file of relevantOutcomeFiles) {
@@ -412,6 +468,20 @@ export function convertAgentBeltLifecycleToTrace({
       canonicalId: command.analysis.canonicalId,
       semantics: command.analysis.semantics,
     }));
+  const usableShellFileChanges = shellFileChanges
+    .filter((change) => {
+      if (change.entry.record.monotonic_ns < bootstrapMonotonic) {
+        warnState(`shell_file_change_precedes_turn:${change.callId}`);
+        return false;
+      }
+      if (Number.isInteger(terminalMonotonic) && change.entry.record.monotonic_ns > terminalMonotonic) {
+        warnState(`shell_file_change_follows_terminal:${change.callId}`);
+        return false;
+      }
+      return validObservedAt(change.entry.record.observed_at);
+    })
+    .sort((left, right) => left.entry.record.monotonic_ns - right.entry.record.monotonic_ns);
+
   const usableFileChanges = pairedFileChanges
     .filter((change) => {
       if (change.entry.record.monotonic_ns < bootstrapMonotonic) {
@@ -479,7 +549,11 @@ export function convertAgentBeltLifecycleToTrace({
 
   const firstResultMonotonic = usableResults[0]?.completion.record.monotonic_ns ?? null;
   const lastResultMonotonic = usableResults.at(-1)?.completion.record.monotonic_ns ?? null;
+  // A non-test command whose workspace effect was snapshotted is no longer opaque,
+  // so it must not collapse the observed state into unknown.
+  const snapshotObservedCallIds = new Set(usableShellFileChanges.map(({ callId }) => callId));
   const unknownStateCommands = usableCommands.filter((command) => command.analysis === null
+    && !snapshotObservedCallIds.has(command.callId)
     && firstResultMonotonic !== null
     && command.completion.record.monotonic_ns > firstResultMonotonic
     && command.completion.record.monotonic_ns < lastResultMonotonic);
@@ -496,6 +570,13 @@ export function convertAgentBeltLifecycleToTrace({
         monotonicNs: change.entry.record.monotonic_ns,
         value: change,
       })),
+    ...usableShellFileChanges
+      .filter((change) => change.status === "completed" && change.changes.length > 0)
+      .map((change) => ({
+        kind: "shell_file_change",
+        monotonicNs: change.entry.record.monotonic_ns,
+        value: change,
+      })),
     ...unknownStateCommands.map((command) => ({
       kind: "unknown_state",
       monotonicNs: command.completion.record.monotonic_ns,
@@ -506,6 +587,32 @@ export function convertAgentBeltLifecycleToTrace({
 
   let observedStateId = events[0].data.state_id;
   for (const activity of activities) {
+    if (activity.kind === "shell_file_change") {
+      const change = activity.value;
+      observedStateId = observedStateId === null ? null : sha256(JSON.stringify({
+        previous_state_id: observedStateId,
+        changes: change.changes,
+      }));
+      events.push({
+        event_index: events.length,
+        event_type: "diff",
+        timestamp: change.entry.record.observed_at,
+        data: {
+          changed_files: [...new Set(change.changes.map(({ path: file }) => file))].sort(),
+          repository_commit: binding.repositoryCommit,
+          state_id: observedStateId,
+          change_kinds: [...new Set(change.changes.map(({ path: file }) => changeKindForPath(file)))].sort(),
+          observation: "completed_shell_file_change",
+        },
+        raw_event_ref: {
+          ...rawReference(change.entry, lifecycleSourceRef, change.entry.record.event, rawEventKind),
+          call_id: change.callId,
+          stream_source_ref: streamSourceRef,
+          stream_completion_line: change.streamEntry.line,
+        },
+      });
+      continue;
+    }
     if (activity.kind === "file_change") {
       const change = activity.value;
       observedStateId = observedStateId === null ? null : sha256(JSON.stringify({
