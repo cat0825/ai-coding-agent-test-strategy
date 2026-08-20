@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 const TEST_RUNNER_RULES = Object.freeze([
   {
-    pattern: /(?:^|[\s"';&|])(?:(uv)\s+run\s+)?(?:(python(?:3)?)\s+-m\s+)?(pytest)(?:\s|$)/i,
+    pattern: /(?:^|[\s"';&|()\n])(?:(uv)\s+run\s+)?(?:(python(?:3)?)\s+-m\s+)?(pytest)(?=[\s"';&|()\n]|$)/i,
     normalize(match) {
       if (match[1]) return ["uv", "run", "pytest"];
       if (match[2]) return [match[2].toLowerCase(), "-m", "pytest"];
@@ -10,19 +10,19 @@ const TEST_RUNNER_RULES = Object.freeze([
     },
   },
   {
-    pattern: /(?:^|[\s"';&|])(npm|pnpm|yarn|bun)\s+(?:run\s+)?(test|t)(?=[\s"']|$)/i,
+    pattern: /(?:^|[\s"';&|()\n])(npm|pnpm|yarn|bun)\s+(?:run\s+)?(test|t)(?=[\s"';&|()\n]|$)/i,
     normalize(match) {
       return [match[1].toLowerCase(), match[2].toLowerCase() === "t" ? "test" : match[2].toLowerCase()];
     },
   },
   {
-    pattern: /(?:^|[\s"';&|])(npm|pnpm|yarn|bun)\s+(?:run\s+)?(check)(?=[\s"']|$)/i,
+    pattern: /(?:^|[\s"';&|()\n])(npm|pnpm|yarn|bun)\s+(?:run\s+)?(check)(?=[\s"';&|()\n]|$)/i,
     normalize(match) {
       return [match[1].toLowerCase(), "run", match[2].toLowerCase()];
     },
   },
   {
-    pattern: /(?:^|[\s"';&|])(?:(npx|pnpm\s+exec|yarn\s+dlx|bunx)\s+)?(vitest|jest|mocha|ava)(?:\s|$)/i,
+    pattern: /(?:^|[\s"';&|()\n])(?:(npx|pnpm\s+exec|yarn\s+dlx|bunx)\s+)?(vitest|jest|mocha|ava)(?=[\s"';&|()\n]|$)/i,
     normalize(match) {
       return match[1]
         ? [...match[1].toLowerCase().split(/\s+/), match[2].toLowerCase()]
@@ -30,19 +30,19 @@ const TEST_RUNNER_RULES = Object.freeze([
     },
   },
   {
-    pattern: /(?:^|[\s"';&|])(node\s+--test|deno\s+test)(?:\s|$)/i,
+    pattern: /(?:^|[\s"';&|()\n])(node\s+--test|deno\s+test)(?=[\s"';&|()\n]|$)/i,
     normalize(match) {
       return match[1].toLowerCase().split(/\s+/);
     },
   },
   {
-    pattern: /(?:^|[\s"';&|])(go|cargo|dotnet)\s+test(?:\s|$)/i,
+    pattern: /(?:^|[\s"';&|()\n])(go|cargo|dotnet)\s+test(?=[\s"';&|()\n]|$)/i,
     normalize(match) {
       return [match[1].toLowerCase(), "test"];
     },
   },
   {
-    pattern: /(?:^|[\s"';&|])((?:\.\/)?(?:mvnw?|gradlew?))\s+test(?:\s|$)/i,
+    pattern: /(?:^|[\s"';&|()\n])((?:\.\/)?(?:mvnw?|gradlew?))\s+test(?=[\s"';&|()\n]|$)/i,
     normalize(match) {
       return [match[1].toLowerCase(), "test"];
     },
@@ -50,7 +50,7 @@ const TEST_RUNNER_RULES = Object.freeze([
 ]);
 
 const SHELLS = new Set(["sh", "bash", "zsh", "dash", "ksh"]);
-const OPERATORS = new Set(["&&", "||", ";", "|"]);
+const OPERATORS = new Set(["&&", "||", ";", "|", "(", ")", "$(", "\\n"]);
 const DIGEST = /^[a-f0-9]{64}$/i;
 
 function sha256(value) {
@@ -92,8 +92,29 @@ function tokenizeShell(command) {
       quote = character;
       continue;
     }
+    if (character === "\n") {
+      flush();
+      tokens.push("\\n");
+      continue;
+    }
     if (/\s/.test(character)) {
       flush();
+      continue;
+    }
+    if (character === "$" && command[index + 1] === "(") {
+      flush();
+      tokens.push("$(");
+      index += 1;
+      continue;
+    }
+    if (character === "(") {
+      flush();
+      tokens.push("(");
+      continue;
+    }
+    if (character === ")") {
+      flush();
+      tokens.push(")");
       continue;
     }
     if (character === ";" || character === "|") {
@@ -129,15 +150,48 @@ function unwrapShell(tokens) {
 function commandSegments(tokens) {
   const segments = [];
   let current = [];
+  let groupingDepth = 0;
+  let substitutionDepth = 0;
+  const flush = () => {
+    if (current.length > 0) segments.push({ tokens: current, nested: substitutionDepth > 0 });
+    current = [];
+  };
   for (const token of tokens) {
-    if (OPERATORS.has(token)) {
-      if (current.length > 0) segments.push(current);
-      current = [];
-    } else {
-      current.push(token);
+    if (token === "$(") {
+      flush();
+      substitutionDepth += 1;
+      continue;
     }
+    if (token === "(") {
+      flush();
+      groupingDepth += 1;
+      continue;
+    }
+    if (token === ")") {
+      flush();
+      if (substitutionDepth > 0) substitutionDepth -= 1;
+      else if (groupingDepth > 0) groupingDepth -= 1;
+      else return null;
+      continue;
+    }
+    if (OPERATORS.has(token)) {
+      flush();
+      continue;
+    }
+    current.push(token);
   }
-  if (current.length > 0) segments.push(current);
+  flush();
+  if (groupingDepth !== 0 || substitutionDepth !== 0) return null;
+  return segments;
+}
+
+export function decomposeShellCommand(command) {
+  if (typeof command !== "string") return null;
+  const outerTokens = tokenizeShell(command);
+  if (!outerTokens) return null;
+  const tokens = unwrapShell(outerTokens);
+  if (!tokens) return null;
+  const segments = commandSegments(tokens);
   return segments;
 }
 
@@ -227,25 +281,25 @@ export function normalizeTestRunnerCommand(command) {
 export function analyzeTestRunnerCommand(command, { cwdSha256 = null } = {}) {
   const normalized = normalizeTestRunnerCommand(command);
   if (!normalized) return null;
-  const outerTokens = tokenizeShell(command);
-  if (!outerTokens) return incompleteAnalysis(command, normalized, "unparseable_shell_command");
-  const tokens = unwrapShell(outerTokens);
-  if (!tokens) return incompleteAnalysis(command, normalized, "unparseable_shell_wrapper");
+  const decomposed = decomposeShellCommand(command);
+  if (!decomposed) return incompleteAnalysis(command, normalized, "unparseable_shell_command");
 
-  const segments = commandSegments(tokens);
   let effectiveCwdSha256 = DIGEST.test(cwdSha256 ?? "") ? cwdSha256.toLowerCase() : null;
   const matches = [];
-  for (const segment of segments) {
+  for (const { tokens: segment, nested } of decomposed) {
     const prefix = environmentPrefix(segment);
     const executable = executableName(segment[prefix.index] ?? "");
     if (executable === "cd" && segment.length === prefix.index + 2) {
+      const directory = segment[prefix.index + 1];
+      if (directory === "." || directory === "./") continue;
       effectiveCwdSha256 = effectiveCwdSha256
-        ? sha256(JSON.stringify({ base: effectiveCwdSha256, directory: segment[prefix.index + 1] }))
+        ? sha256(JSON.stringify({ base: effectiveCwdSha256, directory }))
         : null;
       continue;
     }
     const runner = runnerAt(segment, prefix.index);
     if (runner) {
+      if (nested) return incompleteAnalysis(command, runner.command, "nested_runner_structure_unrecognized");
       matches.push({
         command: runner.command,
         arguments: segment.slice(runner.argumentsIndex),

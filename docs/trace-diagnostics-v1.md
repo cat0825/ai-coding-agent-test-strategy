@@ -14,6 +14,8 @@ Documentation-only changes are not relevant state changes for these rules. A dif
 
 Agent-belt lifecycle traces have an additional fail-closed requirement: `source.state_evidence_complete` must be true and both compared test results must carry complete `command_semantics`. Older traces and partial state evidence can still be replayed, but they cannot produce `exact_repeat` or `unattributed_retry` findings.
 
+Compound shell commands are decomposed before runner analysis. Separators inside quotes remain literal; `&&`, `||`, `;`, pipes, newlines, and parenthesized groups create command boundaries. A test runner inside command substitution or a command containing multiple runners is marked incomplete, so diagnostics emit no repeat label. `cd .` is identity-neutral, while a real directory change remains part of the canonical command identity.
+
 ## Output
 
 Each finding includes:
