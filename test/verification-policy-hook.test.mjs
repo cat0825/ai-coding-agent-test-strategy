@@ -280,6 +280,37 @@ test("full-suite calls stay denied when wrapped in cd and pipelines", async (t) 
   assert.equal(targeted.record.tier, "fast");
 });
 
+test("glob-expanded selections cannot escape the full-suite deny", async (t) => {
+  const paths = await harness(t);
+  const blocked = await evaluateVerificationPolicyHook({
+    payload: payload("npm test"),
+    config,
+    ...paths,
+  });
+  assert.equal(blocked.decision, "deny");
+  assert.equal(blocked.reason, "untargeted_full_suite_denied");
+
+  const globbed = await evaluateVerificationPolicyHook({
+    payload: payload("node --test test/*.test.mjs 2>&1 | tail -40", { tool_use_id: "tool-glob" }),
+    config,
+    ...paths,
+  });
+  assert.equal(globbed.decision, "deny");
+  assert.equal(globbed.reason, "unbounded_test_selection_denied");
+  assert.equal(globbed.record.tier, "other");
+  assert.deepEqual(globbed.suggestion, config.commands.affected);
+
+  const ledger = await readFile(paths.ledgerPath, "utf8");
+  assert.doesNotMatch(ledger, /test\/\*|tail -40/);
+
+  const fallback = await evaluateVerificationPolicyHook({
+    payload: payload("node --test test/*.test.mjs", { tool_use_id: "tool-glob-allowed" }),
+    config: { ...config, allow_full_suite: true },
+    ...paths,
+  });
+  assert.equal(fallback.decision, "allow");
+});
+
 test("full-suite fallback is allowed only when the task policy grants the exception", async (t) => {
   const paths = await harness(t);
   const fallbackConfig = { ...config, allow_full_suite: true };

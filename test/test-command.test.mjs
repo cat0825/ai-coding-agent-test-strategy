@@ -111,3 +111,16 @@ test("output redirection does not change test selection identity", () => {
   assert.equal(targetedPiped.semantics.arguments_sha256, targeted.semantics.arguments_sha256);
   assert.notEqual(targeted.semantics.arguments_sha256, plain.semantics.arguments_sha256);
 });
+
+test("glob targets are marked as unbounded selections", () => {
+  const targeted = analyzeTestRunnerCommand("node --test test/a.test.mjs", { cwdSha256 });
+  const globbed = analyzeTestRunnerCommand("node --test test/*.test.mjs", { cwdSha256 });
+  const flagged = analyzeTestRunnerCommand("pytest -k test_a", { cwdSha256 });
+  const incomplete = analyzeTestRunnerCommand("echo $(npm test)", { cwdSha256 });
+
+  assert.deepEqual(targeted.selection, { bounded: true, reason: null });
+  assert.deepEqual(globbed.selection, { bounded: false, reason: "glob_target" });
+  assert.deepEqual(flagged.selection, { bounded: true, reason: null });
+  assert.deepEqual(incomplete.selection, { bounded: false, reason: "incomplete_semantics" });
+  assert.equal(globbed.semantics.complete, true);
+});

@@ -270,6 +270,12 @@ async function evaluateLocked({ payload, config, statePath, ledgerPath, nowMs = 
     && tiers.affected && tierIdentity(tiers.affected) !== tierIdentity(tiers.full)) {
     reasonCode = "untargeted_full_suite_denied";
     suggestion = publicSuggestion(config);
+  } else if (tier === "other" && config.allow_full_suite !== true && analysis.selection?.bounded === false) {
+    // A glob target expands to an unknown set of test files, so it cannot be shown to be
+    // narrower than the denied full suite. Observed as a real escape from the full-suite
+    // deny: `node --test test/*.test.mjs` after `npm test` was blocked.
+    reasonCode = "unbounded_test_selection_denied";
+    suggestion = publicSuggestion(config);
   } else if (session.failed_test_turns.length >= budget.max_failed_test_turns) {
     reasonCode = "failed_test_turn_budget_exceeded";
   } else if (isNewVerificationTurn && session.test_turns.length >= budget.max_verification_turns) {
