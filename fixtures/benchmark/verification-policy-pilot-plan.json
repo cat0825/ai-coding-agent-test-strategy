@@ -12,6 +12,8 @@
         "revision": "e9bd535012d4657534cf3cef69f394d2e7145387"
       },
       "runtime": "node>=20",
+      "scenario_class": "cli_tool",
+      "language": "javascript",
       "reset_strategy": "fresh_isolated_clone"
     }
   ],

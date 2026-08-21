@@ -8,6 +8,14 @@ export const PILOT_TASK_COUNT = 6;
 const MODES = new Set(["verify_only", "test_decision", "end_to_end"]);
 const ORIGINS = new Set(["repository_change", "controlled_fault"]);
 const RISK_CLASSES = new Set(["low", "medium", "high"]);
+export const SCENARIO_CLASSES = Object.freeze([
+  "cli_tool",
+  "web_frontend",
+  "service_library",
+  "research_script",
+]);
+export const MINIMUM_GENERALIZED_SCENARIO_CLASSES = 2;
+const LANGUAGES = new Set(["javascript", "typescript", "python", "go", "rust"]);
 const PHASES = new Set(["fast", "affected", "full"]);
 const WORKSPACE_STATUSES = new Set(["passed", "failed", "flaky", "environment_failed"]);
 const FULL_SUITE_EXPECTATIONS = new Set(["avoid", "allowed", "required"]);
@@ -89,6 +97,10 @@ function validateFixture(errors, fixture, index, fixtureIds) {
   requiredString(errors, fixture.repository?.identity, `${field}.repository.identity`);
   if (!GIT_REVISION.test(fixture.repository?.revision ?? "")) addError(errors, `${field}.repository.revision`, "must be a 40-character Git revision");
   requiredString(errors, fixture.runtime, `${field}.runtime`);
+  if (!SCENARIO_CLASSES.includes(fixture.scenario_class)) {
+    addError(errors, `${field}.scenario_class`, `must be one of ${SCENARIO_CLASSES.join(", ")}`);
+  }
+  if (!LANGUAGES.has(fixture.language)) addError(errors, `${field}.language`, "must be a supported task language");
   if (fixture.reset_strategy !== "fresh_isolated_clone") addError(errors, `${field}.reset_strategy`, "must be fresh_isolated_clone");
 }
 
@@ -253,10 +265,27 @@ export function validateVerificationBenchmark(plan, oracleCatalog) {
   return errors;
 }
 
+function scenarioClassCounts(plan) {
+  const scenarioClassByFixture = new Map(plan.fixtures.map((fixture) => [fixture.fixture_id, fixture.scenario_class]));
+  const counts = {};
+  for (const task of plan.tasks) {
+    const scenarioClass = scenarioClassByFixture.get(task.fixture_id);
+    counts[scenarioClass] = (counts[scenarioClass] ?? 0) + 1;
+  }
+  return Object.fromEntries(Object.entries(counts).sort(([left], [right]) => left.localeCompare(right)));
+}
+
 export function auditVerificationBenchmarkDesign(plan, oracleCatalog) {
   const errors = validateVerificationBenchmark(plan, oracleCatalog);
   if (errors.length > 0) throw new VerificationBenchmarkValidationError(errors);
   const modeCounts = Object.fromEntries([...MODES].map((mode) => [mode, plan.tasks.filter((task) => task.mode === mode).length]));
+  const coveredScenarioClasses = Object.keys(scenarioClassCounts(plan));
+  const blockers = [
+    "task_workspaces_not_materialized",
+    "independent_oracles_not_executed",
+    "paired_traces_not_collected",
+  ];
+  if (coveredScenarioClasses.length < MINIMUM_GENERALIZED_SCENARIO_CLASSES) blockers.push("scenario_classes_not_generalized");
   return {
     schema_version: VERIFICATION_BENCHMARK_SCHEMA_VERSION,
     evidence_class: "pilot_design_audit",
@@ -268,15 +297,18 @@ export function auditVerificationBenchmarkDesign(plan, oracleCatalog) {
       hidden_oracles: oracleCatalog.oracles.length,
       modes: modeCounts,
       behavior_classes: [...new Set(plan.tasks.map((task) => task.behavior_class))].sort(),
+      scenario_classes: scenarioClassCounts(plan),
+      languages: [...new Set(plan.fixtures.map((fixture) => fixture.language))].sort(),
+    },
+    scenario_coverage: {
+      covered: coveredScenarioClasses,
+      missing: SCENARIO_CLASSES.filter((scenarioClass) => !coveredScenarioClasses.includes(scenarioClass)),
+      generalized: coveredScenarioClasses.length >= MINIMUM_GENERALIZED_SCENARIO_CLASSES,
     },
     conclusion: {
       status: "design_ready",
       quality_claim_eligible: false,
-      blockers: [
-        "task_workspaces_not_materialized",
-        "independent_oracles_not_executed",
-        "paired_traces_not_collected",
-      ],
+      blockers,
     },
   };
 }

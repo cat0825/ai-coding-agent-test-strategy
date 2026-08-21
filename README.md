@@ -33,6 +33,7 @@
 - [PDF 报告](output/pdf/ai-coding-agent-test-strategy.pdf)：适合阅读和分发的 16 页版本。
 - [实验与校准方案](docs/experiment-and-calibration.md)：pilot 设计、指标、fallback 和审计契约。
 - [Verification Policy Benchmark v0.1](docs/verification-policy-benchmark-v0.1.md)：六题隔离测评、隐藏判分和当前证据边界。
+- [使用场景分层 v1](docs/scenario-stratification-v1.md)：四类使用场景的验证形态、采集顺序和泛化门槛。
 - [验证行为任务集调研](docs/coding-agent-verification-task-set-research.md)：任务来源、轨迹 schema 和实验阶段建议。
 - [当前状态与下一步](STATUS.md)：明确已完成、未完成和下一阶段实现边界。
 - [项目交接文档](docs/handoff-2026-08-19.md)：当前分支、PR 链、本地未提交变更、证据状态和可直接执行的下一步。
