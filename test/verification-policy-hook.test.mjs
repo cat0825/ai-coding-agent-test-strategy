@@ -344,8 +344,8 @@ test("prepare CLI carries the full-fallback exception into generated policy", as
     cwd: repo,
     encoding: "utf8",
   });
-  assert.equal(generatedResult.status, 2);
-  assert.equal(JSON.parse(generatedResult.stdout).permissionDecision, "deny");
+  assert.equal(generatedResult.status, 0);
+  assert.equal(JSON.parse(generatedResult.stdout).hookSpecificOutput.permissionDecision, "deny");
 });
 
 test("generated hook denies an untargeted full suite with Codex-compatible output", async (t) => {
@@ -359,9 +359,13 @@ test("generated hook denies an untargeted full suite with Codex-compatible outpu
     "--ledger", paths.ledgerPath,
   ], { input, cwd: path.resolve("."), encoding: "utf8" });
 
-  assert.equal(result.status, 2);
+  // codex-cli 0.147.0 discards a code-2 deny whose reason is on stdout, so the hook must
+  // exit 0 and carry the denial in hookSpecificOutput.
+  assert.equal(result.status, 0);
   const response = JSON.parse(result.stdout);
-  assert.equal(response.permissionDecision, "deny");
+  assert.equal(response.decision, "block");
+  assert.equal(response.permissionDecision, undefined);
+  assert.equal(response.hookSpecificOutput.hookEventName, "PreToolUse");
   assert.equal(response.hookSpecificOutput.permissionDecision, "deny");
   assert.match(response.hookSpecificOutput.permissionDecisionReason, /untargeted_full_suite_denied/);
 });

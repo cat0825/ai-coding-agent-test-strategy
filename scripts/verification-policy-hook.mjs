@@ -25,7 +25,10 @@ async function main() {
   const result = await evaluateVerificationPolicyHook({ payload, config, statePath, ledgerPath });
   const response = codexHookResponse(result);
   if (Object.keys(response).length > 0) process.stdout.write(`${JSON.stringify(response)}\n`);
-  if (result.decision === "deny") process.exitCode = 2;
+  // codex-cli 0.147.0 honours a structured deny only when the hook exits 0. Exit code 2
+  // selects the stderr-reason protocol instead, and a code-2 exit whose reason is on
+  // stdout is discarded, so the tool call runs anyway. Observed in a real candidate run.
+  process.exitCode = 0;
 }
 
 main().catch((error) => {

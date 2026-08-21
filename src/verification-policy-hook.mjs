@@ -315,7 +315,6 @@ export function codexHookResponse(result) {
   const guidance = result.suggestion ? ` Use the narrower command: ${result.suggestion.join(" ")}.` : "";
   const reason = `${result.reason}.${guidance}`;
   return {
-    permissionDecision: "deny",
     decision: "block",
     systemMessage: reason,
     hookSpecificOutput: {
