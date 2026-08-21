@@ -4,7 +4,8 @@
     "blockers": [
       "task_workspaces_not_materialized",
       "independent_oracles_not_executed",
-      "paired_traces_not_collected"
+      "paired_traces_not_collected",
+      "scenario_classes_not_generalized"
     ],
     "quality_claim_eligible": false,
     "status": "design_ready"
@@ -20,14 +21,32 @@
     ],
     "fixtures": 1,
     "hidden_oracles": 6,
+    "languages": [
+      "javascript"
+    ],
     "modes": {
       "end_to_end": 0,
       "test_decision": 1,
       "verify_only": 5
     },
+    "scenario_classes": {
+      "cli_tool": 6
+    },
     "tasks": 6
   },
   "evidence_class": "pilot_design_audit",
+  "scenario_coverage": {
+    "covered": [
+      "cli_tool"
+    ],
+    "generalized": false,
+    "missing": [
+      "web_frontend",
+      "service_library",
+      "research_script"
+    ]
+  },
   "schema_version": 1,
   "target_claim": "在不降低故障发现和最终正确性的前提下，减少无依据的全量测试、重复测试和测试代码扩张。"
 }
+

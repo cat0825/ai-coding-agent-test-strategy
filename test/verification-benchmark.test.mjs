@@ -6,6 +6,8 @@ import path from "node:path";
 import test from "node:test";
 import {
   auditVerificationBenchmarkDesign,
+  MINIMUM_GENERALIZED_SCENARIO_CLASSES,
+  SCENARIO_CLASSES,
   validateVerificationBenchmark,
   verificationTaskDefinitionDigest,
 } from "../src/verification-benchmark.mjs";
@@ -84,7 +86,52 @@ test("design audit is explicit about missing execution evidence", async () => {
     "task_workspaces_not_materialized",
     "independent_oracles_not_executed",
     "paired_traces_not_collected",
+    "scenario_classes_not_generalized",
   ]);
+});
+
+test("fixtures must declare a supported usage scenario and language", async () => {
+  const { plan, oracles } = await checkedInputs();
+  for (const fixture of plan.fixtures) {
+    assert.ok(SCENARIO_CLASSES.includes(fixture.scenario_class));
+    assert.equal(typeof fixture.language, "string");
+  }
+
+  const missing = copy(plan);
+  delete missing.fixtures[0].scenario_class;
+  assert.ok(validateVerificationBenchmark(missing, oracles).some(({ path: field }) => field.endsWith("scenario_class")));
+
+  const invented = copy(plan);
+  invented.fixtures[0].scenario_class = "data_science";
+  assert.ok(validateVerificationBenchmark(invented, oracles).some(({ path: field }) => field.endsWith("scenario_class")));
+
+  const unsupportedLanguage = copy(plan);
+  unsupportedLanguage.fixtures[0].language = "cobol";
+  assert.ok(validateVerificationBenchmark(unsupportedLanguage, oracles).some(({ path: field }) => field.endsWith("language")));
+});
+
+test("single-scenario pilots are reported as not generalized", async () => {
+  const { plan, oracles } = await checkedInputs();
+  const report = auditVerificationBenchmarkDesign(plan, oracles);
+  assert.deepEqual(report.counts.scenario_classes, { cli_tool: 6 });
+  assert.deepEqual(report.counts.languages, ["javascript"]);
+  assert.equal(report.scenario_coverage.generalized, false);
+  assert.deepEqual(report.scenario_coverage.covered, ["cli_tool"]);
+  assert.deepEqual(report.scenario_coverage.missing, ["web_frontend", "service_library", "research_script"]);
+  assert.ok(report.conclusion.blockers.includes("scenario_classes_not_generalized"));
+
+  const generalized = copy(plan);
+  generalized.fixtures.push({
+    ...copy(plan.fixtures[0]),
+    fixture_id: "observatory-web",
+    scenario_class: "web_frontend",
+    language: "typescript",
+  });
+  generalized.tasks[0].fixture_id = "observatory-web";
+  const widened = auditVerificationBenchmarkDesign(generalized, oracles);
+  assert.equal(widened.scenario_coverage.covered.length, MINIMUM_GENERALIZED_SCENARIO_CLASSES);
+  assert.equal(widened.scenario_coverage.generalized, true);
+  assert.equal(widened.conclusion.blockers.includes("scenario_classes_not_generalized"), false);
 });
 
 test("CLI writes a deterministic design audit", async (t) => {
