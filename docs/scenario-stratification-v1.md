@@ -41,9 +41,26 @@
 因此 `scenario_definition_sha256` 不变，2026-08-20 已采集的 trace 与 oracle 仍然可比。
 这是刻意选择：场景维度描述环境，任务定义描述题目，两者不应耦合。
 
+## 外部 fixture 资格（2026-08-22）
+
+第 1 轮所需的两类场景已经有通过实跑验证的外部仓库，证据在
+[`external-fixture-qualification-2026-08-22`](../fixtures/benchmark/external-fixture-qualification-2026-08-22/qualification-report.json)。
+
+| fixture | 仓库 | `scenario_class` | 语言 | 观测结果 |
+| :-- | :-- | :-- | :-- | :-- |
+| `external-pino` | `pinojs/pino` | `service_library` | javascript | install / lint / transpile / 545 tests 全部 exit 0 |
+| `external-zustand` | `pmndrs/zustand` | `web_frontend` | typescript | install / `tsc --noEmit` / 224 vitest tests 全部 exit 0 |
+
+资格判定全部走 `src/benchmark-preflight-cli.mjs`，它记录真实退出码，不接受声明状态。两个仓库都是 clean clone + 固定 revision，install 后工作区仍然干净。
+
+被拒的候选也记录在同一份报告里：`preactjs/preact`（Playwright Chromium 装不上）、`expressjs/express`（上游 1 题失败）、`solidjs/solid`、`honojs/hono`、`preactjs/signals`（lockfile overrides 不匹配）。上游测试失败不放宽，也不跳过命令来凑 eligible。
+
+`pmndrs/zustand` 必须用 `pnpm install --frozen-lockfile`：该 revision 的 `package-lock.json` 与 `package.json` 不同步，`npm ci` 直接拒绝。探针也要用 `pnpm --ignore-workspace --version`，否则 pnpm 会因为仓库的 workspace 文件报错。
+
 ## 现状
 
-- 覆盖：`cli_tool` 6 题 / JavaScript。
-- 缺失：`web_frontend`、`service_library`、`research_script`。
-- `generalized`：false。
-- 证据：`fixtures/benchmark/verification-policy-pilot-report.json`。
+- 已授权题目覆盖：`cli_tool` 6 题 / JavaScript。
+- 已具备环境资格但尚未出题：`service_library`（pino）、`web_frontend`（zustand）。
+- 缺失：`research_script`（仍需 snapshot oracle）。
+- `generalized`：false。场景覆盖按**题目**统计，不按 fixture 统计，因此在这两个仓库上出题之前仍然是 false。这是有意的：只有 fixture 能跑通不等于已经观测到该场景下的验证行为。
+- 证据：`fixtures/benchmark/verification-policy-pilot-report.json`、`fixtures/benchmark/external-fixture-qualification-2026-08-22/qualification-report.json`。

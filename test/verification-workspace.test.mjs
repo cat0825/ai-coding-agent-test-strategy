@@ -291,3 +291,38 @@ test("re-collected test_decision pair records the agent test write on both sides
   assert.equal(report.conclusion.quality_claim_eligible, false);
   assert.ok(report.conclusion.reason_codes.includes("minimum_quality_claim_comparisons_not_met"));
 });
+
+test("external fixture qualification stays bound to executed preflight reports", async () => {
+  const root = path.resolve("fixtures/benchmark/external-fixture-qualification-2026-08-22");
+  const report = JSON.parse(await readFile(path.join(root, "qualification-report.json"), "utf8"));
+  assert.equal(report.fixtures.length, report.conclusion.qualified_fixtures);
+
+  const scenarioClasses = new Set();
+  for (const fixture of report.fixtures) {
+    const [specContents, preflightContents] = await Promise.all([
+      readFile(path.join(root, fixture.preflight_spec.path)),
+      readFile(path.join(root, fixture.preflight_report.path)),
+    ]);
+    assert.equal(createHash("sha256").update(specContents).digest("hex"), fixture.preflight_spec.sha256);
+    assert.equal(createHash("sha256").update(preflightContents).digest("hex"), fixture.preflight_report.sha256);
+
+    const spec = JSON.parse(specContents);
+    const preflight = JSON.parse(preflightContents);
+    assert.equal(spec.repository.identity, fixture.repository.identity);
+    assert.equal(spec.repository.expected_revision, fixture.repository.revision);
+    assert.equal(spec.repository.require_clean, true);
+    assert.equal(preflight.conclusion.status, "eligible");
+    assert.deepEqual(preflight.conclusion.reasons, []);
+    assert.equal(preflight.install.exit_code, 0);
+    assert.ok(preflight.commands.length > 0);
+    for (const command of preflight.commands) {
+      assert.equal(command.status, "passed");
+      assert.equal(command.exit_code, 0);
+    }
+    scenarioClasses.add(fixture.scenario_class);
+  }
+
+  assert.deepEqual([...scenarioClasses].sort(), report.conclusion.newly_covered_scenario_classes);
+  assert.equal(report.conclusion.quality_claim_eligible, false);
+  assert.ok(report.conclusion.reason_codes.includes("no_tasks_authored_on_these_fixtures_yet"));
+});
