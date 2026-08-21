@@ -266,13 +266,24 @@ def lifecycle_fields(event: dict[str, Any], workspace_root: Path) -> tuple[str, 
     return event_type, {}
 
 
+def execution_workspace_root(arguments: list[str]) -> Path:
+    root = Path.cwd()
+    for index, argument in enumerate(arguments):
+        if argument in {"-C", "--cd"} and index + 1 < len(arguments):
+            candidate = Path(arguments[index + 1])
+            root = candidate if candidate.is_absolute() else root / candidate
+            break
+    return root.resolve(strict=False)
+
+
 def run() -> int:
     config = load_config()
-    command = [config["real_codex"], *sys.argv[1:]]
-    if not sys.argv[1:] or sys.argv[1] != "exec":
+    arguments = sys.argv[1:]
+    command = [config["real_codex"], *arguments]
+    if not arguments or arguments[0] != "exec":
         return subprocess.run(command, check=False).returncode
 
-    workspace_root = Path.cwd()
+    workspace_root = execution_workspace_root(arguments)
     writer = LifecycleWriter(
         Path(config["lifecycle_dir"]),
         config["collector_sha256"],

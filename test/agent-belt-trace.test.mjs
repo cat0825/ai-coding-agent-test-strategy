@@ -445,6 +445,44 @@ printf '%s\\n' '{"type":"turn.completed","usage":{}}'
   assert.doesNotMatch(sidecar, /secret|test contents|aggregated_output|real-codex/);
 });
 
+test("Codex wrapper snapshots the explicit -C workspace", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-explicit-workspace-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const workspace = path.join(directory, "workspace");
+  const wrapper = path.join(directory, "codex");
+  const realCodex = path.join(directory, "real-codex");
+  const lifecycleDir = path.join(directory, "lifecycle");
+  await mkdir(path.join(workspace, "test"), { recursive: true });
+  await mkdir(lifecycleDir);
+  await copyFile(path.resolve("scripts/codex-lifecycle-wrapper.py"), wrapper);
+  await chmod(wrapper, 0o700);
+  await writeFile(realCodex, `#!/bin/sh
+printf '%s\\n' '{"type":"thread.started","thread_id":"thread-explicit-workspace"}'
+printf '%s\\n' '{"type":"turn.started"}'
+printf '%s\\n' '{"type":"item.started","item":{"id":"shell-c","type":"command_execution","command":"printf secret > test/new.test.mjs"}}'
+mkdir -p "${workspace}/test"
+printf 'secret test contents\\n' > "${workspace}/test/new.test.mjs"
+printf '%s\\n' '{"type":"item.completed","item":{"id":"shell-c","type":"command_execution","command":"printf secret > test/new.test.mjs","exit_code":0,"status":"completed"}}'
+printf '%s\\n' '{"type":"turn.completed"}'
+`, { mode: 0o700 });
+  await chmod(realCodex, 0o700);
+  await writeFile(path.join(directory, "codex-lifecycle-config.json"), `${JSON.stringify({
+    schema_version: 1,
+    real_codex: realCodex,
+    lifecycle_dir: lifecycleDir,
+    collector_sha256: digest,
+  })}\n`);
+
+  execFileSync(wrapper, ["exec", "-C", workspace, "--json"], { cwd: directory, encoding: "utf8" });
+  const files = await readdir(lifecycleDir);
+  const records = parseNdjson(await readFile(path.join(lifecycleDir, files[0]), "utf8")).map(({ record }) => record);
+  const shellChange = records.find((record) => record.event === "shell_file_change.completed");
+
+  assert.deepEqual(shellChange.changes, [{ path: "test/new.test.mjs", kind: "add" }]);
+  assert.equal(shellChange.complete, true);
+  assert.match(records[0].cwd_sha256, /^[a-f0-9]{64}$/);
+});
+
 test("batch CLI maps lifecycle evidence to a scenario by thread id", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "agent-belt-trace-cli-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
