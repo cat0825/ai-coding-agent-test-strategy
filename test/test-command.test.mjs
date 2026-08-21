@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { analyzeTestRunnerCommand } from "../src/test-command.mjs";
+import { analyzeTestRunnerCommand, decomposeShellCommand } from "../src/test-command.mjs";
 
 const cwdSha256 = "c".repeat(64);
 
@@ -51,6 +51,39 @@ test("quoted npm test commands count as verification commands", () => {
 
   assert.deepEqual(analysis.command, ["npm", "test"]);
   assert.equal(analysis.semantics.complete, true);
+});
+
+test("compound commands decompose without splitting quoted separators", () => {
+  const segments = decomposeShellCommand('echo "a && b" && cd . && npm test\n');
+
+  assert.deepEqual(segments, [
+    { tokens: ["echo", "a && b"], nested: false },
+    { tokens: ["cd", "."], nested: false },
+    { tokens: ["npm", "test"], nested: false },
+  ]);
+});
+
+test("grouped test commands remain analyzable and cd dot is identity-neutral", () => {
+  const grouped = analyzeTestRunnerCommand("(cd . && npm test)", { cwdSha256 });
+  const plain = analyzeTestRunnerCommand("npm test", { cwdSha256 });
+
+  assert.equal(grouped.semantics.complete, true);
+  assert.equal(grouped.canonicalId, plain.canonicalId);
+});
+
+test("a test runner inside command substitution fails closed", () => {
+  const analysis = analyzeTestRunnerCommand("echo $(npm test)", { cwdSha256 });
+
+  assert.equal(analysis.semantics.complete, false);
+  assert.equal(analysis.semantics.reason, "nested_runner_structure_unrecognized");
+  assert.doesNotMatch(JSON.stringify(analysis), /npm test|echo \$\(/);
+});
+
+test("multiple test runners in a compound command fail closed", () => {
+  const analysis = analyzeTestRunnerCommand("npm test && node --test", { cwdSha256 });
+
+  assert.equal(analysis.semantics.complete, false);
+  assert.equal(analysis.semantics.reason, "multiple_runner_commands");
 });
 
 test("missing cwd and ambiguous command chains fail closed", () => {
