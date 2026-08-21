@@ -249,3 +249,45 @@ test("checked-in paired dry run stays bound to traces and independent oracles", 
   assert.equal(evaluation.conclusion.status, "evidence_insufficient");
   assert.equal(evaluation.conclusion.efficiency_claim, "not_supported");
 });
+
+test("re-collected test_decision pair records the agent test write on both sides", async () => {
+  const root = path.resolve("fixtures/benchmark/verification-policy-run-2026-08-22");
+  const report = JSON.parse(await readFile(path.join(root, "run-report.json"), "utf8"));
+  assert.equal(report.tasks.length, 1);
+  const [task] = report.tasks;
+  assert.equal(task.task_id, "vp_public_behavior_test_required");
+  for (const role of ["baseline", "candidate"]) {
+    const evidence = task[role];
+    const [traceContents, oracleContents] = await Promise.all([
+      readFile(path.join(root, evidence.trace.path)),
+      readFile(path.join(root, evidence.oracle.path)),
+    ]);
+    assert.equal(createHash("sha256").update(traceContents).digest("hex"), evidence.trace.sha256);
+    assert.equal(createHash("sha256").update(oracleContents).digest("hex"), evidence.oracle.sha256);
+    const trace = JSON.parse(traceContents);
+    const oracle = JSON.parse(oracleContents);
+    assert.equal(trace.task_id, task.task_id);
+    assert.equal(trace.mode, report.treatment[role].mode);
+    assert.deepEqual(trace.policy, report.treatment[role].policy);
+    assert.equal(trace.model, report.model);
+    assert.equal(trace.harness, report.harness);
+    assert.equal(trace.completeness, "complete");
+    assert.deepEqual(trace.warnings, []);
+    assert.equal(trace.source.state_evidence_complete, true);
+    assert.equal(oracle.result.status, "passed");
+    assert.equal(oracle.workspace.edit_policy_satisfied, true);
+    assert.deepEqual(oracle.workspace.production_edits, []);
+    assert.deepEqual(oracle.workspace.test_edits, ["test/benchmark-preflight.test.mjs"]);
+    assert.deepEqual(oracle.workspace.agent_changed_files, ["test/benchmark-preflight.test.mjs"]);
+    assert.equal(trace.source.oracle_definition_sha256, oracle.oracle.definition_sha256);
+    assert.equal(trace.source.post_run_workspace_sha256, oracle.workspace.post_run_workspace_state_sha256);
+    assert.equal(trace.source.post_run_workspace_sha256, evidence.post_run_workspace_state_sha256);
+  }
+  const candidate = JSON.parse(await readFile(path.join(root, task.candidate.trace.path), "utf8"));
+  const decisions = candidate.events.filter((event) => event.event_type === "policy_decision");
+  assert.equal(decisions.length, report.policy_decisions.ledger_events);
+  assert.equal(decisions.filter((event) => event.data.decision === "deny").length, report.policy_decisions.deny_events);
+  assert.equal(report.policy_decisions.deny_events, 0);
+  assert.equal(report.conclusion.quality_claim_eligible, false);
+  assert.ok(report.conclusion.reason_codes.includes("minimum_quality_claim_comparisons_not_met"));
+});

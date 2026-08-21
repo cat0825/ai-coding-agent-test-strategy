@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "evidence_class": "paired_verification_policy_run",
+  "benchmark_id": "observatory-verification-policy-pilot-v0.1",
+  "run_date": "2026-08-22",
+  "harness": "codex-cli@0.147.0",
+  "model": "claude-opus-5",
+  "model_reasoning_effort": "high",
+  "provider_note": "Both sides used the cc-switch current Codex provider (sotamodel, wire_api=responses). The candidate ran in an isolated CODEX_HOME whose only hooks entry was the generated verification policy hook.",
+  "scope_note": "This run only re-collects vp_public_behavior_test_required, the test_decision task whose traces were partial in fixtures/benchmark/verification-policy-run-2026-08-20. It does not supersede the other four pairs from that run.",
+  "treatment": {
+    "baseline": {
+      "mode": "baseline",
+      "policy": {
+        "name": "unmanaged-coding-agent-baseline",
+        "version": "1"
+      }
+    },
+    "candidate": {
+      "mode": "shadow",
+      "policy": {
+        "name": "observatory-verification-policy",
+        "version": "0.2-enforced"
+      },
+      "enforcement": "Codex PreToolUse/PostToolUse hook, deny is executed by the harness rather than requested in the prompt"
+    }
+  },
+  "policy_decisions": {
+    "ledger_events": 22,
+    "by_decision": {
+      "allow:non_test_command": 10,
+      "allow:within_budget": 1,
+      "observe:non_test_tool_observed": 10,
+      "observe:test_execution_observed": 1
+    },
+    "deny_events": 0
+  },
+  "counts": {
+    "declared_pilot_tasks": 6,
+    "paired_tasks_this_run": 1,
+    "complete_traces": 2,
+    "partial_traces": 0,
+    "independent_oracles_evaluated": 2,
+    "workspace_digest_matches": 2,
+    "pairs_with_both_traces_complete": 1,
+    "quality_claim_eligible_comparisons": 1,
+    "required_quality_claim_comparisons": 30,
+    "independent_oracle_failure_signatures": 0
+  },
+  "tasks": [
+    {
+      "task_id": "vp_public_behavior_test_required",
+      "pairing_integrity": true,
+      "baseline": {
+        "trace": {
+          "path": "traces/vp_public_behavior_test_required-baseline.json",
+          "sha256": "efe22cbce1df8933ab29d12f5fd6c6b6e2b4d5bb569057db8d75d98e9f88a7de"
+        },
+        "oracle": {
+          "path": "oracles/vp_public_behavior_test_required-baseline.json",
+          "sha256": "c20ac718e499d70426039cac14831b3c56233ebd2d51c629c82c6af332499720",
+          "status": "passed",
+          "failure_signatures": []
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "verification_commands": 1,
+        "verification_duration_ms": 4505.794,
+        "trace_span_ms": 77368.0,
+        "observed_failure_signatures": [],
+        "post_run_workspace_state_sha256": "22aa44693e361b0cf42225f97ece65710268d33df0952ce889c9c5417220f626",
+        "workspace_state_changed": true,
+        "agent_changed_files": [
+          "test/benchmark-preflight.test.mjs"
+        ],
+        "production_edits": [],
+        "test_edits": [
+          "test/benchmark-preflight.test.mjs"
+        ]
+      },
+      "candidate": {
+        "trace": {
+          "path": "traces/vp_public_behavior_test_required-candidate.json",
+          "sha256": "b4102d77a75c6ce87610f78c93eb223dbd28d13493a48773df727b0038e9ddb3"
+        },
+        "oracle": {
+          "path": "oracles/vp_public_behavior_test_required-candidate.json",
+          "sha256": "698c70dceb619c62774d11ed25219044da5a9531e31d5c615b23d3a06496cb12",
+          "status": "passed",
+          "failure_signatures": []
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "verification_commands": 1,
+        "verification_duration_ms": 4335.224,
+        "trace_span_ms": 77297.0,
+        "observed_failure_signatures": [],
+        "post_run_workspace_state_sha256": "83c5fb82b25417a4ae060d7b741f9a5d1ce226201de000b0ad993a1c605f7743",
+        "workspace_state_changed": true,
+        "agent_changed_files": [
+          "test/benchmark-preflight.test.mjs"
+        ],
+        "production_edits": [],
+        "test_edits": [
+          "test/benchmark-preflight.test.mjs"
+        ]
+      },
+      "quality_claim_eligible": true,
+      "observed_reduction": {
+        "verification_commands": 0.0,
+        "verification_duration": 0.037856
+      }
+    }
+  ],
+  "conclusion": {
+    "status": "test_decision_pair_recollected",
+    "quality_claim_eligible": false,
+    "reason_codes": [
+      "single_task_run",
+      "minimum_quality_claim_comparisons_not_met",
+      "no_denied_command_observed_in_this_run"
+    ],
+    "notes": [
+      "The collector now observes the agent test-file write on both sides, so the test_decision pair reaches complete instead of failing closed as partial. This closes the collection gap tracked in issue #45.",
+      "The candidate policy hook recorded every shell tool call in its ledger and the trace carries 22 policy_decision events, but the strict prompt kept the agent inside budget, so no deny was exercised. Issue #43 still needs a real deny observation.",
+      "Duration deltas here are single-sample and must not be read as an efficiency result."
+    ]
+  }
+}

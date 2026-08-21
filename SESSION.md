@@ -1,3 +1,35 @@
+# Handoff 2026-08-22 检查点（#45 test_decision 采集闭环）
+
+## 当前进度
+
+- 进度：约 90%。
+- 当前分支：`codex/publish-research`（远程默认分支），最新提交 `42cb4da fix: bind Codex lifecycle snapshots to -C workspace`。
+- 无 open PR。open issue：#45、#43、#39、#36、#17、#16、#1。
+
+## 本轮已完成
+
+- 用 cc-switch 当前 Codex provider（`sotamodel`，`wire_api = "responses"`，`claude-opus-5`）在隔离 `CODEX_HOME` 中完成 `vp_public_behavior_test_required` 的 candidate 采集，hooks 为本轮生成的 verification policy hook。
+- 隔离 home 只保留 provider、model catalog、`features.hooks = true` 和本次 workspace trust；剔除了主 home 的 MCP server、plugin 和历史 trust 条目。
+- candidate trace `complete`、`warnings: []`、11 个 shell 命令、1 个 test result、22 个 `policy_decision` 事件。
+- candidate oracle `passed`，`production_edits` 为空，`test_edits` 只有 `test/benchmark-preflight.test.mjs`，post-run digest 与 trace 一致。
+- 新增配对证据 `fixtures/benchmark/verification-policy-run-2026-08-22/`（baseline 复用 2026-08-21 严格 baseline），并加回归测试 `re-collected test_decision pair records the agent test write on both sides`。
+- `docs/verification-policy-benchmark-v0.1.md` 增补该次重采集小节，明确仍是 1/30 质量样本、不作效率结论。
+
+## 未完成
+
+- #43：hook 真正执行且 ledger 完整，但严格提示让 Agent 始终在预算内，`deny_events` 为 0，仍缺真实 deny 观测。
+- #36：本轮只重采 1 题，其余 4 题仍是 2026-08-20 的旧配对，第 6 题仍未配对。
+- #39：正式题目仍全部来自本仓库历史；Preact/Express/Solid/Hono 的 preflight 均未通过。
+- 质量声明门槛未达成：`quality_claim_eligible_comparisons` = 1/30。
+
+## 下一步
+
+1. 用一个会撞预算的宽松提示重跑 candidate，取得真实 deny ledger，再更新 #43。
+2. 补齐剩余 pilot 配对，更新 #36。
+3. 推进 #39：为 `web_frontend` / `service_library` / `research_script` 找到 clean clone + 固定 revision + install/build/test 全绿的外部 fixture。
+
+---
+
 # Handoff 2026-08-21 续跑检查点（#43 Verification Policy enforcement）
 
 ## 当前进度

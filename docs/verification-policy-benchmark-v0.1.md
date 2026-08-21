@@ -124,6 +124,18 @@ oracle 在执行独立测试前计算 `workspace.post_run_workspace_state_sha256
 
 因此报告结论严格保持 `evidence_insufficient / not_supported`；这些数值只用于校准采集链和题目，不是效率或安全声明。
 
+## test_decision 题的重采集（2026-08-22）
+
+`vp_public_behavior_test_required` 是唯一的 test_decision 题：Agent 必须新增测试文件而不改生产代码。此前 collector 看不到 Agent 的测试文件写入，两侧 trace 都 fail-closed 成 `partial`。修复 collector 的 workspace 归因后重采集，证据在 [`verification-policy-run-2026-08-22`](../fixtures/benchmark/verification-policy-run-2026-08-22/run-report.json)：
+
+- baseline 与 candidate 均为 `complete`、`warnings: []`、`state_evidence_complete: true`；
+- 两侧独立 oracle 均 `passed`，`production_edits` 为空，`test_edits` 只有 `test/benchmark-preflight.test.mjs`；
+- trace 与 oracle 的 post-run workspace digest 两侧一致；
+- candidate 侧 policy hook 真正执行，ledger 22 条决策进入 trace 的 `policy_decision` 事件，但严格提示让 Agent 始终处在预算内，`deny_events` 为 0；
+- 两侧都用 cc-switch 当前 Codex provider（`sotamodel`，`wire_api = "responses"`）与 `claude-opus-5`。
+
+因此这题的采集缺口已经关闭，但只有 1 个配对样本，`quality_claim_eligible_comparisons` 仍是 1/30，也仍然缺少真实 deny 观测。耗时差为单样本，不作效率结论。
+
 ## 不能声称什么
 
 `fixture_ready`、单题 smoke 和两题配对 dry run 只证明题目现场、隐藏判分及采集链可复现。当前只有 2/6 pilot 题完成同一 Agent/模型配对，且没有达到 30 个质量样本门槛，因此：
