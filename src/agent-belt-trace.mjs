@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { assertValidTrace, TRACE_SCHEMA_VERSION } from "./trace.mjs";
-import { analyzeTestRunnerCommand } from "./test-command.mjs";
+import { analyzeTestRunnerCommand, decomposeShellCommand } from "./test-command.mjs";
 
 const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const TERMINAL_EVENTS = new Set(["turn.completed", "turn.failed"]);
@@ -171,6 +171,15 @@ function isGeneratedRuntimeArtifact(file) {
 
 function validObservedAt(value) {
   return ISO_UTC.test(value ?? "") && !Number.isNaN(Date.parse(value));
+}
+
+function observedWaitSubject(command) {
+  const segments = decomposeShellCommand(command);
+  if (!segments || segments.length !== 1 || segments[0].nested) return null;
+  const [program, subcommand] = segments[0].tokens.map((token) => token.toLowerCase());
+  if (program === "sleep" && segments[0].tokens.length === 2 && /^\d+(?:\.\d+)?$/.test(subcommand)) return "local_process";
+  if (program === "gh" && subcommand === "run" && segments[0].tokens[2]?.toLowerCase() === "watch") return "remote_ci";
+  return null;
 }
 
 function commandList(results) {
@@ -561,6 +570,11 @@ export function convertAgentBeltLifecycleToTrace({
     },
   ];
 
+  const observedWaits = usableCommands
+    .map((command) => ({ ...command, subject: observedWaitSubject(command.rawStart.record.item.command) }))
+    .filter((command) => command.subject !== null && command.durationMs > 0);
+  const observedWaitCallIds = new Set(observedWaits.map(({ callId }) => callId));
+
   const firstResultMonotonic = usableResults[0]?.completion.record.monotonic_ns ?? null;
   const lastResultMonotonic = usableResults.at(-1)?.completion.record.monotonic_ns ?? null;
   const bootstrapObservedMs = Date.parse(bootstrap.record.observed_at);
@@ -571,6 +585,7 @@ export function convertAgentBeltLifecycleToTrace({
   const snapshotObservedCallIds = new Set(usableShellFileChanges.map(({ callId }) => callId));
   const unknownStateCommands = usableCommands.filter((command) => command.analysis === null
     && !snapshotObservedCallIds.has(command.callId)
+    && !observedWaitCallIds.has(command.callId)
     && firstResultMonotonic !== null
     && command.completion.record.monotonic_ns > firstResultMonotonic
     && command.completion.record.monotonic_ns < lastResultMonotonic);
@@ -594,6 +609,11 @@ export function convertAgentBeltLifecycleToTrace({
         monotonicNs: change.entry.record.monotonic_ns,
         value: change,
       })),
+    ...observedWaits.map((wait) => ({
+      kind: "wait",
+      monotonicNs: wait.completion.record.monotonic_ns,
+      value: wait,
+    })),
     ...unknownStateCommands.map((command) => ({
       kind: "unknown_state",
       monotonicNs: command.completion.record.monotonic_ns,
@@ -633,6 +653,28 @@ export function convertAgentBeltLifecycleToTrace({
           line: Number.isInteger(decision.source_line) ? decision.source_line : 1,
           event: decision.event ?? "policy.decision",
           source_ref: decision.source_ref,
+        },
+      });
+      continue;
+    }
+    if (activity.kind === "wait") {
+      const wait = activity.value;
+      events.push({
+        event_index: events.length,
+        event_type: "wait",
+        timestamp: wait.completion.record.observed_at,
+        data: {
+          subject: wait.subject,
+          duration_ms: wait.durationMs,
+          observed: true,
+          subject_ref_sha256: null,
+        },
+        raw_event_ref: {
+          ...rawReference(wait.completion, lifecycleSourceRef, wait.completion.record.event, rawEventKind),
+          call_id: wait.callId,
+          stream_source_ref: streamSourceRef,
+          stream_start_line: wait.rawStart.line,
+          stream_completion_line: wait.rawCompletion.line,
         },
       });
       continue;

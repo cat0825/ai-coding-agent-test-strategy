@@ -6,6 +6,7 @@ export const TRACE_EVENT_TYPES = Object.freeze([
   "risk",
   "test_selection",
   "test_result",
+  "wait",
   "retry",
   "expand",
   "policy_decision",
@@ -28,7 +29,8 @@ const NEXT_EVENT_TYPES = Object.freeze({
   diff: new Set(["diff", "risk", "policy_decision", "test_result", "stop"]),
   risk: new Set(["test_selection"]),
   test_selection: new Set(["diff", "policy_decision", "test_result", "stop"]),
-  test_result: new Set(["diff", "test_result", "policy_decision", "retry", "expand", "recommendation", "stop"]),
+  test_result: new Set(["diff", "wait", "test_result", "policy_decision", "retry", "expand", "recommendation", "stop"]),
+  wait: new Set(["wait", "test_result", "diff", "policy_decision", "retry", "expand", "recommendation", "stop"]),
   policy_decision: new Set(["policy_decision", "test_result", "diff", "recommendation", "stop"]),
   retry: new Set(["diff", "test_selection"]),
   expand: new Set(["test_selection"]),
@@ -154,6 +156,17 @@ function validateEventData(errors, event) {
     }
     if (event.data.failure_class !== null && !nonEmptyString(event.data.failure_class)) {
       addError(errors, `${path}.failure_class`, "must be null or a non-empty string");
+    }
+  } else if (event.event_type === "wait") {
+    if (!new Set(["local_process", "remote_ci", "network_resource"]).has(event.data.subject)) {
+      addError(errors, `${path}.subject`, "must be local_process, remote_ci, or network_resource");
+    }
+    if (!Number.isFinite(event.data.duration_ms) || event.data.duration_ms <= 0) {
+      addError(errors, `${path}.duration_ms`, "must be a positive number");
+    }
+    if (event.data.observed !== true) addError(errors, `${path}.observed`, "must be true");
+    if (event.data.subject_ref_sha256 !== null && !/^[a-f0-9]{64}$/i.test(event.data.subject_ref_sha256)) {
+      addError(errors, `${path}.subject_ref_sha256`, "must be null or a SHA-256 digest");
     }
   } else if (event.event_type === "retry" || event.event_type === "expand") {
     addRequiredString(errors, event.data.reason, `${path}.reason`);
