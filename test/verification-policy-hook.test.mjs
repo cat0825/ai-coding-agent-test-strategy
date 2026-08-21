@@ -257,6 +257,29 @@ test("full-suite calls are denied when an affected command is available", async 
   assert.doesNotMatch(ledger, /node|test\/feature|npm test/);
 });
 
+test("full-suite calls stay denied when wrapped in cd and pipelines", async (t) => {
+  const paths = await harness(t);
+  const wrapped = await evaluateVerificationPolicyHook({
+    payload: payload("cd /private/workspace/repo && npm test 2>&1 | tail -60"),
+    config,
+    ...paths,
+  });
+
+  assert.equal(wrapped.decision, "deny");
+  assert.equal(wrapped.reason, "untargeted_full_suite_denied");
+  assert.equal(wrapped.record.tier, "full");
+  assert.deepEqual(wrapped.suggestion, config.commands.affected);
+
+  const targeted = await evaluateVerificationPolicyHook({
+    payload: payload("cd /private/workspace/repo && node --test test/feature.test.mjs", { tool_use_id: "tool-targeted" }),
+    config,
+    ...paths,
+  });
+
+  assert.equal(targeted.decision, "allow");
+  assert.equal(targeted.record.tier, "fast");
+});
+
 test("full-suite fallback is allowed only when the task policy grants the exception", async (t) => {
   const paths = await harness(t);
   const fallbackConfig = { ...config, allow_full_suite: true };

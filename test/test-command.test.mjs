@@ -95,3 +95,19 @@ test("missing cwd and ambiguous command chains fail closed", () => {
   assert.equal(ambiguous.semantics.complete, false);
   assert.equal(ambiguous.semantics.reason, "multiple_runner_commands");
 });
+
+test("output redirection does not change test selection identity", () => {
+  const plain = analyzeTestRunnerCommand("npm test", { cwdSha256 });
+  const piped = analyzeTestRunnerCommand("npm test 2>&1 | tail -60", { cwdSha256 });
+  const redirected = analyzeTestRunnerCommand("npm test > run.log 2>&1", { cwdSha256 });
+
+  assert.equal(piped.semantics.complete, true);
+  assert.equal(redirected.semantics.complete, true);
+  assert.equal(piped.semantics.arguments_sha256, plain.semantics.arguments_sha256);
+  assert.equal(redirected.semantics.arguments_sha256, plain.semantics.arguments_sha256);
+
+  const targeted = analyzeTestRunnerCommand("node --test test/a.test.mjs", { cwdSha256 });
+  const targetedPiped = analyzeTestRunnerCommand("node --test test/a.test.mjs 2>&1 | tail -5", { cwdSha256 });
+  assert.equal(targetedPiped.semantics.arguments_sha256, targeted.semantics.arguments_sha256);
+  assert.notEqual(targeted.semantics.arguments_sha256, plain.semantics.arguments_sha256);
+});

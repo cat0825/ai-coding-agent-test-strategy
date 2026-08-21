@@ -74,9 +74,16 @@ function configuredTiers(config, cwdSha256) {
   return result;
 }
 
+function tierIdentity(analysis) {
+  if (!analysis?.command || analysis.semantics?.arguments_sha256 == null) return null;
+  return JSON.stringify({ command: analysis.command, arguments_sha256: analysis.semantics.arguments_sha256 });
+}
+
 function tierForAnalysis(analysis, tiers) {
+  const identity = tierIdentity(analysis);
+  if (!identity) return "other";
   for (const tier of ["fast", "affected", "full"]) {
-    if (tiers[tier]?.canonicalId === analysis.canonicalId) return tier;
+    if (tierIdentity(tiers[tier]) === identity) return tier;
   }
   return "other";
 }
@@ -260,7 +267,7 @@ async function evaluateLocked({ payload, config, statePath, ledgerPath, nowMs = 
   if (analysis.semantics.complete !== true) {
     reasonCode = `command_semantics_incomplete:${analysis.semantics.reason}`;
   } else if (tier === "full" && config.allow_full_suite !== true
-    && tiers.affected && tiers.affected.canonicalId !== tiers.full?.canonicalId) {
+    && tiers.affected && tierIdentity(tiers.affected) !== tierIdentity(tiers.full)) {
     reasonCode = "untargeted_full_suite_denied";
     suggestion = publicSuggestion(config);
   } else if (session.failed_test_turns.length >= budget.max_failed_test_turns) {

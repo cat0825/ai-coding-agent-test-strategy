@@ -52,6 +52,7 @@ const TEST_RUNNER_RULES = Object.freeze([
 const SHELLS = new Set(["sh", "bash", "zsh", "dash", "ksh"]);
 const OPERATORS = new Set(["&&", "||", ";", "|", "(", ")", "$(", "\\n"]);
 const DIGEST = /^[a-f0-9]{64}$/i;
+const REDIRECTION = /^(?:\d*>>?|\d*<|&>>?)/;
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -152,6 +153,7 @@ function commandSegments(tokens) {
   let current = [];
   let groupingDepth = 0;
   let substitutionDepth = 0;
+  let skipNextToken = false;
   const flush = () => {
     if (current.length > 0) segments.push({ tokens: current, nested: substitutionDepth > 0 });
     current = [];
@@ -176,6 +178,17 @@ function commandSegments(tokens) {
     }
     if (OPERATORS.has(token)) {
       flush();
+      continue;
+    }
+    if (REDIRECTION.test(token)) {
+      // A redirection ends the argument list of the current command. Its target is
+      // never a test-selection argument, so it must not enter the semantic digest.
+      flush();
+      if (/^(?:\d*>>?|\d*<|&>>?)$/.test(token)) skipNextToken = true;
+      continue;
+    }
+    if (skipNextToken) {
+      skipNextToken = false;
       continue;
     }
     current.push(token);
