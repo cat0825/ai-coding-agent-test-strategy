@@ -1,4 +1,40 @@
-# Handoff 2026-08-19 15:28 CST（Verification Policy 配对 dry run 与信任边界加固检查点）
+# Handoff 2026-08-21 续跑检查点（#43 Verification Policy enforcement）
+
+## 当前进度
+
+- 进度：约 85%。
+- 当前分支：`codex/enforce-verification-policy`，基于 `origin/codex/publish-research@f7ad25b`。
+- PR #46（shell 文件写入观察）与 PR #47（复合命令分解）已合并；当前无 open PR。
+- 本分支实现了 Codex `PreToolUse` / `PostToolUse` enforcement hook、策略准备器和显式 `policy_decision` VerifyTrace 事件。
+
+## 本轮已完成
+
+- `src/verification-policy-hook.mjs`：按 `session_id` 隔离累计状态，执行次数、即时耗时、验证轮次和失败轮次超限时 deny；重复通过后再跑 deny；语义不完整 fail-closed。
+- `src/prepare-verification-policy-hook.mjs`：从公开 plan 与 task manifest 生成 `verification-policy.json`、`hooks.json`、state 和 ledger 路径。
+- `full_fallback` 修正：只有 `behavior_class=full_fallback` 且 `risk_class=high` 时允许 full suite，并获得 fast/affected/full 三步预算；普通题的无依据 full suite 仍 deny。
+- PostToolUse 缺少 `duration_ms` 时，用 Pre/Post 墙钟差累计；缺少 `tool_input` 时从 pending 状态恢复测试 identity。
+- 持久 ledger 不保存原始命令、cwd、凭据或建议 argv；candidate trace 可显式记录 allow/deny/observe，baseline 不提供 ledger，因此 enforcement 事件为 0。
+- 生成 hook CLI smoke 已通过：无依据 `npm test` 输出 Codex 兼容 deny JSON，进程退出码为 2。
+- 验证：`npm run check` 通过；最新相关测试 39/39 通过。全量测试在加入最后一条 PostToolUse identity 回归前为 128/128，通过后仍需提交前再跑一次全量。
+
+## 未完成
+
+- 新测试文件数、测试代码/生产代码比例预算尚不能在 hook 内可靠执行。现有 lifecycle wrapper 有工作区快照，但独立 hook 进程没有可消费的快照输入；不能凭命令字符串猜测。
+- 真实 Codex deny smoke 尚未成功复验：`claude-opus-5` provider 连续返回 high demand，模型未发起 Bash 调用，因此结果既不能证明成功也不能证明失败。
+- #43 不能关闭。L2 `updatedInput` 已实测不被 `codex-cli@0.147.0` 支持；当前可靠能力是 L3 deny。
+- #45 仍需在 #43 合入后重跑 `vp_public_behavior_test_required` baseline/candidate，确认双侧 trace complete。
+
+## 下一步
+
+1. 提交前运行最终 `npm run check`，提交并推送 `codex/enforce-verification-policy`，创建 PR 关联 #43。
+2. 在 #43 更新实现证据和剩余缺口，保持 issue open。
+3. provider 恢复后重试真实 Codex deny smoke。
+4. 设计 hook 与 lifecycle snapshot 的最小结构化接口，再实现新测试文件预算；测试代码比例继续作为校准信号，不在缺少仓库数据时硬门禁。
+5. #43 合入后重跑第 6 题，双侧 complete 后关闭 #45，并更新 #36。
+
+---
+
+# 历史检查点：2026-08-19 15:28 CST（Verification Policy 配对 dry run 与信任边界加固）
 
 ## 一、项目定位与核心目标
 

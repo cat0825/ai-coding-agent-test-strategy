@@ -158,6 +158,38 @@ test("direct Codex traces bind the materialized task state", () => {
   assert.equal(trace.completeness, "complete");
 });
 
+test("candidate traces include sanitized verification policy decisions", () => {
+  const trace = convert(lifecycleRecords(), streamRecords(), [], {
+    initialChangedFiles: ["src/trace.mjs"],
+    initialStateSha256: "d".repeat(64),
+    finalStateSha256: "d".repeat(64),
+    workspaceStateChanged: false,
+    sourceFormat: "codex-cli-lifecycle-v2",
+    policyLedgerSourceRef: "policy-decisions.ndjson",
+    policyLedgerSha256: "e".repeat(64),
+    policyDecisions: [{
+      observed_at: "2026-08-18T00:00:00.650Z",
+      event: "policy.pre_tool",
+      source_line: 1,
+      source_ref: "policy-decisions.ndjson",
+      decision: "deny",
+      reason_code: "repeat_after_pass_denied",
+      tier: "fast",
+      canonical_command_id: `baseline:pytest:semantic:${"f".repeat(64)}`,
+      command_semantic_sha256: "f".repeat(64),
+      budget: { test_executions: 1, immediate_duration_ms: 500, agent_turns: 1, failed_test_turns: 0 },
+    }],
+  });
+  const decision = trace.events.find(({ event_type }) => event_type === "policy_decision");
+
+  assert.equal(trace.completeness, "complete");
+  assert.equal(decision.data.decision, "deny");
+  assert.equal(decision.data.reason_code, "repeat_after_pass_denied");
+  assert.equal(trace.source.policy_ledger_sha256, "e".repeat(64));
+  assert.equal(validateTrace(trace).valid, true);
+  assert.doesNotMatch(JSON.stringify(trace), /session-secret|private\/workspace|raw_command/);
+});
+
 test("post-run oracle matching binds a semantic failure signature without raw output", () => {
   const lifecycle = lifecycleRecords().map((record) => record.event === "item.completed"
     ? { ...record, exit_code: 1 }
