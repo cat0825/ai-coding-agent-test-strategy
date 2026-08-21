@@ -136,6 +136,20 @@ oracle 在执行独立测试前计算 `workspace.post_run_workspace_state_sha256
 
 因此这题的采集缺口已经关闭，但只有 1 个配对样本，`quality_claim_eligible_comparisons` 仍是 1/30，也仍然缺少真实 deny 观测。耗时差为单样本，不作效率结论。
 
+## Enforcement smoke（2026-08-22）
+
+真实 provider-backed 运行第一次观测到 hook 真正拒绝命令，证据在 [`verification-policy-enforcement-smoke-2026-08-22`](../fixtures/benchmark/verification-policy-enforcement-smoke-2026-08-22/run-report.json)。这次跑用宽松提示明确要求 Agent 跑全量。
+
+采集过程暴露了三个真实缺陷，都已修复：
+
+1. **重定向进入参数摘要**。Agent 实际执行 `cd <workspace> && npm test 2>&1 | tail -60`。`2>&1` 被当成 runner 参数，`cd` 前缀又重新派生 cwd 摘要，命令因此没有匹配到配置的 `full` tier，被判成 `other` 并放行。现在重定向终止参数列表，tier 匹配改用 runner + `arguments_sha256`。
+2. **exit code 2 让 deny 失效**。`codex-cli@0.147.0` 把退出码 2 当作 stderr-reason 协议；我们退出 2 却把 JSON 写在 stdout，Codex 直接丢弃决策并照常执行。实测对比：退出 2 时 Agent 拿到了完整的 `npm test` 输出；退出 0 时 Agent 报告命令被 PreToolUse hook 拦截。现在 hook 一律退出 0，拒绝信息放在 `hookSpecificOutput`。
+3. **glob 绕过**。deny 生效后，Agent 立刻改用 `node --test test/*.test.mjs`。glob 展开成未知文件集合，无法证明比被拒的全量更窄。现在分析器标注 selection 是否有界，无界选择在没有 full-suite 例外时被拒。
+
+smoke run 的 trace `complete`、`warnings: []`，oracle `passed`，`production_edits` 为空，ledger 23 条决策中有 1 条 `deny / untargeted_full_suite_denied / tier=full`。
+
+第 3 条修复只有单元测试覆盖，尚无真实运行观测：确认运行开始后 provider 返回 403 额度不足（余额为负），该运行不计入证据。因此 #43 仍保持 open。
+
 ## 不能声称什么
 
 `fixture_ready`、单题 smoke 和两题配对 dry run 只证明题目现场、隐藏判分及采集链可复现。当前只有 2/6 pilot 题完成同一 Agent/模型配对，且没有达到 30 个质量样本门槛，因此：

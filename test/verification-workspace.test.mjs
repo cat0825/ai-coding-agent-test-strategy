@@ -291,3 +291,34 @@ test("re-collected test_decision pair records the agent test write on both sides
   assert.equal(report.conclusion.quality_claim_eligible, false);
   assert.ok(report.conclusion.reason_codes.includes("minimum_quality_claim_comparisons_not_met"));
 });
+
+test("enforcement smoke stays bound to its trace, oracle and deny ledger", async () => {
+  const root = path.resolve("fixtures/benchmark/verification-policy-enforcement-smoke-2026-08-22");
+  const report = JSON.parse(await readFile(path.join(root, "run-report.json"), "utf8"));
+  const [traceContents, oracleContents] = await Promise.all([
+    readFile(path.join(root, report.trace.path)),
+    readFile(path.join(root, report.oracle.path)),
+  ]);
+  assert.equal(createHash("sha256").update(traceContents).digest("hex"), report.trace.sha256);
+  assert.equal(createHash("sha256").update(oracleContents).digest("hex"), report.oracle.sha256);
+
+  const trace = JSON.parse(traceContents);
+  const oracle = JSON.parse(oracleContents);
+  assert.equal(trace.task_id, report.task_id);
+  assert.equal(trace.completeness, "complete");
+  assert.deepEqual(trace.warnings, []);
+  assert.deepEqual(trace.policy, report.treatment.policy);
+  assert.equal(oracle.result.status, "passed");
+  assert.deepEqual(oracle.workspace.production_edits, []);
+  assert.equal(trace.source.post_run_workspace_sha256, oracle.workspace.post_run_workspace_state_sha256);
+
+  const decisions = trace.events.filter((event) => event.event_type === "policy_decision");
+  assert.equal(decisions.length, report.policy_decisions.ledger_events);
+  const denials = decisions.filter((event) => event.data.decision === "deny");
+  assert.equal(denials.length, report.policy_decisions.deny_events);
+  assert.equal(denials.length, 1);
+  assert.equal(denials[0].data.reason_code, report.observed_enforcement.denied_reason_code);
+  assert.equal(denials[0].data.tier, report.observed_enforcement.denied_command_tier);
+  assert.equal(report.conclusion.quality_claim_eligible, false);
+  assert.ok(report.conclusion.reason_codes.includes("glob_deny_not_yet_observed_live"));
+});
