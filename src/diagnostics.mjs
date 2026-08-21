@@ -5,6 +5,7 @@ export const DIAGNOSTIC_LABELS = Object.freeze([
   "exact_repeat",
   "unattributed_retry",
   "necessary_revalidation",
+  "polling",
 ]);
 
 const REVALIDATION_CHANGE_KINDS = new Set(["code", "test", "fixture", "config", "environment"]);
@@ -62,7 +63,16 @@ export function diagnoseTrace(trace) {
     if (previous) {
       const between = trace.events.slice(previous.event_index + 1, event.event_index);
       const changes = diffEvidence(between);
-      if (changes.relevant.length > 0) {
+      const waits = between.filter((candidate) => candidate.event_type === "wait" && candidate.data.observed === true);
+      if (waits.length > 0 && changes.relevant.length === 0 && changes.unknown.length === 0) {
+        findings.push(finding(
+          "polling",
+          event,
+          previous,
+          between,
+          "same_command_after_observed_wait",
+        ));
+      } else if (changes.relevant.length > 0) {
         findings.push(finding(
           "necessary_revalidation",
           event,

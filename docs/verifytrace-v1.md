@@ -37,6 +37,7 @@ Each event has `event_index` starting at zero, a UTC `timestamp`, type-specific 
 | `risk` | `risk_level`, reasons, fallback flag |
 | `test_selection` | requested/selected phase, affected workspaces, canonical commands |
 | `test_result` | canonical command id, argv, duration, exit code, nullable failure signature/class |
+| `wait` | observed wait subject (`local_process`, `remote_ci`, or `network_resource`), positive duration, and evidence flag |
 | `retry` | reason, attribution flag, and earlier source event index |
 | `expand` | reason and earlier source event index |
 | `recommendation` | recommendation id, diagnostic labels/reason codes, candidate/action, mode, risk, confidence, diagnostic/recommendation rule versions, and evidence indexes |
@@ -48,6 +49,7 @@ The policy-led lifecycle is:
 ```text
 diff -> risk -> test_selection -> test_result
                                   -> test_result
+                                  -> wait -> test_result
                                   -> retry -> diff -> risk -> test_selection
                                            -> test_selection
                                   -> expand -> test_selection

@@ -499,3 +499,25 @@ test("checked-in timestamped traces validate as complete VerifyTrace v1", async 
   assert.equal(verificationSmoke.completeness, "complete");
   assert.equal(verificationSmoke.source.format, "codex-cli-lifecycle-v2");
 });
+
+test("observed sleep commands become wait events instead of unknown state", () => {
+  const lifecycle = lifecycleRecords();
+  lifecycle.splice(5, 0,
+    lifecycleRecord(5, "item.started", 610, { call_id: "wait_1", item_type: "command_execution" }),
+    lifecycleRecord(6, "item.completed", 710, { call_id: "wait_1", item_type: "command_execution", exit_code: 0, status: "completed" }),
+  );
+  lifecycle.find(({ event }) => event === "turn.completed").monotonic_ns = 800 * 1_000_000;
+  lifecycle.find(({ event }) => event === "process.exited").monotonic_ns = 810 * 1_000_000;
+  lifecycle.find(({ event }) => event === "turn.completed").observed_at = "2026-08-18T00:00:00.800Z";
+  lifecycle.find(({ event }) => event === "process.exited").observed_at = "2026-08-18T00:00:00.810Z";
+  const stream = streamRecords();
+  stream.splice(4, 0,
+    { type: "item.started", item: { id: "wait_1", type: "command_execution", command: "sleep 1", status: "in_progress" } },
+    { type: "item.completed", item: { id: "wait_1", type: "command_execution", command: "sleep 1", aggregated_output: "", exit_code: 0, status: "completed" } },
+  );
+  const trace = convert(resequence(lifecycle), stream);
+  const wait = trace.events.find(({ event_type: type }) => type === "wait");
+  assert.ok(wait, JSON.stringify({ warnings: trace.warnings, events: trace.events }));
+  assert.deepEqual(wait.data, { subject: "local_process", duration_ms: 100, observed: true, subject_ref_sha256: null });
+  assert.equal(trace.events.some((event) => event.event_type === "diff" && event.data.observation === "unknown_after_non_test_command"), false);
+});

@@ -25,7 +25,25 @@ test("exact repeats expose the first candidate waste point", async () => {
     exact_repeat: 1,
     unattributed_retry: 0,
     necessary_revalidation: 0,
+    polling: 0,
   });
+});
+
+test("observed waits classify repeated commands as polling, not waste", async () => {
+  const trace = await fixture("diagnostics", "exact-repeat.json");
+  trace.events.splice(4, 0, {
+    event_index: 4,
+    event_type: "wait",
+    timestamp: "2026-08-17T12:00:05.000Z",
+    data: { subject: "remote_ci", duration_ms: 15000, observed: true, subject_ref_sha256: "a".repeat(64) },
+    raw_event_ref: { kind: "fixture", line: 5, event: "wait" },
+  });
+  trace.events.forEach((event, index) => { event.event_index = index; });
+
+  const result = diagnoseTrace(trace);
+  assert.deepEqual(result.findings.map((finding) => finding.label), ["polling"]);
+  assert.equal(result.findings[0].reason_code, "same_command_after_observed_wait");
+  assert.equal(result.first_candidate_waste_event_index, null);
 });
 
 test("same failure without attribution is both a repeat and unattributed retry", async () => {

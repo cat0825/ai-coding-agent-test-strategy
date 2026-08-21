@@ -202,3 +202,20 @@ test("conversion requires an explicit task when a ledger contains multiple tasks
   assert.deepEqual(trace.events.map((event) => event.event_type), ["diff", "risk", "test_selection", "test_result"]);
   assert.deepEqual(trace.events.map((event) => event.raw_event_ref.line), [2, 2, 2, 3]);
 });
+
+
+test("wait events require observed subject and positive duration", async () => {
+  const trace = await readFixture("success.json");
+  const stop = trace.events.pop();
+  trace.events.push({
+    event_index: trace.events.length,
+    event_type: "wait",
+    timestamp: "2026-08-17T10:00:05.500Z",
+    data: { subject: "remote_ci", duration_ms: 1000, observed: true, subject_ref_sha256: null },
+    raw_event_ref: { kind: "fixture", line: 99, event: "wait" },
+  }, stop);
+  trace.events.forEach((event, index) => { event.event_index = index; });
+  assert.deepEqual(validateTrace(trace).errors, []);
+  trace.events.at(-2).data.observed = false;
+  assert.ok(validateTrace(trace).errors.some(({ path }) => path.endsWith(".observed")));
+});
