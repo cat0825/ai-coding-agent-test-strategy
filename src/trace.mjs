@@ -8,6 +8,7 @@ export const TRACE_EVENT_TYPES = Object.freeze([
   "test_result",
   "retry",
   "expand",
+  "policy_decision",
   "recommendation",
   "decision",
   "stop",
@@ -24,10 +25,11 @@ const DECISION_OUTCOMES = new Set(["applied", "accepted", "rejected", "deferred"
 const DECISION_ACTORS = new Set(["system", "user"]);
 
 const NEXT_EVENT_TYPES = Object.freeze({
-  diff: new Set(["diff", "risk", "test_result", "stop"]),
+  diff: new Set(["diff", "risk", "policy_decision", "test_result", "stop"]),
   risk: new Set(["test_selection"]),
-  test_selection: new Set(["diff", "test_result", "stop"]),
-  test_result: new Set(["diff", "test_result", "retry", "expand", "recommendation", "stop"]),
+  test_selection: new Set(["diff", "policy_decision", "test_result", "stop"]),
+  test_result: new Set(["diff", "test_result", "policy_decision", "retry", "expand", "recommendation", "stop"]),
+  policy_decision: new Set(["policy_decision", "test_result", "diff", "recommendation", "stop"]),
   retry: new Set(["diff", "test_selection"]),
   expand: new Set(["test_selection"]),
   recommendation: new Set(["recommendation", "decision", "stop"]),
@@ -162,6 +164,30 @@ function validateEventData(errors, event) {
     }
     if (event.event_type === "retry" && typeof event.data.attributed !== "boolean") {
       addError(errors, `${path}.attributed`, "must be a boolean");
+    }
+  } else if (event.event_type === "policy_decision") {
+    if (!["allow", "deny", "observe"].includes(event.data.decision)) {
+      addError(errors, `${path}.decision`, "must be allow, deny, or observe");
+    }
+    addRequiredString(errors, event.data.reason_code, `${path}.reason_code`);
+    if (event.data.tier !== null && !nonEmptyString(event.data.tier)) {
+      addError(errors, `${path}.tier`, "must be null or a non-empty string");
+    }
+    if (event.data.canonical_command_id !== null
+      && (!nonEmptyString(event.data.canonical_command_id) || !/^[A-Za-z0-9:._/-]+$/.test(event.data.canonical_command_id))) {
+      addError(errors, `${path}.canonical_command_id`, "must be null or a safe canonical command identifier");
+    }
+    if (event.data.command_semantic_sha256 !== null && !/^[a-f0-9]{64}$/i.test(event.data.command_semantic_sha256)) {
+      addError(errors, `${path}.command_semantic_sha256`, "must be null or a SHA-256 digest");
+    }
+    if (!isObject(event.data.budget)) {
+      addError(errors, `${path}.budget`, "must be an object");
+    } else {
+      for (const field of ["test_executions", "immediate_duration_ms", "agent_turns", "failed_test_turns"]) {
+        if (!Number.isFinite(event.data.budget[field]) || event.data.budget[field] < 0) {
+          addError(errors, `${path}.budget.${field}`, "must be a non-negative number");
+        }
+      }
     }
   } else if (event.event_type === "recommendation") {
     addRequiredString(errors, event.data.recommendation_id, `${path}.recommendation_id`);

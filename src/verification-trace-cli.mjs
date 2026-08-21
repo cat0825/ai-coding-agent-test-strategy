@@ -19,7 +19,7 @@ import {
 const SHA256 = /^[a-f0-9]{64}$/i;
 
 function usage() {
-  return "Usage: node src/verification-trace-cli.mjs --plan PLAN --oracles ORACLES --repo REPOSITORY --task-manifest TASK_JSON --stream STREAM_NDJSON --lifecycle LIFECYCLE_NDJSON --collector COLLECTOR_JSON --run-id ID --harness NAME --model MODEL --mode baseline|shadow --policy-name NAME --policy-version VERSION --output TRACE_JSON\n";
+  return "Usage: node src/verification-trace-cli.mjs --plan PLAN --oracles ORACLES --repo REPOSITORY --task-manifest TASK_JSON --stream STREAM_NDJSON --lifecycle LIFECYCLE_NDJSON --collector COLLECTOR_JSON --policy-ledger POLICY_NDJSON --run-id ID --harness NAME --model MODEL --mode baseline|shadow --policy-name NAME --policy-version VERSION --output TRACE_JSON\n";
 }
 
 function parseArguments(argv) {
@@ -27,7 +27,7 @@ function parseArguments(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--help" || argument === "-h") return { help: true };
-    if (["--plan", "--oracles", "--repo", "--task-manifest", "--stream", "--lifecycle", "--collector", "--run-id", "--harness", "--model", "--mode", "--policy-name", "--policy-version", "--output"].includes(argument)) {
+    if (["--plan", "--oracles", "--repo", "--task-manifest", "--stream", "--lifecycle", "--collector", "--policy-ledger", "--run-id", "--harness", "--model", "--mode", "--policy-name", "--policy-version", "--output"].includes(argument)) {
       const value = argv[index + 1];
       if (!value || value.startsWith("--")) throw new Error(`${argument} requires a value`);
       options[argument.slice(2).replaceAll("-", "_")] = value;
@@ -110,6 +110,9 @@ async function main(argv) {
   const streamContents = await readFile(streamPath, "utf8");
   const lifecycle = parseNdjson(lifecycleContents, "Codex lifecycle");
   const stream = parseNdjson(streamContents, "Codex stream");
+  const policyLedgerContents = options.policy_ledger ? await readFile(path.resolve(options.policy_ledger), "utf8") : null;
+  const policyDecisions = policyLedgerContents === null ? [] : parseNdjson(policyLedgerContents, "Verification policy ledger")
+    .map(({ record, line }) => ({ ...record, source_line: line, source_ref: path.basename(options.policy_ledger) }));
   const oracle = oracles.oracles.find(({ task_id: taskId }) => taskId === task.task_id);
   if (!oracle) throw new Error(`Missing oracle for task ${task.task_id}`);
   const failureSignaturesByCallId = {};
@@ -157,6 +160,11 @@ async function main(argv) {
       postRunWorkspaceSha256: finalStateSha256,
       workspaceStateChanged,
       sourceFormat: "codex-cli-lifecycle-v2",
+      policyDecisions,
+      ...(policyLedgerContents === null ? {} : {
+        policyLedgerSourceRef: path.basename(options.policy_ledger),
+        policyLedgerSha256: sha256(policyLedgerContents),
+      }),
     },
     lifecycleSourceRef: path.basename(lifecyclePath),
     streamSourceRef: path.basename(streamPath),

@@ -58,6 +58,12 @@ function validateBinding(binding) {
   if (binding.sourceFormat !== undefined && !nonEmptyString(binding.sourceFormat)) {
     throw new Error("Trace binding sourceFormat must be a non-empty string");
   }
+  if (binding.policyLedgerSourceRef !== undefined && !safeSourceReference(binding.policyLedgerSourceRef)) {
+    throw new Error("Trace binding policyLedgerSourceRef must be a safe source reference");
+  }
+  if (binding.policyLedgerSha256 !== undefined && !/^[a-f0-9]{64}$/i.test(binding.policyLedgerSha256)) {
+    throw new Error("Trace binding policyLedgerSha256 must be a SHA-256 digest");
+  }
   if (binding.oracleDefinitionSha256 !== undefined && !/^[a-f0-9]{64}$/i.test(binding.oracleDefinitionSha256)) {
     throw new Error("Trace binding oracleDefinitionSha256 must be a SHA-256 digest");
   }
@@ -65,6 +71,14 @@ function validateBinding(binding) {
     if (!isObject(binding.failureSignaturesByCallId)) throw new Error("Trace binding failureSignaturesByCallId must be an object");
     for (const [callId, signature] of Object.entries(binding.failureSignaturesByCallId)) {
       if (!safeCallId(callId) || !nonEmptyString(signature)) throw new Error("Trace binding failureSignaturesByCallId is invalid");
+    }
+  }
+  if (binding.policyDecisions !== undefined) {
+    if (!Array.isArray(binding.policyDecisions)) throw new Error("Trace binding policyDecisions must be an array");
+    for (const decision of binding.policyDecisions) {
+      if (!isObject(decision) || !safeSourceReference(decision.source_ref ?? "")) {
+        throw new Error("Trace binding policyDecisions contains an unsafe source reference");
+      }
     }
   }
   if (binding.initialChangedFiles !== undefined) {
@@ -549,6 +563,9 @@ export function convertAgentBeltLifecycleToTrace({
 
   const firstResultMonotonic = usableResults[0]?.completion.record.monotonic_ns ?? null;
   const lastResultMonotonic = usableResults.at(-1)?.completion.record.monotonic_ns ?? null;
+  const bootstrapObservedMs = Date.parse(bootstrap.record.observed_at);
+  const policyDecisionMonotonic = (decision) => bootstrapMonotonic
+    + Math.round((Date.parse(decision.observed_at) - bootstrapObservedMs) * 1_000_000);
   // A non-test command whose workspace effect was snapshotted is no longer opaque,
   // so it must not collapse the observed state into unknown.
   const snapshotObservedCallIds = new Set(usableShellFileChanges.map(({ callId }) => callId));
@@ -582,11 +599,44 @@ export function convertAgentBeltLifecycleToTrace({
       monotonicNs: command.completion.record.monotonic_ns,
       value: command,
     })),
+    ...(binding.policyDecisions ?? []).map((decision) => ({
+      kind: "policy_decision",
+      monotonicNs: policyDecisionMonotonic(decision),
+      value: decision,
+    })),
   ].sort((left, right) => left.monotonicNs - right.monotonicNs
     || Number(left.kind === "test_result") - Number(right.kind === "test_result"));
 
   let observedStateId = events[0].data.state_id;
   for (const activity of activities) {
+    if (activity.kind === "policy_decision") {
+      const decision = activity.value;
+      events.push({
+        event_index: events.length,
+        event_type: "policy_decision",
+        timestamp: decision.observed_at,
+        data: {
+          decision: decision.decision,
+          reason_code: decision.reason_code,
+          tier: decision.tier ?? null,
+          canonical_command_id: decision.canonical_command_id ?? null,
+          command_semantic_sha256: decision.command_semantic_sha256 ?? null,
+          budget: {
+            test_executions: decision.budget?.test_executions ?? 0,
+            immediate_duration_ms: decision.budget?.immediate_duration_ms ?? 0,
+            agent_turns: decision.budget?.agent_turns ?? 0,
+            failed_test_turns: decision.budget?.failed_test_turns ?? 0,
+          },
+        },
+        raw_event_ref: {
+          kind: "verification-policy-ledger",
+          line: Number.isInteger(decision.source_line) ? decision.source_line : 1,
+          event: decision.event ?? "policy.decision",
+          source_ref: decision.source_ref,
+        },
+      });
+      continue;
+    }
     if (activity.kind === "shell_file_change") {
       const change = activity.value;
       observedStateId = observedStateId === null ? null : sha256(JSON.stringify({
@@ -723,11 +773,13 @@ export function convertAgentBeltLifecycleToTrace({
     completeness: complete ? "complete" : "partial",
     source: {
       format: binding.sourceFormat ?? "agent-belt-codex-lifecycle-v2",
-      record_count: lifecycle.length + stream.length,
+      record_count: lifecycle.length + stream.length + (binding.policyDecisions?.length ?? 0),
       lifecycle_source_ref: lifecycleSourceRef,
       lifecycle_sha256: lifecycleDigest,
       stream_source_ref: streamSourceRef,
       stream_sha256: streamDigest,
+      ...(binding.policyLedgerSourceRef === undefined ? {} : { policy_ledger_source_ref: binding.policyLedgerSourceRef }),
+      ...(binding.policyLedgerSha256 === undefined ? {} : { policy_ledger_sha256: binding.policyLedgerSha256 }),
       outcome_sha256: outcomeSha256,
       scenario_definition_sha256: binding.scenarioDefinitionSha256,
       ...(binding.oracleDefinitionSha256 === undefined ? {} : { oracle_definition_sha256: binding.oracleDefinitionSha256 }),
