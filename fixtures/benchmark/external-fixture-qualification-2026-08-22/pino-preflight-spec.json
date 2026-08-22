@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "observatory-verification-policy-fixture-pino",
+  "repository": {
+    "identity": "pinojs/pino",
+    "expected_revision": "b394c2c16ac6a8919cd33d7f5684a01baca1096f",
+    "require_clean": true
+  },
+  "runtime": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "tools": [
+      { "id": "node", "argv": ["node", "--version"], "major": 26 },
+      { "id": "npm", "argv": ["npm", "--version"], "major": 11 }
+    ]
+  },
+  "install": {
+    "command": { "argv": ["npm", "install", "--no-audit", "--no-fund"], "timeout_ms": 900000 },
+    "lockfile": { "path": "package.json" },
+    "required_paths": ["node_modules/.bin/borp", "node_modules/.bin/eslint"],
+    "artifacts": []
+  },
+  "commands": [
+    { "id": "lint", "argv": ["npm", "run", "lint"], "timeout_ms": 600000, "prerequisites": [] },
+    { "id": "transpile", "argv": ["npm", "run", "transpile"], "timeout_ms": 600000, "prerequisites": [] },
+    { "id": "test", "argv": ["npx", "borp", "--timeout", "60000"], "timeout_ms": 900000, "prerequisites": ["transpile"] }
+  ]
+}

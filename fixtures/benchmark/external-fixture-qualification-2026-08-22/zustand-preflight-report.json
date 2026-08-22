@@ -1,0 +1,88 @@
+{
+  "benchmark_id": "observatory-verification-policy-fixture-zustand",
+  "commands": [
+    {
+      "definition_sha256": "acfe1a5569a2d547c168fde9947ce34ed9cf6d74df86606790db141e06f3bcbd",
+      "exit_code": 0,
+      "id": "types",
+      "prerequisites": [],
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "definition_sha256": "1fc82745560b1d85c439866fd404a9d97879535a19e6149a25c78660382b02bf",
+      "exit_code": 0,
+      "id": "test",
+      "prerequisites": [],
+      "required": true,
+      "status": "passed"
+    }
+  ],
+  "conclusion": {
+    "reasons": [],
+    "status": "eligible"
+  },
+  "evidence_class": "benchmark_environment",
+  "install": {
+    "artifacts": [],
+    "definition_sha256": "52e98112eacf55c06389a8ac5a1ebfbe1ab648c80c2bb82dac918723b5d8ad53",
+    "exit_code": 0,
+    "lockfile": {
+      "checksum_match": true,
+      "expected_sha256": "8df91da3f67633114f74632e132ee8e6cb37efb207f14cf4bbeba0ab0d60746f",
+      "file": "pnpm-lock.yaml",
+      "present": true,
+      "sha256": "8df91da3f67633114f74632e132ee8e6cb37efb207f14cf4bbeba0ab0d60746f"
+    },
+    "required_paths": [
+      {
+        "path": "node_modules/.bin/tsc",
+        "present": true
+      },
+      {
+        "path": "node_modules/.bin/vitest",
+        "present": true
+      }
+    ],
+    "status": "passed"
+  },
+  "repository": {
+    "clean": true,
+    "expected_revision": "f094eebe9bd3b4b0d77b997f69ab1d273f69a877",
+    "identity": "pmndrs/zustand",
+    "observed_revision": "f094eebe9bd3b4b0d77b997f69ab1d273f69a877"
+  },
+  "runtime": {
+    "expected": {
+      "arch": "arm64",
+      "platform": "darwin",
+      "tools": [
+        {
+          "id": "node",
+          "major": 26
+        },
+        {
+          "id": "pnpm",
+          "major": 9
+        }
+      ]
+    },
+    "observed": {
+      "arch": "arm64",
+      "platform": "darwin",
+      "tools": [
+        {
+          "id": "node",
+          "major": 26,
+          "status": "passed"
+        },
+        {
+          "id": "pnpm",
+          "major": 9,
+          "status": "passed"
+        }
+      ]
+    }
+  },
+  "schema_version": 1
+}

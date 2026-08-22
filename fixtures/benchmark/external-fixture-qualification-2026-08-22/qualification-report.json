@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "evidence_class": "external_fixture_qualification",
+  "run_date": "2026-08-22",
+  "purpose": "Qualify external repositories as benchmark fixtures for scenario classes this project has not covered, using clean clones at pinned revisions with every install, build and test step actually executed.",
+  "method": [
+    "Clean clone, hard checkout of the pinned revision, no local edits.",
+    "Install with the repository own lockfile; a dirty worktree after install disqualifies the fixture.",
+    "Every declared command runs through src/benchmark-preflight-cli.mjs, which records observed exit codes instead of accepting declared statuses.",
+    "Upstream test failures disqualify the fixture. No command is skipped or relaxed to reach eligible."
+  ],
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node_major": 26
+  },
+  "fixtures": [
+    {
+      "fixture_id": "external-pino",
+      "repository": {
+        "identity": "pinojs/pino",
+        "revision": "b394c2c16ac6a8919cd33d7f5684a01baca1096f"
+      },
+      "scenario_class": "service_library",
+      "language": "javascript",
+      "reset_strategy": "fresh_isolated_clone",
+      "note": "Server-side logging library with a layered suite: eslint, a TypeScript transpile step and 545 node:test cases via borp.",
+      "preflight_spec": {
+        "path": "pino-preflight-spec.json",
+        "sha256": "cd1da7eac6b6aa8f6a1203a78cafabcd3b9547b7fa80b67af335d04928253a10"
+      },
+      "preflight_report": {
+        "path": "pino-preflight-report.json",
+        "sha256": "af2df1405af77b25f6d937cc60beae57be4d409c9ee94aa911e2533694bdfd28"
+      },
+      "observed": {
+        "status": "eligible",
+        "reasons": [],
+        "install_exit_code": 0,
+        "commands": [
+          {
+            "id": "lint",
+            "status": "passed",
+            "exit_code": 0
+          },
+          {
+            "id": "transpile",
+            "status": "passed",
+            "exit_code": 0
+          },
+          {
+            "id": "test",
+            "status": "passed",
+            "exit_code": 0
+          }
+        ]
+      }
+    },
+    {
+      "fixture_id": "external-zustand",
+      "repository": {
+        "identity": "pmndrs/zustand",
+        "revision": "f094eebe9bd3b4b0d77b997f69ab1d273f69a877"
+      },
+      "scenario_class": "web_frontend",
+      "language": "typescript",
+      "reset_strategy": "fresh_isolated_clone",
+      "note": "React state library whose vitest suite mounts components in jsdom, plus a tsc --noEmit type gate. Installed with pnpm --frozen-lockfile because npm ci rejects the committed package-lock.json at this revision.",
+      "preflight_spec": {
+        "path": "zustand-preflight-spec.json",
+        "sha256": "d315ee23c0c46bde86f038cd642e06de8cd668f47eddfe845fd287370e118c7c"
+      },
+      "preflight_report": {
+        "path": "zustand-preflight-report.json",
+        "sha256": "8f616fb7a5ca1e3970f3508d71439f969d87902bfcd00044a64a3cbda42253c1"
+      },
+      "observed": {
+        "status": "eligible",
+        "reasons": [],
+        "install_exit_code": 0,
+        "commands": [
+          {
+            "id": "types",
+            "status": "passed",
+            "exit_code": 0
+          },
+          {
+            "id": "test",
+            "status": "passed",
+            "exit_code": 0
+          }
+        ]
+      }
+    }
+  ],
+  "rejected": [
+    {
+      "repository": "preactjs/preact",
+      "reason": "unit tests require Playwright Chromium, which did not install in this environment"
+    },
+    {
+      "repository": "expressjs/express",
+      "reason": "upstream suite reported 1259 passing and 1 failing at the pinned revision"
+    },
+    {
+      "repository": "solidjs/solid",
+      "reason": "pnpm monorepo preflight not completed"
+    },
+    {
+      "repository": "honojs/hono",
+      "reason": "bun project, preflight not completed"
+    },
+    {
+      "repository": "preactjs/signals",
+      "reason": "pnpm --frozen-lockfile refused the lockfile: overrides configuration mismatch"
+    }
+  ],
+  "conclusion": {
+    "status": "fixtures_qualified",
+    "qualified_fixtures": 2,
+    "newly_covered_scenario_classes": [
+      "service_library",
+      "web_frontend"
+    ],
+    "quality_claim_eligible": false,
+    "reason_codes": [
+      "no_tasks_authored_on_these_fixtures_yet",
+      "scenario_coverage_counts_tasks_not_fixtures"
+    ],
+    "notes": [
+      "These fixtures are environment-qualified only. The plan reports scenario coverage per task, so coverage stays cli_tool-only until tasks are authored against these repositories.",
+      "research_script remains uncovered and still needs a snapshot-style oracle."
+    ]
+  }
+}

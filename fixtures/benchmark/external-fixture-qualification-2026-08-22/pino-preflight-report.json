@@ -1,0 +1,98 @@
+{
+  "benchmark_id": "observatory-verification-policy-fixture-pino",
+  "commands": [
+    {
+      "definition_sha256": "31dd968d2824d77f1e49ec5f0fa1743ee0d3adabb556bb9749fe1e1ad47ba5d2",
+      "exit_code": 0,
+      "id": "lint",
+      "prerequisites": [],
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "definition_sha256": "ad6ec85a531de76ff47cfc1912f4d007b0c72600f8cc977bd2bad559317b4927",
+      "exit_code": 0,
+      "id": "transpile",
+      "prerequisites": [],
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "definition_sha256": "6a7981da0ea7188ad1afefc79243df29f4c5a46316b8463f45cc1fe3b562c432",
+      "exit_code": 0,
+      "id": "test",
+      "prerequisites": [
+        "transpile"
+      ],
+      "required": true,
+      "status": "passed"
+    }
+  ],
+  "conclusion": {
+    "reasons": [],
+    "status": "eligible"
+  },
+  "evidence_class": "benchmark_environment",
+  "install": {
+    "artifacts": [],
+    "definition_sha256": "3bd6e8ade01ceb69e5f8fe27173b9cafbd1f59848f05f0856ddbc992a78d69a0",
+    "exit_code": 0,
+    "lockfile": {
+      "checksum_match": null,
+      "expected_sha256": null,
+      "file": "package.json",
+      "present": true,
+      "sha256": "16aefd30ed84e041788dfe26a631842b27319990da2085f513cf1433277ebe79"
+    },
+    "required_paths": [
+      {
+        "path": "node_modules/.bin/borp",
+        "present": true
+      },
+      {
+        "path": "node_modules/.bin/eslint",
+        "present": true
+      }
+    ],
+    "status": "passed"
+  },
+  "repository": {
+    "clean": true,
+    "expected_revision": "b394c2c16ac6a8919cd33d7f5684a01baca1096f",
+    "identity": "pinojs/pino",
+    "observed_revision": "b394c2c16ac6a8919cd33d7f5684a01baca1096f"
+  },
+  "runtime": {
+    "expected": {
+      "arch": "arm64",
+      "platform": "darwin",
+      "tools": [
+        {
+          "id": "node",
+          "major": 26
+        },
+        {
+          "id": "npm",
+          "major": 11
+        }
+      ]
+    },
+    "observed": {
+      "arch": "arm64",
+      "platform": "darwin",
+      "tools": [
+        {
+          "id": "node",
+          "major": 26,
+          "status": "passed"
+        },
+        {
+          "id": "npm",
+          "major": 11,
+          "status": "passed"
+        }
+      ]
+    }
+  },
+  "schema_version": 1
+}

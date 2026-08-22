@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "observatory-verification-policy-fixture-zustand",
+  "repository": {
+    "identity": "pmndrs/zustand",
+    "expected_revision": "f094eebe9bd3b4b0d77b997f69ab1d273f69a877",
+    "require_clean": true
+  },
+  "runtime": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "tools": [
+      {
+        "id": "node",
+        "argv": [
+          "node",
+          "--version"
+        ],
+        "major": 26
+      },
+      {
+        "id": "pnpm",
+        "argv": [
+          "pnpm",
+          "--ignore-workspace",
+          "--version"
+        ],
+        "major": 9
+      }
+    ]
+  },
+  "install": {
+    "command": {
+      "argv": [
+        "pnpm",
+        "install",
+        "--frozen-lockfile",
+        "--ignore-workspace"
+      ],
+      "timeout_ms": 900000
+    },
+    "lockfile": {
+      "path": "pnpm-lock.yaml",
+      "sha256": "8df91da3f67633114f74632e132ee8e6cb37efb207f14cf4bbeba0ab0d60746f"
+    },
+    "required_paths": [
+      "node_modules/.bin/vitest",
+      "node_modules/.bin/tsc"
+    ],
+    "artifacts": []
+  },
+  "commands": [
+    {
+      "id": "types",
+      "argv": [
+        "npx",
+        "tsc",
+        "--noEmit"
+      ],
+      "timeout_ms": 600000,
+      "prerequisites": []
+    },
+    {
+      "id": "test",
+      "argv": [
+        "npx",
+        "vitest",
+        "run"
+      ],
+      "timeout_ms": 900000,
+      "prerequisites": []
+    }
+  ]
+}
