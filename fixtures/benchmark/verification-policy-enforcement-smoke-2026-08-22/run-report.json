@@ -49,7 +49,8 @@
     "denied_reason_code": "untargeted_full_suite_denied",
     "agent_reported_block": "The agent stated that a hook blocked npm test and did not obtain any full-suite output for that call.",
     "residual_escape": "After the deny the agent ran node --test test/*.test.mjs, which the analyzer classified as tier other and allowed. A glob target expands to an unknown file set, so it could not be shown to be narrower than the denied suite.",
-    "escape_fixed_by": "The unbounded_test_selection_denied rule now denies glob targets unless the task grants the full-suite exception. That rule is covered by unit tests but is not yet observed in a provider-backed run, because the provider quota was exhausted (403, negative balance) before the confirming run finished."
+    "escape_fixed_by": "The unbounded_test_selection_denied rule now denies glob targets unless the task grants the full-suite exception. It was first observed in a provider-backed run in verification-policy-enforcement-escalation-2026-08-22; the confirming run could not be finished on this date because the provider quota was exhausted (403, negative balance).",
+    "observed_live_in": "verification-policy-enforcement-escalation-2026-08-22"
   },
   "conclusion": {
     "status": "enforcement_observed",
@@ -57,7 +58,7 @@
     "reason_codes": [
       "single_task_run",
       "enforcement_smoke_not_a_paired_comparison",
-      "glob_deny_not_yet_observed_live"
+      "glob_deny_observed_in_a_later_run"
     ]
   }
 }
