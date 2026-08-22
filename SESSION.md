@@ -1,3 +1,55 @@
+# Handoff 2026-08-22 检查点（enforcement 生效 + 外部 fixture 资格）
+
+## 当前进度
+
+- 进度：约 93%。
+- 主分支：`codex/publish-research`（远程默认分支），最新提交 `1493583 evidence: recollect test_decision pair with complete traces`。
+- open PR：
+  - #52 `codex/fix-full-suite-deny-escape`：让 deny 真正生效（三处修复 + enforcement smoke 证据）
+  - #53 `codex/external-scenario-fixtures`：外部 `service_library` / `web_frontend` fixture 资格
+- open issue：#43、#39、#36、#17、#16、#1。#45 已关闭。
+
+## 本轮已完成
+
+### #45 已关闭
+- `vp_public_behavior_test_required` 双侧 `complete`，证据 `fixtures/benchmark/verification-policy-run-2026-08-22/`。
+- 两侧 oracle `passed`，`production_edits` 为空，post-run digest 一致。
+
+### #43：deny 第一次真正生效（PR #52）
+真实运行暴露三个缺陷，都已修复：
+1. `2>&1` 进入参数摘要、`cd` 前缀重新派生 cwd 摘要 → 全量命令被判 `other` 放行。
+2. **退出码 2 让 deny 被丢弃**。`codex-cli@0.147.0` 把退出码 2 当作 stderr-reason 协议；我们退出 2 却把 JSON 写在 stdout。实测：退出 2 时 Agent 照常拿到 `npm test` 输出；退出 0 时 Agent 报告被 PreToolUse hook 拦截。
+3. glob 绕过：deny 生效后 Agent 改用 `node --test test/*.test.mjs`。现以 `unbounded_test_selection_denied` 拒绝。
+
+证据 `fixtures/benchmark/verification-policy-enforcement-smoke-2026-08-22/`：ledger 23 条决策含 1 条 `deny / untargeted_full_suite_denied / tier=full`，Agent 明确报告命令被拦截。
+
+### #39 前置条件（PR #53）
+- `pinojs/pino` @ `b394c2c` → `service_library`：install / lint / transpile / 545 tests 全部 exit 0。
+- `pmndrs/zustand` @ `f094eeb` → `web_frontend`：install / `tsc --noEmit` / 224 vitest tests 全部 exit 0。
+- 两者均 clean clone + 固定 revision + `require_clean: true`，preflight `eligible`。
+
+## 未完成
+
+- #43：glob deny 只有单元测试覆盖。确认它的真实运行开始后 provider 返回 `403 用户额度不足`（余额为负），该运行不计入证据。**需要额度恢复后补跑。**
+- #39：两个 fixture 只有环境资格，还没出题。场景覆盖按题目统计，`generalized` 仍为 false。
+- #36：本轮只重采 1 题，其余 4 题仍是 2026-08-20 的旧配对，第 6 题仍未配对。
+- 质量门槛：`quality_claim_eligible_comparisons` = 1/30。
+- `research_script` 仍未覆盖，需要 snapshot oracle。
+
+## 下一步
+
+1. provider 额度恢复后，先补 glob deny 的真实观测，再考虑关闭 #43。
+2. 在 pino / zustand 上真正出题并采配对数据，推进 #39 与场景 `generalized`。
+3. 补齐剩余 pilot 配对，更新 #36。
+
+## 环境备注
+
+- provider 来自 cc-switch 当前 Codex provider（`sotamodel`，`wire_api = "responses"`，`claude-opus-5`）。
+- 隔离 `CODEX_HOME` 必须复制 `cc-switch-model-catalog.json`（cc-switch DB 里的 `modelCatalog` 缺 `slug` 字段，会被 Codex 拒绝），并剔除主 home 的 MCP server、plugin 和历史 trust 条目。
+- 后台跑 Codex 必须 double-fork detach；直接用 shell `&` 会随会话退出被杀。
+
+---
+
 # Handoff 2026-08-22 检查点（#45 test_decision 采集闭环）
 
 ## 当前进度

@@ -257,6 +257,60 @@ test("full-suite calls are denied when an affected command is available", async 
   assert.doesNotMatch(ledger, /node|test\/feature|npm test/);
 });
 
+test("full-suite calls stay denied when wrapped in cd and pipelines", async (t) => {
+  const paths = await harness(t);
+  const wrapped = await evaluateVerificationPolicyHook({
+    payload: payload("cd /private/workspace/repo && npm test 2>&1 | tail -60"),
+    config,
+    ...paths,
+  });
+
+  assert.equal(wrapped.decision, "deny");
+  assert.equal(wrapped.reason, "untargeted_full_suite_denied");
+  assert.equal(wrapped.record.tier, "full");
+  assert.deepEqual(wrapped.suggestion, config.commands.affected);
+
+  const targeted = await evaluateVerificationPolicyHook({
+    payload: payload("cd /private/workspace/repo && node --test test/feature.test.mjs", { tool_use_id: "tool-targeted" }),
+    config,
+    ...paths,
+  });
+
+  assert.equal(targeted.decision, "allow");
+  assert.equal(targeted.record.tier, "fast");
+});
+
+test("glob-expanded selections cannot escape the full-suite deny", async (t) => {
+  const paths = await harness(t);
+  const blocked = await evaluateVerificationPolicyHook({
+    payload: payload("npm test"),
+    config,
+    ...paths,
+  });
+  assert.equal(blocked.decision, "deny");
+  assert.equal(blocked.reason, "untargeted_full_suite_denied");
+
+  const globbed = await evaluateVerificationPolicyHook({
+    payload: payload("node --test test/*.test.mjs 2>&1 | tail -40", { tool_use_id: "tool-glob" }),
+    config,
+    ...paths,
+  });
+  assert.equal(globbed.decision, "deny");
+  assert.equal(globbed.reason, "unbounded_test_selection_denied");
+  assert.equal(globbed.record.tier, "other");
+  assert.deepEqual(globbed.suggestion, config.commands.affected);
+
+  const ledger = await readFile(paths.ledgerPath, "utf8");
+  assert.doesNotMatch(ledger, /test\/\*|tail -40/);
+
+  const fallback = await evaluateVerificationPolicyHook({
+    payload: payload("node --test test/*.test.mjs", { tool_use_id: "tool-glob-allowed" }),
+    config: { ...config, allow_full_suite: true },
+    ...paths,
+  });
+  assert.equal(fallback.decision, "allow");
+});
+
 test("full-suite fallback is allowed only when the task policy grants the exception", async (t) => {
   const paths = await harness(t);
   const fallbackConfig = { ...config, allow_full_suite: true };
@@ -321,8 +375,8 @@ test("prepare CLI carries the full-fallback exception into generated policy", as
     cwd: repo,
     encoding: "utf8",
   });
-  assert.equal(generatedResult.status, 2);
-  assert.equal(JSON.parse(generatedResult.stdout).permissionDecision, "deny");
+  assert.equal(generatedResult.status, 0);
+  assert.equal(JSON.parse(generatedResult.stdout).hookSpecificOutput.permissionDecision, "deny");
 });
 
 test("generated hook denies an untargeted full suite with Codex-compatible output", async (t) => {
@@ -336,9 +390,13 @@ test("generated hook denies an untargeted full suite with Codex-compatible outpu
     "--ledger", paths.ledgerPath,
   ], { input, cwd: path.resolve("."), encoding: "utf8" });
 
-  assert.equal(result.status, 2);
+  // codex-cli 0.147.0 discards a code-2 deny whose reason is on stdout, so the hook must
+  // exit 0 and carry the denial in hookSpecificOutput.
+  assert.equal(result.status, 0);
   const response = JSON.parse(result.stdout);
-  assert.equal(response.permissionDecision, "deny");
+  assert.equal(response.decision, "block");
+  assert.equal(response.permissionDecision, undefined);
+  assert.equal(response.hookSpecificOutput.hookEventName, "PreToolUse");
   assert.equal(response.hookSpecificOutput.permissionDecision, "deny");
   assert.match(response.hookSpecificOutput.permissionDecisionReason, /untargeted_full_suite_denied/);
 });
