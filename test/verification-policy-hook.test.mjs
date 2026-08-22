@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { glob, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -379,10 +379,12 @@ test("generated policy pins the workspace test files and denies an exhaustive en
   const policy = JSON.parse(await readFile(path.join(hookDir, "verification-policy.json"), "utf8"));
   assert.deepEqual(policy.commands.full, ["npm", "test"]);
   assert.equal(policy.full_suite_resolution, "expanded_from_workspace");
-  const discovered = [];
-  for await (const entry of glob("test/*.test.mjs", { cwd: manifest.workspace })) discovered.push(entry);
+  const discovered = (await readdir(path.join(manifest.workspace, "test")))
+    .filter((name) => name.endsWith(".test.mjs"))
+    .map((name) => `test/${name}`)
+    .sort();
   assert.ok(discovered.length > 1);
-  assert.deepEqual(policy.full_suite_test_files, discovered.sort());
+  assert.deepEqual(policy.full_suite_test_files, discovered);
 
   const enumeration = `node --test ${policy.full_suite_test_files.join(" ")} 2>&1 | tail -40`;
   const generated = JSON.parse(await readFile(path.join(hookDir, "hooks.json"), "utf8")).hooks.PreToolUse[0].hooks[0].command;

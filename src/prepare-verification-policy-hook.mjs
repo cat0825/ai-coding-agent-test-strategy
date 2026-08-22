@@ -1,11 +1,26 @@
 #!/usr/bin/env node
-import { chmod, glob, mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { globToRegExp } from "./verifier.mjs";
 
 const SCRIPT_RUNNERS = new Set(["npm", "pnpm", "yarn", "bun"]);
 const SHELL_OPERATOR = /[&|;<>(){}$`]/;
 const PATH_LIKE = /\/|\.[cm]?[jt]sx?$/;
+
+// Walk only from the literal prefix of the pattern, so a `test/*.test.mjs` target never
+// descends into node_modules.
+async function expandGlob(workspace, pattern) {
+  const matcher = globToRegExp(pattern);
+  const segments = pattern.split("/");
+  const wildcardAt = segments.findIndex((segment) => /[*?[]/.test(segment));
+  const base = segments.slice(0, wildcardAt).join("/");
+  const recursive = pattern.includes("**") || segments.length - wildcardAt > 1;
+  const names = await readdir(path.join(workspace, base || "."), { recursive }).catch(() => []);
+  return names
+    .map((name) => [base, name.split(path.sep).join("/")].filter(Boolean).join("/"))
+    .filter((file) => matcher.test(file));
+}
 
 // `npm test` hides its selection inside package.json, so the file set the full tier would
 // actually run can only be recovered by expanding the script the runner executes. The hook
@@ -28,7 +43,7 @@ async function resolveFullSuiteTestFiles(workspace, full) {
   const files = new Set();
   for (const target of targets) {
     if (/[*?[]/.test(target)) {
-      for await (const entry of glob(target, { cwd: workspace })) files.add(entry);
+      for (const entry of await expandGlob(workspace, target)) files.add(entry);
     } else {
       files.add(target);
     }
