@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "observatory-verification-policy-fixture-yargs",
+  "repository": {
+    "identity": "yargs/yargs",
+    "expected_revision": "2a4378bdc2eac9cf7d0cdfe0a52b1b25f779806a",
+    "require_clean": true
+  },
+  "runtime": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "tools": [
+      { "id": "node", "argv": ["node", "--version"], "major": 26 },
+      { "id": "npm", "argv": ["npm", "--version"], "major": 11 }
+    ]
+  },
+  "install": {
+    "command": { "argv": ["npm", "install", "--no-audit", "--no-fund"], "timeout_ms": 900000 },
+    "lockfile": {
+      "path": "package-lock.json",
+      "sha256": "06b3c838d9452ee690ca42a706a597b285da6542f7f2d28117133dc404edac40"
+    },
+    "required_paths": [
+      "node_modules/.bin/c8",
+      "node_modules/.bin/gts",
+      "node_modules/.bin/mocha",
+      "node_modules/.bin/tsc"
+    ],
+    "artifacts": []
+  },
+  "commands": [
+    { "id": "compile", "argv": ["npm", "run", "compile", "--", "-p", "tsconfig.test.json"], "timeout_ms": 600000, "prerequisites": [] },
+    { "id": "check", "argv": ["npm", "run", "check"], "timeout_ms": 600000, "prerequisites": [] },
+    { "id": "test", "argv": ["npx", "c8", "mocha", "--enable-source-maps", "./test/*.mjs", "--require", "./test/before.mjs", "--timeout=24000", "--check-leaks"], "timeout_ms": 900000, "prerequisites": ["compile"] }
+  ]
+}

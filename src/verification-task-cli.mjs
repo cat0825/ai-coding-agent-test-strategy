@@ -3,20 +3,23 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
-import { materializeVerificationTask } from "./verification-workspace.mjs";
+import { materializeVerificationTask, parseFixtureRepositoryOption } from "./verification-workspace.mjs";
+
+const USAGE = "Usage: verification-task-cli --plan PLAN --task TASK --repo REPOSITORY --output-parent DIRECTORY [--fixture-repo FIXTURE_ID=PATH]";
 
 function parseArguments(argv) {
-  const options = {};
+  const options = { "fixture-repo": [] };
   for (let index = 0; index < argv.length; index += 2) {
     const flag = argv[index];
     const value = argv[index + 1];
-    if (!["--plan", "--task", "--repo", "--output-parent"].includes(flag) || !value) {
-      throw new Error("Usage: verification-task-cli --plan PLAN --task TASK --repo REPOSITORY --output-parent DIRECTORY");
+    if (!["--plan", "--task", "--repo", "--output-parent", "--fixture-repo"].includes(flag) || !value) {
+      throw new Error(USAGE);
     }
-    options[flag.slice(2)] = value;
+    if (flag === "--fixture-repo") options["fixture-repo"].push(value);
+    else options[flag.slice(2)] = value;
   }
   if (!options.plan || !options.task || !options.repo || !options["output-parent"]) {
-    throw new Error("Usage: verification-task-cli --plan PLAN --task TASK --repo REPOSITORY --output-parent DIRECTORY");
+    throw new Error(USAGE);
   }
   return options;
 }
@@ -31,6 +34,7 @@ async function main() {
     taskId: task.task_id,
     sourceRepository: path.resolve(options.repo),
     outputParent: path.resolve(options["output-parent"]),
+    fixtureRepositories: parseFixtureRepositoryOption(options["fixture-repo"]),
   });
   process.stdout.write(`${JSON.stringify({
     task_id: task.task_id,

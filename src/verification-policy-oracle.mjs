@@ -78,7 +78,7 @@ function agentEditAssessment(task, changedFiles, initialFiles) {
   return { changed_files: unique, production_edits: productionEdits, test_edits: testEdits, allowed };
 }
 
-export async function runVerificationPolicyOracle({ plan, oracles, taskManifest, sourceRepository, timeoutMs = 120_000 }) {
+export async function runVerificationPolicyOracle({ plan, oracles, taskManifest, sourceRepository, timeoutMs = 120_000, fixtureRepositories = null }) {
   const errors = validateVerificationBenchmark(plan, oracles);
   if (errors.length > 0) throw new Error(`Invalid Verification Policy benchmark: ${errors.map(({ path, message }) => `${path} ${message}`).join("; ")}`);
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 600_000) throw new Error("timeoutMs must be between 1 and 600000");
@@ -86,6 +86,7 @@ export async function runVerificationPolicyOracle({ plan, oracles, taskManifest,
     plan,
     taskManifest,
     sourceRepository,
+    fixtureRepositories,
   });
   const oracle = oracles.oracles.find(({ task_id: taskId }) => taskId === task.task_id);
   if (!oracle) throw new Error(`Missing oracle for task ${task.task_id}`);

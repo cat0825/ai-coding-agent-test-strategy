@@ -7,6 +7,7 @@ export const PILOT_TASK_COUNT = 6;
 
 const MODES = new Set(["verify_only", "test_decision", "end_to_end"]);
 const ORIGINS = new Set(["repository_change", "controlled_fault"]);
+const FIXTURE_ORIGINS = new Set(["source_repository", "external_clone"]);
 const RISK_CLASSES = new Set(["low", "medium", "high"]);
 export const SCENARIO_CLASSES = Object.freeze([
   "cli_tool",
@@ -15,6 +16,7 @@ export const SCENARIO_CLASSES = Object.freeze([
   "research_script",
 ]);
 export const MINIMUM_GENERALIZED_SCENARIO_CLASSES = 2;
+export const MINIMUM_EXTERNAL_REPOSITORIES = 3;
 const LANGUAGES = new Set(["javascript", "typescript", "python", "go", "rust"]);
 const PHASES = new Set(["fast", "affected", "full"]);
 const WORKSPACE_STATUSES = new Set(["passed", "failed", "flaky", "environment_failed"]);
@@ -85,6 +87,35 @@ export function verificationTaskDefinitionDigest(definition) {
   return createHash("sha256").update(stableJson(definition)).digest("hex");
 }
 
+function validateFixtureOrigin(errors, fixture, field) {
+  const origin = fixture.origin;
+  if (!isObject(origin)) {
+    addError(errors, `${field}.origin`, "must be an object");
+    return;
+  }
+  if (!FIXTURE_ORIGINS.has(origin.kind)) {
+    addError(errors, `${field}.origin.kind`, "must be source_repository or external_clone");
+    return;
+  }
+  if (origin.kind === "source_repository") {
+    if (origin.clone_url !== undefined) addError(errors, `${field}.origin.clone_url`, "does not apply to the source repository");
+    return;
+  }
+  requiredString(errors, origin.clone_url, `${field}.origin.clone_url`);
+  // A fixture may not vouch for itself. It points at a qualification report whose digest the
+  // auditor recomputes, so eligibility always comes from observed preflight output.
+  if (origin.eligible !== undefined || origin.status !== undefined) {
+    addError(errors, `${field}.origin`, "must not declare its own qualification result");
+  }
+  if (!isObject(origin.qualification)) {
+    addError(errors, `${field}.origin.qualification`, "must reference an external qualification report");
+    return;
+  }
+  safeRelativePath(errors, origin.qualification.path, `${field}.origin.qualification.path`);
+  if (!SHA256.test(origin.qualification.sha256 ?? "")) addError(errors, `${field}.origin.qualification.sha256`, "must be a SHA-256 digest");
+  requiredString(errors, origin.qualification.fixture_id, `${field}.origin.qualification.fixture_id`);
+}
+
 function validateFixture(errors, fixture, index, fixtureIds) {
   const field = `fixtures[${index}]`;
   if (!isObject(fixture)) {
@@ -96,6 +127,7 @@ function validateFixture(errors, fixture, index, fixtureIds) {
   fixtureIds.add(fixture.fixture_id);
   requiredString(errors, fixture.repository?.identity, `${field}.repository.identity`);
   if (!GIT_REVISION.test(fixture.repository?.revision ?? "")) addError(errors, `${field}.repository.revision`, "must be a 40-character Git revision");
+  validateFixtureOrigin(errors, fixture, field);
   requiredString(errors, fixture.runtime, `${field}.runtime`);
   if (!SCENARIO_CLASSES.includes(fixture.scenario_class)) {
     addError(errors, `${field}.scenario_class`, `must be one of ${SCENARIO_CLASSES.join(", ")}`);
@@ -119,7 +151,7 @@ function validateSource(errors, source, field) {
   }
 }
 
-function validateTask(errors, task, index, fixtureIds, taskIds, semanticKeys, oracleIds, behaviorClasses) {
+function validateTask(errors, task, index, fixtureById, taskIds, semanticKeys, oracleIds, behaviorClassesByFixture) {
   const field = `tasks[${index}]`;
   if (!isObject(task)) {
     addError(errors, field, "must be an object");
@@ -134,10 +166,18 @@ function validateTask(errors, task, index, fixtureIds, taskIds, semanticKeys, or
   semanticKeys.add(task.semantic_task_key);
   if (!MODES.has(task.mode)) addError(errors, `${field}.mode`, "must be verify_only, test_decision, or end_to_end");
   if (!REQUIRED_BEHAVIOR_CLASSES.includes(task.behavior_class)) addError(errors, `${field}.behavior_class`, "is not a pilot behavior class");
-  if (behaviorClasses.has(task.behavior_class)) addError(errors, `${field}.behavior_class`, "must be unique in the six-task pilot");
-  behaviorClasses.add(task.behavior_class);
+  const fixture = fixtureById.get(task.fixture_id);
+  if (!fixture) addError(errors, `${field}.fixture_id`, "must reference a declared fixture");
+  // A behavior class is unique per fixture, not per plan, so the same behavior can be
+  // re-observed on another repository without colliding with the six-task pilot.
+  let seenForFixture = behaviorClassesByFixture.get(task.fixture_id);
+  if (!seenForFixture) {
+    seenForFixture = new Set();
+    behaviorClassesByFixture.set(task.fixture_id, seenForFixture);
+  }
+  if (seenForFixture.has(task.behavior_class)) addError(errors, `${field}.behavior_class`, "must be unique within its fixture");
+  seenForFixture.add(task.behavior_class);
   if (!RISK_CLASSES.has(task.risk_class)) addError(errors, `${field}.risk_class`, "must be low, medium, or high");
-  if (!fixtureIds.has(task.fixture_id)) addError(errors, `${field}.fixture_id`, "must reference a declared fixture");
   requiredString(errors, task.oracle_id, `${field}.oracle_id`);
   if (oracleIds.has(task.oracle_id)) addError(errors, `${field}.oracle_id`, "must be unique");
   oracleIds.add(task.oracle_id);
@@ -148,6 +188,12 @@ function validateTask(errors, task, index, fixtureIds, taskIds, semanticKeys, or
   if (containsHiddenOracleKey(task.definition)) addError(errors, `${field}.definition`, "must not expose hidden oracle expectations");
   requiredString(errors, task.definition.instruction, `${field}.definition.instruction`);
   validateSource(errors, task.definition.source, `${field}.definition.source`);
+  // Qualification was observed at one revision of the external repository, so a task on that
+  // fixture has to be built at exactly that revision for the qualification to transfer.
+  if (fixture?.origin?.kind === "external_clone" && isObject(task.definition.source)
+    && task.definition.source.base_revision !== fixture.repository?.revision) {
+    addError(errors, `${field}.definition.source.base_revision`, "must be the pinned fixture revision");
+  }
   if (!Array.isArray(task.definition.changed_files) || task.definition.changed_files.length === 0) {
     addError(errors, `${field}.definition.changed_files`, "must contain at least one path");
   } else {
@@ -241,19 +287,30 @@ export function validateVerificationBenchmark(plan, oracleCatalog) {
   if (!Array.isArray(plan.fixtures) || plan.fixtures.length === 0) addError(errors, "fixtures", "must be a non-empty array");
   const fixtureIds = new Set();
   (plan.fixtures ?? []).forEach((fixture, index) => validateFixture(errors, fixture, index, fixtureIds));
+  const fixtureById = new Map((plan.fixtures ?? []).filter(isObject).map((fixture) => [fixture.fixture_id, fixture]));
+  const sourceFixtures = (plan.fixtures ?? []).filter((fixture) => fixture?.origin?.kind === "source_repository");
+  if (sourceFixtures.length !== 1) addError(errors, "fixtures", "must declare exactly one source_repository fixture");
 
-  if (!Array.isArray(plan.tasks) || plan.tasks.length !== PILOT_TASK_COUNT) addError(errors, "tasks", `must contain exactly ${PILOT_TASK_COUNT} tasks`);
+  if (!Array.isArray(plan.tasks) || plan.tasks.length < PILOT_TASK_COUNT) addError(errors, "tasks", `must contain at least ${PILOT_TASK_COUNT} tasks`);
   const taskIds = new Set();
   const semanticKeys = new Set();
   const oracleIds = new Set();
-  const behaviorClasses = new Set();
-  (plan.tasks ?? []).forEach((task, index) => validateTask(errors, task, index, fixtureIds, taskIds, semanticKeys, oracleIds, behaviorClasses));
+  const behaviorClassesByFixture = new Map();
+  (plan.tasks ?? []).forEach((task, index) => validateTask(errors, task, index, fixtureById, taskIds, semanticKeys, oracleIds, behaviorClassesByFixture));
+  // The six-task pilot lives on the source repository. External fixtures add tasks on top of
+  // it, so the pilot contract is checked against that fixture instead of the whole plan.
+  const pilotFixtureId = sourceFixtures[0]?.fixture_id;
+  const pilotTasks = (plan.tasks ?? []).filter((task) => task?.fixture_id === pilotFixtureId);
+  if (pilotFixtureId !== undefined && pilotTasks.length !== PILOT_TASK_COUNT) {
+    addError(errors, "tasks", `must contain exactly ${PILOT_TASK_COUNT} tasks on the source_repository fixture`);
+  }
+  const pilotBehaviorClasses = behaviorClassesByFixture.get(pilotFixtureId) ?? new Set();
   for (const behaviorClass of REQUIRED_BEHAVIOR_CLASSES) {
-    if (!behaviorClasses.has(behaviorClass)) addError(errors, "tasks", `must include behavior_class ${behaviorClass}`);
+    if (!pilotBehaviorClasses.has(behaviorClass)) addError(errors, "tasks", `must include behavior_class ${behaviorClass}`);
   }
 
-  if (!Array.isArray(oracleCatalog.oracles) || oracleCatalog.oracles.length !== PILOT_TASK_COUNT) {
-    addError(errors, "oracle_catalog.oracles", `must contain exactly ${PILOT_TASK_COUNT} oracles`);
+  if (!Array.isArray(oracleCatalog.oracles) || oracleCatalog.oracles.length !== (plan.tasks?.length ?? 0)) {
+    addError(errors, "oracle_catalog.oracles", "must contain exactly one oracle per task");
   }
   const taskById = new Map((plan.tasks ?? []).map((task) => [task.task_id, task]));
   const seenOracleIds = new Set();
@@ -275,17 +332,46 @@ function scenarioClassCounts(plan) {
   return Object.fromEntries(Object.entries(counts).sort(([left], [right]) => left.localeCompare(right)));
 }
 
+function externalRepositoryCoverage(plan) {
+  const taskCountByFixture = new Map();
+  for (const task of plan.tasks) {
+    taskCountByFixture.set(task.fixture_id, (taskCountByFixture.get(task.fixture_id) ?? 0) + 1);
+  }
+  const repositories = plan.fixtures
+    .filter((fixture) => fixture.origin.kind === "external_clone")
+    .map((fixture) => ({
+      fixture_id: fixture.fixture_id,
+      identity: fixture.repository.identity,
+      revision: fixture.repository.revision,
+      scenario_class: fixture.scenario_class,
+      qualification: fixture.origin.qualification,
+      tasks: taskCountByFixture.get(fixture.fixture_id) ?? 0,
+    }))
+    .sort((left, right) => left.fixture_id.localeCompare(right.fixture_id));
+  return {
+    minimum: MINIMUM_EXTERNAL_REPOSITORIES,
+    qualified: repositories.length,
+    // A fixture with no task contributes no observation, so it is counted separately from
+    // the repositories that tasks are actually authored against.
+    with_tasks: repositories.filter(({ tasks }) => tasks > 0).length,
+    repositories,
+    satisfied: repositories.length >= MINIMUM_EXTERNAL_REPOSITORIES,
+  };
+}
+
 export function auditVerificationBenchmarkDesign(plan, oracleCatalog) {
   const errors = validateVerificationBenchmark(plan, oracleCatalog);
   if (errors.length > 0) throw new VerificationBenchmarkValidationError(errors);
   const modeCounts = Object.fromEntries([...MODES].map((mode) => [mode, plan.tasks.filter((task) => task.mode === mode).length]));
   const coveredScenarioClasses = Object.keys(scenarioClassCounts(plan));
+  const externalRepositories = externalRepositoryCoverage(plan);
   const blockers = [
     "task_workspaces_not_materialized",
     "independent_oracles_not_executed",
     "paired_traces_not_collected",
   ];
   if (coveredScenarioClasses.length < MINIMUM_GENERALIZED_SCENARIO_CLASSES) blockers.push("scenario_classes_not_generalized");
+  if (!externalRepositories.satisfied) blockers.push("external_repositories_below_minimum");
   return {
     schema_version: VERIFICATION_BENCHMARK_SCHEMA_VERSION,
     evidence_class: "pilot_design_audit",
@@ -294,6 +380,7 @@ export function auditVerificationBenchmarkDesign(plan, oracleCatalog) {
     counts: {
       tasks: plan.tasks.length,
       fixtures: plan.fixtures.length,
+      external_repositories: externalRepositories.qualified,
       hidden_oracles: oracleCatalog.oracles.length,
       modes: modeCounts,
       behavior_classes: [...new Set(plan.tasks.map((task) => task.behavior_class))].sort(),
@@ -305,6 +392,7 @@ export function auditVerificationBenchmarkDesign(plan, oracleCatalog) {
       missing: SCENARIO_CLASSES.filter((scenarioClass) => !coveredScenarioClasses.includes(scenarioClass)),
       generalized: coveredScenarioClasses.length >= MINIMUM_GENERALIZED_SCENARIO_CLASSES,
     },
+    external_repository_coverage: externalRepositories,
     conclusion: {
       status: "design_ready",
       quality_claim_eligible: false,

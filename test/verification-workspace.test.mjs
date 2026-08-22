@@ -11,6 +11,7 @@ import {
   matchRequiredFailureSignatures,
   materializeVerificationTask,
   qualifyVerificationPilot,
+  verifyFixtureQualification,
   verifyVerificationWorkspaceSource,
   verificationWorkspaceStateSha256,
 } from "../src/verification-workspace.mjs";
@@ -322,7 +323,28 @@ test("external fixture qualification stays bound to executed preflight reports",
     scenarioClasses.add(fixture.scenario_class);
   }
 
-  assert.deepEqual([...scenarioClasses].sort(), report.conclusion.newly_covered_scenario_classes);
+  // "Newly covered" means covered by an external repository and not already by the source
+  // repository. external-yargs is a cli_tool, a class the source repository already covers, so it
+  // qualifies without widening coverage — and the report has to say so rather than overclaim.
+  const { plan } = await checkedInputs();
+  const sourceClasses = new Set(plan.fixtures
+    .filter(({ origin }) => origin.kind === "source_repository")
+    .map(({ scenario_class: scenarioClass }) => scenarioClass));
+  assert.deepEqual(
+    [...scenarioClasses].filter((scenarioClass) => !sourceClasses.has(scenarioClass)).sort(),
+    report.conclusion.newly_covered_scenario_classes,
+  );
+
+  // Each qualified fixture has to be the one the plan actually points at, at the same revision.
+  const planFixtures = new Map(plan.fixtures.map((fixture) => [fixture.fixture_id, fixture]));
+  for (const fixture of report.fixtures) {
+    const declared = planFixtures.get(fixture.fixture_id);
+    assert.ok(declared, `plan declares ${fixture.fixture_id}`);
+    assert.equal(declared.repository.identity, fixture.repository.identity);
+    assert.equal(declared.repository.revision, fixture.repository.revision);
+    assert.equal(declared.scenario_class, fixture.scenario_class);
+  }
+
   assert.equal(report.conclusion.quality_claim_eligible, false);
   assert.ok(report.conclusion.reason_codes.includes("no_tasks_authored_on_these_fixtures_yet"));
 });
@@ -396,4 +418,183 @@ test("enforcement escalation stays bound to its trace, oracle and deny ladder", 
   assert.equal(report.observed_enforcement.residual_escape, null);
   assert.equal(report.conclusion.quality_claim_eligible, false);
   assert.ok(report.conclusion.reason_codes.includes("no_residual_escape_observed"));
+});
+
+test("an external fixture is admitted only by recomputing its qualification evidence", async (t) => {
+  const { plan } = await checkedInputs();
+  const repositoryRoot = path.resolve(".");
+  const external = plan.fixtures.filter(({ origin }) => origin.kind === "external_clone");
+  assert.ok(external.length > 0, "plan declares at least one external fixture");
+
+  // The digest stamped in the plan has to match the report that is actually checked in. This is the
+  // guard against editing the qualification report and forgetting to re-stamp the plan.
+  for (const fixture of external) {
+    const verified = await verifyFixtureQualification({ fixture, sourceRepository: repositoryRoot });
+    assert.equal(verified.qualified_fixture_id, fixture.origin.qualification.fixture_id);
+    assert.equal(verified.report_sha256, fixture.origin.qualification.sha256);
+  }
+
+  const fixture = external[0];
+  const bend = (mutate) => {
+    const next = structuredClone(fixture);
+    mutate(next);
+    return next;
+  };
+
+  await assert.rejects(
+    verifyFixtureQualification({
+      fixture: bend((next) => { next.origin.qualification.sha256 = "0".repeat(64); }),
+      sourceRepository: repositoryRoot,
+    }),
+    /qualification report digest does not match the plan/,
+  );
+
+  await assert.rejects(
+    verifyFixtureQualification({
+      fixture: bend((next) => { next.origin.qualification.path = "fixtures/benchmark/does-not-exist.json"; }),
+      sourceRepository: repositoryRoot,
+    }),
+    /qualification report is missing/,
+  );
+
+  await assert.rejects(
+    verifyFixtureQualification({
+      fixture: bend((next) => { next.origin.qualification.fixture_id = "external-not-qualified"; }),
+      sourceRepository: repositoryRoot,
+    }),
+    /no qualification entry for external-not-qualified/,
+  );
+
+  // A revision the report never observed cannot inherit that report's eligibility.
+  await assert.rejects(
+    verifyFixtureQualification({
+      fixture: bend((next) => { next.repository.revision = "b".repeat(40); }),
+      sourceRepository: repositoryRoot,
+    }),
+    /was qualified at/,
+  );
+
+  await assert.rejects(
+    verifyFixtureQualification({
+      fixture: bend((next) => { next.repository.identity = "attacker/lookalike"; }),
+      sourceRepository: repositoryRoot,
+    }),
+    /was qualified for/,
+  );
+
+  const escape = await mkdtemp(path.join(os.tmpdir(), "verification-qualification-"));
+  t.after(() => rm(escape, { recursive: true, force: true }));
+  await assert.rejects(
+    verifyFixtureQualification({
+      fixture: bend((next) => { next.origin.qualification.path = `${path.relative(repositoryRoot, escape)}/report.json`; }),
+      sourceRepository: repositoryRoot,
+    }),
+    /qualification path escapes the repository/,
+  );
+});
+
+test("an ineligible qualification entry cannot admit a fixture", async (t) => {
+  const { plan } = await checkedInputs();
+  const fixture = plan.fixtures.find(({ origin }) => origin.kind === "external_clone");
+  const root = await mkdtemp(path.join(os.tmpdir(), "verification-qualification-root-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const reportPath = path.join(root, "report.json");
+  const report = {
+    fixtures: [{
+      fixture_id: fixture.origin.qualification.fixture_id,
+      repository: { identity: fixture.repository.identity, revision: fixture.repository.revision },
+      observed: { status: "ineligible", reasons: ["command_not_passed:test:failed"] },
+    }],
+  };
+  const contents = `${JSON.stringify(report, null, 2)}\n`;
+  await writeFile(reportPath, contents);
+  const forged = structuredClone(fixture);
+  forged.origin.qualification.path = "report.json";
+  forged.origin.qualification.sha256 = createHash("sha256").update(contents).digest("hex");
+  await assert.rejects(
+    verifyFixtureQualification({ fixture: forged, sourceRepository: root }),
+    /was not observed eligible: ineligible/,
+  );
+
+  // Deleting the observed block does not make the fixture eligible either.
+  const silent = { fixtures: [{ ...report.fixtures[0], observed: undefined }] };
+  const silentContents = `${JSON.stringify(silent, null, 2)}\n`;
+  await writeFile(reportPath, silentContents);
+  forged.origin.qualification.sha256 = createHash("sha256").update(silentContents).digest("hex");
+  await assert.rejects(
+    verifyFixtureQualification({ fixture: forged, sourceRepository: root }),
+    /was not observed eligible: no observed status/,
+  );
+});
+
+test("a fixture is not admitted without green upstream CI at the pinned revision", async (t) => {
+  const { plan } = await checkedInputs();
+  const fixture = plan.fixtures.find(({ origin }) => origin.kind === "external_clone");
+  const root = await mkdtemp(path.join(os.tmpdir(), "verification-qualification-ci-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const reportPath = path.join(root, "report.json");
+  const forged = structuredClone(fixture);
+  forged.origin.qualification.path = "report.json";
+
+  // A passing preflight is not enough on its own. If the upstream build is red at the pinned
+  // revision then an observed failure cannot be attributed to the agent under test, so the fixture
+  // is refused even though every command this harness ran came back green.
+  async function stamp(upstreamCi) {
+    const contents = `${JSON.stringify({
+      fixtures: [{
+        fixture_id: fixture.origin.qualification.fixture_id,
+        repository: { identity: fixture.repository.identity, revision: fixture.repository.revision },
+        observed: { status: "eligible", reasons: [] },
+        ...(upstreamCi === undefined ? {} : { upstream_ci: upstreamCi }),
+      }],
+    }, null, 2)}\n`;
+    await writeFile(reportPath, contents);
+    forged.origin.qualification.sha256 = createHash("sha256").update(contents).digest("hex");
+  }
+
+  await stamp(undefined);
+  await assert.rejects(
+    verifyFixtureQualification({ fixture: forged, sourceRepository: root }),
+    /no green upstream CI recorded .*: no upstream_ci evidence/,
+  );
+
+  await stamp({ conclusion: "red", build_workflows: [{ name: "CI", event: "push", conclusion: "failure" }] });
+  await assert.rejects(
+    verifyFixtureQualification({ fixture: forged, sourceRepository: root }),
+    /no green upstream CI recorded .*: red/,
+  );
+
+  await stamp({ conclusion: "green", build_workflows: [{ name: "CI", event: "push", conclusion: "success" }], excluded: [] });
+  const accepted = await verifyFixtureQualification({ fixture: forged, sourceRepository: root });
+  assert.equal(accepted.qualified_fixture_id, fixture.origin.qualification.fixture_id);
+});
+
+test("every qualified fixture records a green upstream build and justifies each exclusion", async () => {
+  const { plan } = await checkedInputs();
+  const report = JSON.parse(await readFile(
+    new URL("../fixtures/benchmark/external-fixture-qualification-2026-08-22/qualification-report.json", import.meta.url),
+    "utf8",
+  ));
+  for (const entry of report.fixtures) {
+    assert.equal(entry.upstream_ci.conclusion, "green", `${entry.fixture_id} upstream CI`);
+    // "Green" has to rest on at least one build workflow that the push of this revision triggered.
+    assert.ok(entry.upstream_ci.build_workflows.length > 0);
+    for (const workflow of entry.upstream_ci.build_workflows) {
+      assert.equal(workflow.event, "push");
+      assert.equal(workflow.conclusion, "success");
+    }
+    // Anything excluded from the signal has to say what it was and why, so a red run cannot be
+    // dropped silently. Only non-push events are eligible for exclusion.
+    for (const excluded of entry.upstream_ci.excluded ?? []) {
+      assert.notEqual(excluded.event, "push");
+      assert.ok(excluded.conclusion);
+      assert.ok(excluded.reason.length > 40, `${entry.fixture_id} exclusion reason is substantive`);
+    }
+  }
+
+  // The plan cannot point at a fixture the report never cleared.
+  const qualified = new Set(report.fixtures.map(({ fixture_id: id }) => id));
+  for (const fixture of plan.fixtures.filter(({ origin }) => origin.kind === "external_clone")) {
+    assert.ok(qualified.has(fixture.origin.qualification.fixture_id));
+  }
 });

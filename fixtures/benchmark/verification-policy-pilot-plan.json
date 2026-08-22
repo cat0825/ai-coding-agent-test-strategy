@@ -11,6 +11,69 @@
         "identity": "cat0825/ai-coding-agent-test-strategy",
         "revision": "e9bd535012d4657534cf3cef69f394d2e7145387"
       },
+      "origin": {
+        "kind": "source_repository"
+      },
+      "runtime": "node>=20",
+      "scenario_class": "cli_tool",
+      "language": "javascript",
+      "reset_strategy": "fresh_isolated_clone"
+    },
+    {
+      "fixture_id": "external-pino",
+      "repository": {
+        "identity": "pinojs/pino",
+        "revision": "b394c2c16ac6a8919cd33d7f5684a01baca1096f"
+      },
+      "origin": {
+        "kind": "external_clone",
+        "clone_url": "https://github.com/pinojs/pino.git",
+        "qualification": {
+          "path": "fixtures/benchmark/external-fixture-qualification-2026-08-22/qualification-report.json",
+          "sha256": "932971376f5c9216cb0a35e2485b46644a68cf237e45e431be0d4f9f43c67161",
+          "fixture_id": "external-pino"
+        }
+      },
+      "runtime": "node>=20",
+      "scenario_class": "service_library",
+      "language": "javascript",
+      "reset_strategy": "fresh_isolated_clone"
+    },
+    {
+      "fixture_id": "external-zustand",
+      "repository": {
+        "identity": "pmndrs/zustand",
+        "revision": "f094eebe9bd3b4b0d77b997f69ab1d273f69a877"
+      },
+      "origin": {
+        "kind": "external_clone",
+        "clone_url": "https://github.com/pmndrs/zustand.git",
+        "qualification": {
+          "path": "fixtures/benchmark/external-fixture-qualification-2026-08-22/qualification-report.json",
+          "sha256": "932971376f5c9216cb0a35e2485b46644a68cf237e45e431be0d4f9f43c67161",
+          "fixture_id": "external-zustand"
+        }
+      },
+      "runtime": "node>=20",
+      "scenario_class": "web_frontend",
+      "language": "typescript",
+      "reset_strategy": "fresh_isolated_clone"
+    },
+    {
+      "fixture_id": "external-yargs",
+      "repository": {
+        "identity": "yargs/yargs",
+        "revision": "2a4378bdc2eac9cf7d0cdfe0a52b1b25f779806a"
+      },
+      "origin": {
+        "kind": "external_clone",
+        "clone_url": "https://github.com/yargs/yargs.git",
+        "qualification": {
+          "path": "fixtures/benchmark/external-fixture-qualification-2026-08-22/qualification-report.json",
+          "sha256": "932971376f5c9216cb0a35e2485b46644a68cf237e45e431be0d4f9f43c67161",
+          "fixture_id": "external-yargs"
+        }
+      },
       "runtime": "node>=20",
       "scenario_class": "cli_tool",
       "language": "javascript",
