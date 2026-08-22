@@ -1,7 +1,41 @@
 #!/usr/bin/env node
-import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, glob, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+const SCRIPT_RUNNERS = new Set(["npm", "pnpm", "yarn", "bun"]);
+const SHELL_OPERATOR = /[&|;<>(){}$`]/;
+const PATH_LIKE = /\/|\.[cm]?[jt]sx?$/;
+
+// `npm test` hides its selection inside package.json, so the file set the full tier would
+// actually run can only be recovered by expanding the script the runner executes. The hook
+// needs that set to recognise an exhaustive file enumeration as the full suite in disguise.
+async function resolveFullSuiteTestFiles(workspace, full) {
+  if (typeof workspace !== "string" || !workspace) return { files: null, reason: "workspace_not_in_task_manifest" };
+  let tokens = full;
+  if (SCRIPT_RUNNERS.has(full[0])) {
+    const requested = full[1] === "run" ? full[2] : full[1];
+    const script = requested === "t" ? "test" : requested;
+    if (!script) return { files: null, reason: "script_name_unrecognized" };
+    const manifest = await readFile(path.join(workspace, "package.json"), "utf8").then(JSON.parse).catch(() => null);
+    const body = manifest?.scripts?.[script];
+    if (typeof body !== "string") return { files: null, reason: `script_not_found:${script}` };
+    if (SHELL_OPERATOR.test(body)) return { files: null, reason: "script_is_a_shell_pipeline" };
+    tokens = body.split(/\s+/).filter(Boolean);
+  }
+  const targets = tokens.slice(1).filter((token) => !token.startsWith("-") && PATH_LIKE.test(token));
+  if (targets.length === 0) return { files: null, reason: "no_test_targets_in_full_tier" };
+  const files = new Set();
+  for (const target of targets) {
+    if (/[*?[]/.test(target)) {
+      for await (const entry of glob(target, { cwd: workspace })) files.add(entry);
+    } else {
+      files.add(target);
+    }
+  }
+  if (files.size === 0) return { files: null, reason: "full_tier_targets_matched_nothing" };
+  return { files: [...files].sort(), reason: null };
+}
 
 function usage() {
   return "Usage: prepare-verification-policy-hook --plan PLAN_JSON --task-manifest TASK_JSON --output-dir DIRECTORY\n";
@@ -48,6 +82,7 @@ async function main(argv) {
   const hookScript = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../scripts/verification-policy-hook.mjs");
   await mkdir(stateDir, { recursive: true, mode: 0o700 });
   const maxVerificationSteps = task.behavior_class === "full_fallback" ? 3 : 2;
+  const fullSuite = await resolveFullSuiteTestFiles(manifest.workspace, commands.full);
   const policy = {
     schema_version: 1,
     policy: { name: "observatory-verification-policy", version: "0.2-enforced" },
@@ -57,6 +92,8 @@ async function main(argv) {
     risk_class: task.risk_class,
     allow_full_suite: task.behavior_class === "full_fallback" && task.risk_class === "high",
     commands,
+    full_suite_test_files: fullSuite.files,
+    full_suite_resolution: fullSuite.reason ?? "expanded_from_workspace",
     budget: {
       max_test_executions: maxVerificationSteps,
       max_immediate_duration_ms: 90_000,

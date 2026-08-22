@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { glob, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -309,6 +309,88 @@ test("glob-expanded selections cannot escape the full-suite deny", async (t) => 
     ...paths,
   });
   assert.equal(fallback.decision, "allow");
+});
+
+test("an exhaustive file enumeration cannot escape the full-suite deny", async (t) => {
+  // Observed in a real candidate run: after `npm test` was denied the agent named every
+  // test file it had found instead of globbing, and the bounded check let it through.
+  const enumerated = {
+    ...config,
+    full_suite_test_files: ["test/api.test.mjs", "test/feature.test.mjs", "test/trace.test.mjs"],
+  };
+  const paths = await harness(t);
+  const denied = await evaluateVerificationPolicyHook({
+    payload: payload("node --test test/feature.test.mjs test/api.test.mjs test/trace.test.mjs 2>&1 | tail -40"),
+    config: enumerated,
+    ...paths,
+  });
+  assert.equal(denied.decision, "deny");
+  assert.equal(denied.reason, "full_suite_equivalent_selection_denied");
+  assert.equal(denied.record.tier, "other");
+  assert.deepEqual(denied.suggestion, config.commands.affected);
+
+  const relative = await evaluateVerificationPolicyHook({
+    payload: payload("node --test ./test/api.test.mjs ./test/feature.test.mjs ./test/trace.test.mjs", { tool_use_id: "tool-dot-slash" }),
+    config: enumerated,
+    ...paths,
+  });
+  assert.equal(relative.reason, "full_suite_equivalent_selection_denied");
+
+  const ledger = await readFile(paths.ledgerPath, "utf8");
+  assert.doesNotMatch(ledger, /trace\.test\.mjs|tail -40/);
+
+  const narrower = await evaluateVerificationPolicyHook({
+    payload: payload("node --test test/feature.test.mjs test/trace.test.mjs", { tool_use_id: "tool-subset" }),
+    config: enumerated,
+    ...paths,
+  });
+  assert.equal(narrower.decision, "allow");
+
+  const fallback = await evaluateVerificationPolicyHook({
+    payload: payload("node --test test/feature.test.mjs test/api.test.mjs test/trace.test.mjs", { tool_use_id: "tool-enumerated-allowed" }),
+    config: { ...enumerated, allow_full_suite: true },
+    ...paths,
+  });
+  assert.equal(fallback.decision, "allow");
+});
+
+test("generated policy pins the workspace test files and denies an exhaustive enumeration", async (t) => {
+  const outputParent = await mkdtemp(path.join(os.tmpdir(), "verification-hook-enumeration-test-"));
+  t.after(() => rm(outputParent, { recursive: true, force: true }));
+  const plan = "fixtures/benchmark/verification-policy-pilot-plan.json";
+  const repo = path.resolve(".");
+  const manifest = JSON.parse(execFileSync(process.execPath, [
+    "src/verification-task-cli.mjs",
+    "--plan", plan,
+    "--task", "vp_public_behavior_test_required",
+    "--repo", repo,
+    "--output-parent", outputParent,
+  ], { cwd: repo, encoding: "utf8" }));
+  const manifestPath = path.join(outputParent, "task.json");
+  await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+  const hookDir = path.join(outputParent, "hook");
+  execFileSync(process.execPath, [
+    "src/prepare-verification-policy-hook.mjs",
+    "--plan", plan,
+    "--task-manifest", manifestPath,
+    "--output-dir", hookDir,
+  ], { cwd: repo, encoding: "utf8" });
+
+  const policy = JSON.parse(await readFile(path.join(hookDir, "verification-policy.json"), "utf8"));
+  assert.deepEqual(policy.commands.full, ["npm", "test"]);
+  assert.equal(policy.full_suite_resolution, "expanded_from_workspace");
+  const discovered = [];
+  for await (const entry of glob("test/*.test.mjs", { cwd: manifest.workspace })) discovered.push(entry);
+  assert.ok(discovered.length > 1);
+  assert.deepEqual(policy.full_suite_test_files, discovered.sort());
+
+  const enumeration = `node --test ${policy.full_suite_test_files.join(" ")} 2>&1 | tail -40`;
+  const generated = JSON.parse(await readFile(path.join(hookDir, "hooks.json"), "utf8")).hooks.PreToolUse[0].hooks[0].command;
+  const result = spawnSync(generated, { shell: true, input: JSON.stringify(payload(enumeration)), cwd: repo, encoding: "utf8" });
+  assert.equal(result.status, 0);
+  const response = JSON.parse(result.stdout);
+  assert.equal(response.hookSpecificOutput.permissionDecision, "deny");
+  assert.match(response.hookSpecificOutput.permissionDecisionReason, /full_suite_equivalent_selection_denied/);
 });
 
 test("full-suite fallback is allowed only when the task policy grants the exception", async (t) => {

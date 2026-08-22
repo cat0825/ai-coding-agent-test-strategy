@@ -118,9 +118,10 @@ test("glob targets are marked as unbounded selections", () => {
   const flagged = analyzeTestRunnerCommand("pytest -k test_a", { cwdSha256 });
   const incomplete = analyzeTestRunnerCommand("echo $(npm test)", { cwdSha256 });
 
-  assert.deepEqual(targeted.selection, { bounded: true, reason: null });
-  assert.deepEqual(globbed.selection, { bounded: false, reason: "glob_target" });
-  assert.deepEqual(flagged.selection, { bounded: true, reason: null });
-  assert.deepEqual(incomplete.selection, { bounded: false, reason: "incomplete_semantics" });
+  assert.deepEqual(targeted.selection, { bounded: true, reason: null, targets: ["test/a.test.mjs"] });
+  assert.deepEqual(globbed.selection, { bounded: false, reason: "glob_target", targets: [] });
+  // A `-k` filter value is not a path, so it must not be reported as a selected file.
+  assert.deepEqual(flagged.selection, { bounded: true, reason: null, targets: [] });
+  assert.deepEqual(incomplete.selection, { bounded: false, reason: "incomplete_semantics", targets: [] });
   assert.equal(globbed.semantics.complete, true);
 });
