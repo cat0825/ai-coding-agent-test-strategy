@@ -200,6 +200,21 @@ function publicSuggestion(config) {
   return Array.isArray(command) ? command : null;
 }
 
+function relativeTarget(target) {
+  return target.startsWith("./") ? target.slice(2) : target;
+}
+
+// An explicit list of every test file is the full suite spelled out one file at a time.
+// The list is bounded, so it clears the glob check, but it selects exactly the set the
+// full-suite deny exists to refuse.
+function coversFullSuite(config, analysis) {
+  const declared = config?.full_suite_test_files;
+  if (!Array.isArray(declared) || declared.length === 0) return false;
+  const selected = new Set((analysis.selection?.targets ?? []).map(relativeTarget));
+  if (selected.size === 0) return false;
+  return declared.every((file) => selected.has(relativeTarget(file)));
+}
+
 async function evaluateLocked({ payload, config, statePath, ledgerPath, nowMs = Date.now }) {
   if (!payload || typeof payload !== "object") throw new Error("Hook payload must be an object");
   if (!config || config.schema_version !== 1) throw new Error("Policy config schema_version must be 1");
@@ -275,6 +290,12 @@ async function evaluateLocked({ payload, config, statePath, ledgerPath, nowMs = 
     // narrower than the denied full suite. Observed as a real escape from the full-suite
     // deny: `node --test test/*.test.mjs` after `npm test` was blocked.
     reasonCode = "unbounded_test_selection_denied";
+    suggestion = publicSuggestion(config);
+  } else if (tier === "other" && config.allow_full_suite !== true && coversFullSuite(config, analysis)) {
+    // Observed as a real escape from the full-suite deny: after `npm test` was blocked the
+    // agent ran `node --test` over all nine test files it found, naming each one, and the
+    // bounded-selection check allowed it as an ordinary narrow run.
+    reasonCode = "full_suite_equivalent_selection_denied";
     suggestion = publicSuggestion(config);
   } else if (session.failed_test_turns.length >= budget.max_failed_test_turns) {
     reasonCode = "failed_test_turn_budget_exceeded";

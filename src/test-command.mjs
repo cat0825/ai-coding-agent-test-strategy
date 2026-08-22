@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
 
+// A test target names a path or a source file. Flag values that happen to match can only
+// widen the selected set, never hide a file from it, so a permissive shape is safe here.
+const PATH_LIKE = /\/|\.[cm]?[jt]sx?$/;
+
 const TEST_RUNNER_RULES = Object.freeze([
   {
     pattern: /(?:^|[\s"';&|()\n])(?:(uv)\s+run\s+)?(?:(python(?:3)?)\s+-m\s+)?(pytest)(?=[\s"';&|()\n]|$)/i,
@@ -270,7 +274,7 @@ function incompleteAnalysis(command, normalized, reason) {
   return {
     command: normalized,
     canonicalId: canonicalTestCommandId(normalized, semanticDigest),
-    selection: { bounded: false, reason: "incomplete_semantics" },
+    selection: { bounded: false, reason: "incomplete_semantics", targets: [] },
     semantics: {
       version: 1,
       complete: false,
@@ -328,7 +332,8 @@ export function analyzeTestRunnerCommand(command, { cwdSha256 = null } = {}) {
 
   const match = matches[0];
   if (!match.cwdSha256) return incompleteAnalysis(command, match.command, "missing_working_directory_evidence");
-  const globTarget = match.arguments.find((argument) => !argument.startsWith("-") && /[*?[]/.test(argument));
+  const positional = match.arguments.filter((argument) => !argument.startsWith("-"));
+  const globTarget = positional.find((argument) => /[*?[]/.test(argument));
   const environment = [...match.environment].sort(([left], [right]) => left.localeCompare(right));
   const environmentSha256 = sha256(JSON.stringify(environment));
   const argumentsSha256 = sha256(JSON.stringify(match.arguments));
@@ -342,8 +347,11 @@ export function analyzeTestRunnerCommand(command, { cwdSha256 = null } = {}) {
     command: match.command,
     canonicalId: canonicalTestCommandId(match.command, semanticDigest),
     // Selection scope is decision input only. It never enters the trace or the ledger,
-    // because it would carry raw argument text.
-    selection: globTarget ? { bounded: false, reason: "glob_target" } : { bounded: true, reason: null },
+    // because it would carry raw argument text. `targets` lets a policy compare the
+    // selected files against the set the full suite would run.
+    selection: globTarget
+      ? { bounded: false, reason: "glob_target", targets: [] }
+      : { bounded: true, reason: null, targets: positional.filter((argument) => PATH_LIKE.test(argument)) },
     semantics: {
       version: 1,
       complete: true,
