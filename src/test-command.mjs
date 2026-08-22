@@ -52,6 +52,7 @@ const TEST_RUNNER_RULES = Object.freeze([
 const SHELLS = new Set(["sh", "bash", "zsh", "dash", "ksh"]);
 const OPERATORS = new Set(["&&", "||", ";", "|", "(", ")", "$(", "\\n"]);
 const DIGEST = /^[a-f0-9]{64}$/i;
+const REDIRECTION = /^(?:\d*>>?|\d*<|&>>?)/;
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -152,6 +153,7 @@ function commandSegments(tokens) {
   let current = [];
   let groupingDepth = 0;
   let substitutionDepth = 0;
+  let skipNextToken = false;
   const flush = () => {
     if (current.length > 0) segments.push({ tokens: current, nested: substitutionDepth > 0 });
     current = [];
@@ -176,6 +178,17 @@ function commandSegments(tokens) {
     }
     if (OPERATORS.has(token)) {
       flush();
+      continue;
+    }
+    if (REDIRECTION.test(token)) {
+      // A redirection ends the argument list of the current command. Its target is
+      // never a test-selection argument, so it must not enter the semantic digest.
+      flush();
+      if (/^(?:\d*>>?|\d*<|&>>?)$/.test(token)) skipNextToken = true;
+      continue;
+    }
+    if (skipNextToken) {
+      skipNextToken = false;
       continue;
     }
     current.push(token);
@@ -257,6 +270,7 @@ function incompleteAnalysis(command, normalized, reason) {
   return {
     command: normalized,
     canonicalId: canonicalTestCommandId(normalized, semanticDigest),
+    selection: { bounded: false, reason: "incomplete_semantics" },
     semantics: {
       version: 1,
       complete: false,
@@ -314,6 +328,7 @@ export function analyzeTestRunnerCommand(command, { cwdSha256 = null } = {}) {
 
   const match = matches[0];
   if (!match.cwdSha256) return incompleteAnalysis(command, match.command, "missing_working_directory_evidence");
+  const globTarget = match.arguments.find((argument) => !argument.startsWith("-") && /[*?[]/.test(argument));
   const environment = [...match.environment].sort(([left], [right]) => left.localeCompare(right));
   const environmentSha256 = sha256(JSON.stringify(environment));
   const argumentsSha256 = sha256(JSON.stringify(match.arguments));
@@ -326,6 +341,9 @@ export function analyzeTestRunnerCommand(command, { cwdSha256 = null } = {}) {
   return {
     command: match.command,
     canonicalId: canonicalTestCommandId(match.command, semanticDigest),
+    // Selection scope is decision input only. It never enters the trace or the ledger,
+    // because it would carry raw argument text.
+    selection: globTarget ? { bounded: false, reason: "glob_target" } : { bounded: true, reason: null },
     semantics: {
       version: 1,
       complete: true,

@@ -1,0 +1,809 @@
+{
+  "completeness": "complete",
+  "events": [
+    {
+      "data": {
+        "change_kinds": [
+          "code"
+        ],
+        "changed_files": [
+          "src/benchmark-preflight.mjs"
+        ],
+        "observation": "materialized_task_state",
+        "repository_commit": "d1748ea857d27bfae88cd3655afa85b192bbc7e4",
+        "state_id": "0586ee0154838eb42482a5ef60a8cac094cac895a24fca200bd27f153264b614"
+      },
+      "event_index": 0,
+      "event_type": "diff",
+      "raw_event_ref": {
+        "event": "turn.started",
+        "kind": "codex-cli-lifecycle",
+        "line": 3,
+        "source_ref": "codex-1787330599107278000-91142-893f380b.ndjson"
+      },
+      "timestamp": "2026-08-21T16:43:19.307Z"
+    },
+    {
+      "data": {
+        "fallback": true,
+        "reasons": [
+          "baseline_unmanaged_agent"
+        ],
+        "risk_level": "standard"
+      },
+      "event_index": 1,
+      "event_type": "risk",
+      "raw_event_ref": {
+        "event": "turn.started",
+        "kind": "codex-cli-lifecycle",
+        "line": 3,
+        "source_ref": "codex-1787330599107278000-91142-893f380b.ndjson"
+      },
+      "timestamp": "2026-08-21T16:43:19.307Z"
+    },
+    {
+      "data": {
+        "affected_workspaces": [],
+        "commands": [
+          {
+            "argv": [
+              "node",
+              "--test"
+            ],
+            "id": "baseline:node:--test:semantic:688c86b4337168b91493a27eea2133540f8d509a060692642e7880469aebe840"
+          },
+          {
+            "argv": [
+              "node",
+              "--test"
+            ],
+            "id": "baseline:node:--test:semantic:6ef34e86c1b00d7a23207c33ac5ff9d257a5d867906e7b6da354033ff3bc2259"
+          }
+        ],
+        "requested_phase": "affected",
+        "selected_phase": "affected",
+        "selection_source": "observed_verification_calls"
+      },
+      "event_index": 2,
+      "event_type": "test_selection",
+      "raw_event_ref": {
+        "event": "turn.started",
+        "kind": "codex-cli-lifecycle",
+        "line": 3,
+        "source_ref": "codex-1787330599107278000-91142-893f380b.ndjson"
+      },
+      "timestamp": "2026-08-21T16:43:19.307Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 0,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 0,
+          "test_executions": 0
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "allow",
+        "reason_code": "non_test_command",
+        "tier": "non_test"
+      },
+      "event_index": 3,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.pre_tool",
+        "kind": "verification-policy-ledger",
+        "line": 1,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:43:24.423Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 0,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 0,
+          "test_executions": 0
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "allow",
+        "reason_code": "non_test_command",
+        "tier": "non_test"
+      },
+      "event_index": 4,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.pre_tool",
+        "kind": "verification-policy-ledger",
+        "line": 2,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:43:24.434Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 0,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 0,
+          "test_executions": 0
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "observe",
+        "reason_code": "non_test_tool_observed",
+        "tier": "non_test"
+      },
+      "event_index": 5,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.post_tool",
+        "kind": "verification-policy-ledger",
+        "line": 3,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:43:24.585Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 0,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 0,
+          "test_executions": 0
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "observe",
+        "reason_code": "non_test_tool_observed",
+        "tier": "non_test"
+      },
+      "event_index": 6,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.post_tool",
+        "kind": "verification-policy-ledger",
+        "line": 4,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:43:24.596Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 0,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 0,
+          "test_executions": 0
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "allow",
+        "reason_code": "non_test_command",
+        "tier": "non_test"
+      },
+      "event_index": 7,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.pre_tool",
+        "kind": "verification-policy-ledger",
+        "line": 5,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:43:29.829Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 0,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 0,
+          "test_executions": 0
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "allow",
+        "reason_code": "non_test_command",
+        "tier": "non_test"
+      },
+      "event_index": 8,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.pre_tool",
+        "kind": "verification-policy-ledger",
+        "line": 6,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:43:29.847Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 0,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 0,
+          "test_executions": 0
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "observe",
+        "reason_code": "non_test_tool_observed",
+        "tier": "non_test"
+      },
+      "event_index": 9,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.post_tool",
+        "kind": "verification-policy-ledger",
+        "line": 7,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:43:29.994Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 0,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 0,
+          "test_executions": 0
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "observe",
+        "reason_code": "non_test_tool_observed",
+        "tier": "non_test"
+      },
+      "event_index": 10,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.post_tool",
+        "kind": "verification-policy-ledger",
+        "line": 8,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:43:30.053Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 0,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 0,
+          "test_executions": 0
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "allow",
+        "reason_code": "non_test_command",
+        "tier": "non_test"
+      },
+      "event_index": 11,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.pre_tool",
+        "kind": "verification-policy-ledger",
+        "line": 9,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:43:36.499Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 0,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 0,
+          "test_executions": 0
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "observe",
+        "reason_code": "non_test_tool_observed",
+        "tier": "non_test"
+      },
+      "event_index": 12,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.post_tool",
+        "kind": "verification-policy-ledger",
+        "line": 10,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:43:36.670Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 0,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 0,
+          "test_executions": 0
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "allow",
+        "reason_code": "non_test_command",
+        "tier": "non_test"
+      },
+      "event_index": 13,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.pre_tool",
+        "kind": "verification-policy-ledger",
+        "line": 11,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:43:43.345Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 0,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 0,
+          "test_executions": 0
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "allow",
+        "reason_code": "non_test_command",
+        "tier": "non_test"
+      },
+      "event_index": 14,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.pre_tool",
+        "kind": "verification-policy-ledger",
+        "line": 12,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:43:43.357Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 0,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 0,
+          "test_executions": 0
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "observe",
+        "reason_code": "non_test_tool_observed",
+        "tier": "non_test"
+      },
+      "event_index": 15,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.post_tool",
+        "kind": "verification-policy-ledger",
+        "line": 13,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:43:43.518Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 0,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 0,
+          "test_executions": 0
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "observe",
+        "reason_code": "non_test_tool_observed",
+        "tier": "non_test"
+      },
+      "event_index": 16,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.post_tool",
+        "kind": "verification-policy-ledger",
+        "line": 14,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:43:43.532Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 0,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 0,
+          "test_executions": 0
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "allow",
+        "reason_code": "non_test_command",
+        "tier": "non_test"
+      },
+      "event_index": 17,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.pre_tool",
+        "kind": "verification-policy-ledger",
+        "line": 15,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:44:21.330Z"
+    },
+    {
+      "data": {
+        "change_kinds": [
+          "test"
+        ],
+        "changed_files": [
+          "test/benchmark-preflight.test.mjs"
+        ],
+        "observation": "completed_shell_file_change",
+        "repository_commit": "d1748ea857d27bfae88cd3655afa85b192bbc7e4",
+        "state_id": "6df6460020a5da08d79ae05cf326b71262c5c4f66b8bd5948b759afe3dba8aae"
+      },
+      "event_index": 18,
+      "event_type": "diff",
+      "raw_event_ref": {
+        "call_id": "item_15",
+        "event": "shell_file_change.completed",
+        "kind": "codex-cli-lifecycle",
+        "line": 27,
+        "source_ref": "codex-1787330599107278000-91142-893f380b.ndjson",
+        "stream_completion_line": 26,
+        "stream_source_ref": "stream.ndjson"
+      },
+      "timestamp": "2026-08-21T16:44:21.483Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 0,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 0,
+          "test_executions": 0
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "observe",
+        "reason_code": "non_test_tool_observed",
+        "tier": "non_test"
+      },
+      "event_index": 19,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.post_tool",
+        "kind": "verification-policy-ledger",
+        "line": 16,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:44:21.539Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 1,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 0,
+          "test_executions": 1
+        },
+        "canonical_command_id": "baseline:node:--test:semantic:6ef34e86c1b00d7a23207c33ac5ff9d257a5d867906e7b6da354033ff3bc2259",
+        "command_semantic_sha256": "6ef34e86c1b00d7a23207c33ac5ff9d257a5d867906e7b6da354033ff3bc2259",
+        "decision": "allow",
+        "reason_code": "within_budget",
+        "tier": "fast"
+      },
+      "event_index": 20,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.pre_tool",
+        "kind": "verification-policy-ledger",
+        "line": 17,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:44:29.326Z"
+    },
+    {
+      "data": {
+        "canonical_command_id": "baseline:node:--test:semantic:6ef34e86c1b00d7a23207c33ac5ff9d257a5d867906e7b6da354033ff3bc2259",
+        "command": [
+          "node",
+          "--test"
+        ],
+        "command_semantics": {
+          "arguments_sha256": "fedfba178e4f8506cfbcb218989c70715e585a6408132236637dff2a94d7bb87",
+          "complete": true,
+          "cwd_sha256": "4d6376592f09bba6528bf800394e7f80265d44a7e692dc584548d9d74e4b7e14",
+          "environment_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "reason": null,
+          "semantic_sha256": "6ef34e86c1b00d7a23207c33ac5ff9d257a5d867906e7b6da354033ff3bc2259",
+          "version": 1
+        },
+        "duration_ms": 6580.173666,
+        "exit_code": 0,
+        "failure_class": null,
+        "failure_signature": null,
+        "override": null,
+        "signal": null
+      },
+      "event_index": 21,
+      "event_type": "test_result",
+      "raw_event_ref": {
+        "call_id": "item_17",
+        "event": "item.completed",
+        "kind": "codex-cli-lifecycle",
+        "line": 29,
+        "source_ref": "codex-1787330599107278000-91142-893f380b.ndjson",
+        "start_line": 28,
+        "stream_completion_line": 29,
+        "stream_source_ref": "stream.ndjson",
+        "stream_start_line": 28
+      },
+      "timestamp": "2026-08-21T16:44:36.069Z"
+    },
+    {
+      "data": {
+        "change_kinds": [
+          "test"
+        ],
+        "changed_files": [
+          "test/benchmark-preflight.test.mjs"
+        ],
+        "observation": "completed_shell_file_change",
+        "repository_commit": "d1748ea857d27bfae88cd3655afa85b192bbc7e4",
+        "state_id": "29ce77ebecdcd2a5c9bd691406a79519cab9db6694007e75995f78ce18c71798"
+      },
+      "event_index": 22,
+      "event_type": "diff",
+      "raw_event_ref": {
+        "call_id": "item_17",
+        "event": "shell_file_change.completed",
+        "kind": "codex-cli-lifecycle",
+        "line": 30,
+        "source_ref": "codex-1787330599107278000-91142-893f380b.ndjson",
+        "stream_completion_line": 29,
+        "stream_source_ref": "stream.ndjson"
+      },
+      "timestamp": "2026-08-21T16:44:36.080Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 1,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 6807,
+          "test_executions": 1
+        },
+        "canonical_command_id": "baseline:node:--test:semantic:6ef34e86c1b00d7a23207c33ac5ff9d257a5d867906e7b6da354033ff3bc2259",
+        "command_semantic_sha256": "6ef34e86c1b00d7a23207c33ac5ff9d257a5d867906e7b6da354033ff3bc2259",
+        "decision": "observe",
+        "reason_code": "test_execution_observed",
+        "tier": "fast"
+      },
+      "event_index": 23,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.post_tool",
+        "kind": "verification-policy-ledger",
+        "line": 18,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:44:36.134Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 1,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 6807,
+          "test_executions": 1
+        },
+        "canonical_command_id": "baseline:npm:test:semantic:4325e7541e998892b9593bdf8737deb459728b3113ae94d81bd05b33892638ed",
+        "command_semantic_sha256": "4325e7541e998892b9593bdf8737deb459728b3113ae94d81bd05b33892638ed",
+        "decision": "deny",
+        "reason_code": "untargeted_full_suite_denied",
+        "tier": "full"
+      },
+      "event_index": 24,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.pre_tool",
+        "kind": "verification-policy-ledger",
+        "line": 19,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:44:41.817Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 1,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 6807,
+          "test_executions": 2
+        },
+        "canonical_command_id": "baseline:node:--test:semantic:688c86b4337168b91493a27eea2133540f8d509a060692642e7880469aebe840",
+        "command_semantic_sha256": "688c86b4337168b91493a27eea2133540f8d509a060692642e7880469aebe840",
+        "decision": "allow",
+        "reason_code": "within_budget",
+        "tier": "other"
+      },
+      "event_index": 25,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.pre_tool",
+        "kind": "verification-policy-ledger",
+        "line": 20,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:44:48.675Z"
+    },
+    {
+      "data": {
+        "canonical_command_id": "baseline:node:--test:semantic:688c86b4337168b91493a27eea2133540f8d509a060692642e7880469aebe840",
+        "command": [
+          "node",
+          "--test"
+        ],
+        "command_semantics": {
+          "arguments_sha256": "966a71dcf317abc3d9951550147442f0227be728508a326d4226e7cf925b7887",
+          "complete": true,
+          "cwd_sha256": "4d6376592f09bba6528bf800394e7f80265d44a7e692dc584548d9d74e4b7e14",
+          "environment_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "reason": null,
+          "semantic_sha256": "688c86b4337168b91493a27eea2133540f8d509a060692642e7880469aebe840",
+          "version": 1
+        },
+        "duration_ms": 6425.551167,
+        "exit_code": 0,
+        "failure_class": null,
+        "failure_signature": null,
+        "override": null,
+        "signal": null
+      },
+      "event_index": 26,
+      "event_type": "test_result",
+      "raw_event_ref": {
+        "call_id": "item_21",
+        "event": "item.completed",
+        "kind": "codex-cli-lifecycle",
+        "line": 32,
+        "source_ref": "codex-1787330599107278000-91142-893f380b.ndjson",
+        "start_line": 31,
+        "stream_completion_line": 34,
+        "stream_source_ref": "stream.ndjson",
+        "stream_start_line": 33
+      },
+      "timestamp": "2026-08-21T16:44:55.263Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 1,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 13463,
+          "test_executions": 2
+        },
+        "canonical_command_id": "baseline:node:--test:semantic:688c86b4337168b91493a27eea2133540f8d509a060692642e7880469aebe840",
+        "command_semantic_sha256": "688c86b4337168b91493a27eea2133540f8d509a060692642e7880469aebe840",
+        "decision": "observe",
+        "reason_code": "test_execution_observed",
+        "tier": "other"
+      },
+      "event_index": 27,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.post_tool",
+        "kind": "verification-policy-ledger",
+        "line": 21,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:44:55.331Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 1,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 13463,
+          "test_executions": 2
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "allow",
+        "reason_code": "non_test_command",
+        "tier": "non_test"
+      },
+      "event_index": 28,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.pre_tool",
+        "kind": "verification-policy-ledger",
+        "line": 22,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:45:02.888Z"
+    },
+    {
+      "data": {
+        "budget": {
+          "agent_turns": 1,
+          "failed_test_turns": 0,
+          "immediate_duration_ms": 13463,
+          "test_executions": 2
+        },
+        "canonical_command_id": null,
+        "command_semantic_sha256": null,
+        "decision": "observe",
+        "reason_code": "non_test_tool_observed",
+        "tier": "non_test"
+      },
+      "event_index": 29,
+      "event_type": "policy_decision",
+      "raw_event_ref": {
+        "event": "policy.post_tool",
+        "kind": "verification-policy-ledger",
+        "line": 23,
+        "source_ref": "policy-decisions.ndjson"
+      },
+      "timestamp": "2026-08-21T16:45:03.358Z"
+    },
+    {
+      "data": {
+        "reason": "observed_turn_completed",
+        "status": "completed"
+      },
+      "event_index": 30,
+      "event_type": "stop",
+      "raw_event_ref": {
+        "event": "turn.completed",
+        "kind": "codex-cli-lifecycle",
+        "line": 37,
+        "source_ref": "codex-1787330599107278000-91142-893f380b.ndjson"
+      },
+      "timestamp": "2026-08-21T16:45:15.427Z"
+    }
+  ],
+  "harness": "codex-cli@0.147.0",
+  "mode": "shadow",
+  "model": "claude-opus-5",
+  "policy": {
+    "name": "observatory-verification-policy",
+    "version": "0.2-enforced"
+  },
+  "repository": "cat0825/ai-coding-agent-test-strategy",
+  "repository_commit": "d1748ea857d27bfae88cd3655afa85b192bbc7e4",
+  "run_id": "vp43-enforcement-smoke",
+  "schema_version": 1,
+  "source": {
+    "collector_sha256": "e97173c5e935aeb5be26d3396ce9fc8702c62de45f5c54af8696633f417a0bcb",
+    "final_workspace_state_sha256": "a3890f1798c6c61cd50bbb54a25b365904e8e7b8e8b84f7386b20ec73db090c3",
+    "format": "codex-cli-lifecycle-v2",
+    "ignored_generated_files": 0,
+    "initial_changed_files": 1,
+    "initial_workspace_state_sha256": "a6c80c05b1577c3599b71c068fd5fc1b207c14130debfb95141ca916d7c76331",
+    "lifecycle_sha256": "2ab283fb364edd9218e53925f08f389022a3dd84fcfef3f0dcc659afd71014ba",
+    "lifecycle_source_ref": "codex-1787330599107278000-91142-893f380b.ndjson",
+    "oracle_definition_sha256": "8c809937ca36483b79a76e6346e29b2dab9192319d1191164464f308d007d2b1",
+    "outcome_files_modified": 1,
+    "outcome_sha256": "b24bfbcb8254e8e7df1cdbeb0a9f891369552d26ccca77a561b024eb52d300c2",
+    "policy_ledger_sha256": "ad9e72f1cf63572914a30db408bbe3b4f7da05f554fd509671be27365dcd6b25",
+    "policy_ledger_source_ref": "policy-decisions.ndjson",
+    "post_run_workspace_sha256": "a3890f1798c6c61cd50bbb54a25b365904e8e7b8e8b84f7386b20ec73db090c3",
+    "record_count": 100,
+    "scenario_definition_sha256": "0c62807ac5238d40e6adf56bb27a48bdf3006bbba7bafe203e1c3f4eee27e544",
+    "source_tree": "10789d61b31470200a7b5b00c47af3166782ba07",
+    "state_evidence_complete": true,
+    "stream_sha256": "8e0e97c17c19997af6c4fa64b8c9ce9e756a914d05e5eaa4debcfed52bfe8c90",
+    "stream_source_ref": "stream.ndjson",
+    "workspace_revision": "8d638e17fa927082d9519364ae085d0e3369431d",
+    "workspace_state_changed": true
+  },
+  "task_id": "vp_public_behavior_test_required",
+  "trace_id": "trace-6f35262c4e3b3c77947faa747c6df83bb7ed74bb2a0415cb336455f03f0ee0d6",
+  "warnings": []
+}
