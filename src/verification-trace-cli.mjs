@@ -77,6 +77,10 @@ async function main(argv) {
     if (!options[option]) throw new Error(`--${option.replaceAll("_", "-")} is required`);
   }
   if (!["baseline", "shadow"].includes(options.mode)) throw new Error("--mode must be baseline or shadow");
+  // The policy arm has to prove the policy was actually in force. Without the ledger there is nothing
+  // to prove it with, and the trace would report zero decisions exactly as if the agent had simply
+  // stayed inside every budget.
+  if (options.mode === "shadow" && !options.policy_ledger) throw new Error("--policy-ledger is required for --mode shadow");
 
   const plan = await readJson(path.resolve(options.plan));
   const oracles = await readJson(path.resolve(options.oracles));
@@ -114,8 +118,12 @@ async function main(argv) {
   const lifecycle = parseNdjson(lifecycleContents, "Codex lifecycle");
   const stream = parseNdjson(streamContents, "Codex stream");
   const policyLedgerContents = options.policy_ledger ? await readFile(path.resolve(options.policy_ledger), "utf8") : null;
+  // A ledger with no records is already refused by parseNdjson, and a missing file by readFile, so the
+  // remaining way for the policy arm to look compliant without the hook having run is the flag simply
+  // being left off. That is checked with the other options, above.
   const policyDecisions = policyLedgerContents === null ? [] : parseNdjson(policyLedgerContents, "Verification policy ledger")
     .map(({ record, line }) => ({ ...record, source_line: line, source_ref: path.basename(options.policy_ledger) }));
+  const observedShellCommands = lifecycle.filter(({ record }) => record.event === "item.started" && record.item_type === "command_execution").length;
   const oracle = oracles.oracles.find(({ task_id: taskId }) => taskId === task.task_id);
   if (!oracle) throw new Error(`Missing oracle for task ${task.task_id}`);
   const failureSignaturesByCallId = {};
@@ -179,12 +187,11 @@ async function main(argv) {
   const outputPath = path.resolve(options.output);
   await mkdir(path.dirname(outputPath), { recursive: true });
   await writeFile(outputPath, stableJson(trace), "utf8");
-  const shellCommands = lifecycle.filter(({ record }) => record.event === "item.started" && record.item_type === "command_execution").length;
   process.stdout.write(`${JSON.stringify({
     output: outputPath,
     task_id: trace.task_id,
     completeness: trace.completeness,
-    shell_commands: shellCommands,
+    shell_commands: observedShellCommands,
     test_results: trace.events.filter(({ event_type: eventType }) => eventType === "test_result").length,
     agent_elapsed_ms: elapsedMilliseconds(lifecycle),
     workspace_state_changed: workspaceStateChanged,

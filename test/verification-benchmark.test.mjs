@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -317,4 +317,42 @@ test("CLI writes a deterministic design audit", async (t) => {
   const second = await readFile(output, "utf8");
   assert.equal(second, first);
   assert.equal(JSON.parse(second).conclusion.status, "design_ready");
+});
+
+// The policy arm is only evidence if the policy was in force. codex 0.149.0 silently skips hooks in a
+// CODEX_HOME without persisted hook trust and reports nothing about it, so a run whose hook never
+// loaded still produces a clean transcript. An absent or empty ledger is already refused downstream,
+// which leaves the flag being left off -- the one path that would have published zero decisions as if
+// the agent had simply stayed inside every budget.
+test("a policy-arm trace cannot be built without the ledger that proves the hook ran", async () => {
+  const argumentsFor = (mode, extra = []) => [
+    "src/verification-trace-cli.mjs",
+    "--plan", "fixtures/benchmark/verification-policy-pilot-plan.json",
+    "--oracles", "fixtures/benchmark/verification-policy-pilot-oracles.json",
+    "--repo", ".", "--task-manifest", "missing.json",
+    "--stream", "missing.ndjson", "--lifecycle", "missing.ndjson", "--collector", "missing.json",
+    "--run-id", "r", "--harness", "codex", "--model", "m", "--mode", mode,
+    "--policy-name", "observatory-verification-policy", "--policy-version", "0.3-rewrite",
+    "--output", "unused.json",
+    ...extra,
+  ];
+  const run = (mode, extra) => spawnSync(process.execPath, argumentsFor(mode, extra), {
+    cwd: path.resolve("."),
+    encoding: "utf8",
+  });
+
+  const withoutLedger = run("shadow");
+  assert.equal(withoutLedger.status, 1);
+  assert.match(withoutLedger.stderr, /--policy-ledger is required for --mode shadow/);
+
+  // The check has to be about the missing proof, not about the other paths being fake: with the flag
+  // supplied this run fails later, on the manifest it cannot read.
+  const withLedger = run("shadow", ["--policy-ledger", "missing.ndjson"]);
+  assert.equal(withLedger.status, 1);
+  assert.doesNotMatch(withLedger.stderr, /--policy-ledger is required/);
+
+  // A baseline arm has no hook by design, so it must not be forced to produce one.
+  const baseline = run("baseline");
+  assert.equal(baseline.status, 1);
+  assert.doesNotMatch(baseline.stderr, /--policy-ledger is required/);
 });

@@ -1,0 +1,88 @@
+Reading additional input from stdin...
+OpenAI Codex v0.149.0
+--------
+workdir: <WORKSPACE>
+model: gpt-5.6-sol
+provider: relay
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: low
+reasoning summaries: none
+session id: 01a02d5b-e9b5-7b71-b027-9f98c096f637
+--------
+user
+Run the full test suite with exactly this command: npm test. Then report, in one line, the total number of tests that ran.
+codex
+I’m running the exact command now and will report only the test total.
+exec
+/bin/zsh -lc 'npm test' in <WORKSPACE>
+ succeeded in 3577ms:
+
+> ai-coding-agent-test-strategy@0.1.0 test
+> node --test test/*.test.mjs
+
+✔ produces a deterministic eligible manifest without absolute paths (904.12275ms)
+✔ CLI writes an eligible manifest in one command (586.127792ms)
+✔ blocks execution when repository or runtime foundations are ineligible (424.680667ms)
+✔ observes install and command failures instead of accepting declared statuses (737.486708ms)
+✔ rejects declared statuses and prerequisite cycles (227.203292ms)
+✔ rejects repository evidence paths that escape the worktree (508.300625ms)
+✔ derives eligibility and reports the remaining baseline evidence deficit (6.079334ms)
+✔ does not trust caller-declared eligibility or mismatched evidence (2.159791ms)
+✔ does not allow callers to lower the 30-task evidence floor (0.210916ms)
+✔ excludes infrastructure and pre-existing failures from the eligible count (1.798625ms)
+✔ requires a complete baseline trace tied to the pinned repository (1.300792ms)
+✔ rejects an ineligible environment before counting tasks (0.432167ms)
+✔ CLI writes the explicit evidence deficit and exits with code 2 (70.916709ms)
+✔ exact repeats expose the first candidate waste point (9.3525ms)
+✔ same failure without attribution is both a repeat and unattributed retry (2.789916ms)
+✔ a relevant state change is labeled as necessary revalidation (1.547625ms)
+✔ unknown state changes do not produce false repeat labels (2.917792ms)
+✔ single runs and different commands produce no findings (2.273334ms)
+✔ canonical evaluation is deterministic and refuses a positive claim (34.809209ms)
+✔ a failed failure-recall safety gate blocks efficiency claims (4.289416ms)
+✔ positive claims require explicit observed evidence and passing gates (4.896583ms)
+✔ ineligible calibration comparisons cannot inflate quality-claim gates (4.132542ms)
+✔ evaluation CLI writes a versioned report in one command (75.363167ms)
+✔ recommendation CLI emits evidence and writes automatic or user decisions (131.151208ms)
+✔ expert mode exposes the same evidence but never auto-applies (7.772917ms)
+✔ simplified mode auto-applies only a low-risk exact repeat (1.969625ms)
+✔ overlapping repeat diagnostics produce one auditable action (1.637ms)
+✔ high risk and fallback findings remain advisory in simplified mode (2.454542ms)
+✔ contextual revalidation is low-confidence and records a user decision (1.316542ms)
+✔ unknown context produces no recommendation and unsupported modes fail closed (1.200125ms)
+✔ audit rejects tampered authorization and unknown user decisions (1.387583ms)
+✔ all canonical traces render every event into a self-contained replay (11.481125ms)
+✔ replay CLI writes a nested output file (62.368208ms)
+✔ diagnostic replay links the first waste point and all evidence (1.260417ms)
+✔ audited recommendation and decision events remain replayable (2.493ms)
+✔ partial traces surface missing stop evidence (1.361209ms)
+✔ trace strings are escaped before insertion into HTML (0.920834ms)
+✔ canonical fixtures validate and preserve their intended lifecycle (6.964125ms)
+✔ ledger conversion is deterministic and does not invent missing decisions (0.994292ms)
+✔ invalid fields and event order produce actionable errors (2.815042ms)
+✔ test selections require an affected workspace array (1.272833ms)
+✔ complete traces require an explicit stop event (1.673958ms)
+✔ retry and expansion references must point backwards (1.50525ms)
+✔ conversion requires an explicit task when a ledger contains multiple tasks (0.38925ms)
+✔ glob matcher handles root and nested double-star paths (0.713375ms)
+✔ docs-only changes select the minimal formatting command (19.053167ms)
+✔ root configuration and high-risk changes conservatively select full (4.964375ms)
+✔ affected workspace planning includes direct dependents (7.321333ms)
+✔ unmapped files fall back to full and no-change plans remain empty (6.647458ms)
+✔ policy validation rejects npm scripts that do not exist (7.471333ms)
+✔ ledger appends JSONL events and the CLI writes a shadow plan (82.450917ms)
+ℹ tests 51
+ℹ suites 0
+ℹ pass 51
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3470.60325
+
+codex
+51 tests ran.
+tokens used
+12,819
+51 tests ran.

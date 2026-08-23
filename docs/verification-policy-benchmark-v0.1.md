@@ -150,6 +150,35 @@ smoke run 的 trace `complete`、`warnings: []`，oracle `passed`，`production_
 
 第 3 条修复只有单元测试覆盖，尚无真实运行观测：确认运行开始后 provider 返回 403 额度不足（余额为负），该运行不计入证据。因此 #43 仍保持 open。
 
+## L2 改写档与真机确认（2026-08-23）
+
+deny 只保住了"不许乱跑全量"，代价是 Agent 白丢一个验证回合。L2 改写档把"只是瞄太宽"的调用换成题目自己声明的 `affected` tier，命令照跑，回合不丢。只有三个原因进改写：`untargeted_full_suite_denied`、`unbounded_test_selection_denied`、`full_suite_equivalent_selection_denied`；其余拒绝原样保留 —— 那些的问题不在目标。
+
+改写的窄命令只从题目声明的 `affected` 取，绝不从被判的命令里推。理由是这个项目的立命之本：一个凭空造出来的目标在 transcript 里照样像验证，实际却在测别的东西。另外三条约束：
+
+- 复合命令（`npm run lint && npm test`）拒绝改写。整串替换会把 lint 静默吞掉，改写必须只收窄测试范围。
+- 改写命令先过一遍同一份预算再提供。破同一条预算的改写只是把拒绝推迟一个回合，这时收回建议、保留原 scope 原因。
+- 改写一旦生效，它才是"真正跑过的那条命令"：PostToolUse 的身份取 pending 记录而非 payload，预算和 repeat 检查都记在窄命令头上。
+
+同时补掉一个 fail-closed 漏洞：`tier === "full"` 且推不出 affected 时，原来会掉到预算检查然后被放行。现在拒绝并给 `full_suite_scope_undeterminable_denied`，`allow_full_suite: true` 仍是唯一的显式豁免（full_fallback 题就靠它）。
+
+真机确认在 [`verification-policy-rewrite-probe-2026-08-23`](../fixtures/benchmark/verification-policy-rewrite-probe-2026-08-23/probe-report.json)。挑 `vp_public_behavior_test_required` 是因为它的工作区里 affected 明显窄于全量（13 题 vs 51 题），题数本身就能区分"改写生效"和"改写被忽略"——上一次我拿一个 affected ≡ full 的工作区看到 13 题就说生效了，那是错的，13 题在那个工作区里无条件成立。
+
+- Agent 要的是 `npm test`，codex 实际执行 `node --test test/benchmark-preflight.test.mjs test/cohort.test.mjs`，13 题；
+- ledger 两条：PreToolUse `rewrite / untargeted_full_suite_rewritten / tier=full`，PostToolUse 记的是被替换命令的身份 `tier=affected`；
+- Agent 自己的总结是"13 tests ran — command: `npm test`"。它报的是它要的命令，不是跑掉的命令。自述和审计对不上，这正是整套东西存在的理由。
+
+这次采集又暴露两个真实缺陷，都已修复或记录：
+
+1. **hook 信任门让运行静默失效**。同一份 config、同一个工作区、同一句提示，不加 `--dangerously-bypass-hook-trust` 时：全量 51 题跑完、hook 一次没触发、ledger 文件根本没生成。新建的 `CODEX_HOME` 没有持久化 hook 信任，codex 0.149.0 直接静默跳过，`codex doctor` 也不报告任何 hook 相关检查。
+
+   顺着这条查 collector 能不能识别"策略从未生效的运行"，结论比预想的好一半：ledger 文件缺失会在 `readFile` 炸掉，空 ledger 会被 `parseNdjson` 的"至少一条记录"拒掉，两条都已经 fail-closed。真正的洞只有一个 —— trace CLI 是手敲命令跑的，`--policy-ledger` 漏写时 `policyDecisions` 静默变成 `[]`，trace 照样 `complete`，看上去就是"策略生效了、Agent 全程在预算内、0 条 deny"。现在 `--mode shadow` 强制要求 `--policy-ledger`，baseline 臂不受影响（它按设计没有 hook）。
+
+   还剩一个洞没堵：**上一轮留下的 ledger**。hook 这轮静默跳过，但文件里还有旧记录，两道检查都过。好消息是这个可以精确判定 —— ledger 的 `session_id_sha256` 就是 `sha256(session_id).slice(0, 16)`，无盐，实测拿 transcript 里的 session id 一算就对上（`d96bf50be8537c90`）。所以只要把 lifecycle 里的 `thread.started` / `thread_id` 和 ledger 的 session 摘要绑一次，就能证明这份 ledger 属于这次运行。没有现在就做，是因为"`thread_id` 等于 hook payload 的 `session_id`"这一步还没实测过 —— 探针是直接跑 codex 的，没走 wrapper，手上没有 lifecycle 文件。下次走 collector 采集时顺手确认这一条，再补这道检查。
+2. **outcome 在真机上恒为 unknown**。codex 把 `tool_response` 当原始输出字符串发，没有 exit code 也没有 status。而此前所有单元测试喂的都是带 `exit_code` 的对象 —— 一个真机从不产生的形状。结果 outcome 路径对着 fixture 全绿、在生产里全死，每次真实运行都记 `unknown`，失败回合预算和 repeat-after-pass 检查一起失效。现在改成读 runner 自己打的汇总行（`ℹ fail 0` 这类），runner 没打失败总数就老实记 `unknown` —— 只有 pass 数没有 fail 数不能证明没东西失败。
+
+ledger 版本 `0.2-enforced` → `0.3-rewrite`，两个 arm 由构造保证可分。这一节只是单臂手工探针，不是采集配对，不进任何质量或效率样本。
+
 ## 不能声称什么
 
 `fixture_ready`、单题 smoke 和两题配对 dry run 只证明题目现场、隐藏判分及采集链可复现。当前只有 2/6 pilot 题完成同一 Agent/模型配对，且没有达到 30 个质量样本门槛，因此：

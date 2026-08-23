@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "policy": {
+    "name": "observatory-verification-policy",
+    "version": "0.3-rewrite"
+  },
+  "task_id": "vp_public_behavior_test_required",
+  "mode": "test_decision",
+  "behavior_class": "test_required",
+  "risk_class": "medium",
+  "allow_full_suite": false,
+  "commands": {
+    "fast": [
+      "node",
+      "--test",
+      "test/benchmark-preflight.test.mjs"
+    ],
+    "affected": [
+      "node",
+      "--test",
+      "test/benchmark-preflight.test.mjs",
+      "test/cohort.test.mjs"
+    ],
+    "full": [
+      "npm",
+      "test"
+    ]
+  },
+  "full_suite_test_files": [
+    "test/benchmark-preflight.test.mjs",
+    "test/cohort.test.mjs",
+    "test/diagnostics.test.mjs",
+    "test/evaluation.test.mjs",
+    "test/recommend-cli.test.mjs",
+    "test/recommendations.test.mjs",
+    "test/replay.test.mjs",
+    "test/trace.test.mjs",
+    "test/verifier.test.mjs"
+  ],
+  "full_suite_resolution": "expanded_from_workspace",
+  "budget": {
+    "max_test_executions": 2,
+    "max_immediate_duration_ms": 90000,
+    "max_verification_turns": 2,
+    "max_failed_test_turns": 2
+  }
+}
