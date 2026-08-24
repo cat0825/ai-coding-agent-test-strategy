@@ -251,17 +251,30 @@ const WIDE_SCOPE_REASONS = new Set([
   "untargeted_full_suite_denied",
   "unbounded_test_selection_denied",
   "full_suite_equivalent_selection_denied",
+  "unscoped_test_command_denied",
 ]);
+
+// `npm run check` and friends. The runner is named but what it runs is written in package.json, which
+// the hook does not read.
+function isNamedPackageScript(analysis) {
+  const argv = analysis?.command;
+  return Array.isArray(argv) && argv.length === 3 && argv[1] === "run" && ["npm", "pnpm", "yarn", "bun"].includes(argv[0]);
+}
 
 // The narrower command the hook may substitute for a too-wide one. Derived only from the tier the
 // task itself declared, never synthesized from the command under evaluation: a fabricated target
 // would still look like verification in the transcript while actually testing something else, which
 // is the failure this whole policy exists to detect.
-function deriveRewrite({ config, tiers, command }) {
+function deriveRewrite({ config, tiers, command, analysis }) {
   if (!tiers.affected) return { command: null, declined: "affected_tier_not_declared" };
   if (tierIdentity(tiers.affected) === tierIdentity(tiers.full)) {
     return { command: null, declined: "affected_tier_equals_full_suite" };
   }
+  // The same reason compound commands are refused, except the compound part hides inside package.json.
+  // `check` in the pilot repo is `node --check … && bash -n … && npm test`; substituting the affected
+  // tier for the whole invocation would drop the syntax gates and still look like a narrowed test run.
+  // Only the declared tiers, whose bodies the task author wrote down, are substituted blind.
+  if (isNamedPackageScript(analysis)) return { command: null, declined: "script_body_not_inspectable" };
   const argv = config?.commands?.affected;
   if (!Array.isArray(argv) || argv.length === 0 || argv.some((part) => typeof part !== "string")) {
     return { command: null, declined: "affected_tier_not_declared" };
@@ -372,6 +385,15 @@ async function evaluateLocked({ payload, config, statePath, ledgerPath, nowMs = 
     // deny: `node --test test/*.test.mjs` after `npm test` was blocked.
     reasonCode = "unbounded_test_selection_denied";
     suggestion = publicSuggestion(config);
+  } else if (tier === "other" && !fullSuiteAllowed && (analysis.selection?.targets?.length ?? 0) === 0) {
+    // A recognized runner with no targets at all does not select a narrow set, it lets the runner
+    // choose its own -- which is every test it can find. The analyzer calls that selection `bounded`
+    // because nothing in it is a glob, and reading `bounded` alone made the emptiest possible target
+    // list the most permissive input the policy could receive. Observed live: `npm run check` was
+    // allowed on vp_local_correct_stop while the declared full tier `npm test` would have been denied,
+    // and that project script transitively runs the same suite.
+    reasonCode = "unscoped_test_command_denied";
+    suggestion = publicSuggestion(config);
   } else if (tier === "other" && !fullSuiteAllowed && coversFullSuite(config, analysis)) {
     // Observed as a real escape from the full-suite deny: after `npm test` was blocked the
     // agent ran `node --test` over all nine test files it found, naming each one, and the
@@ -388,7 +410,7 @@ async function evaluateLocked({ payload, config, statePath, ledgerPath, nowMs = 
   let rewrite = null;
   let rewriteCommand = null;
   if (reasonCode && WIDE_SCOPE_REASONS.has(reasonCode)) {
-    const candidate = deriveRewrite({ config, tiers, command });
+    const candidate = deriveRewrite({ config, tiers, command, analysis });
     if (!candidate.command) {
       rewrite = { applied: false, declined_reason: candidate.declined, from_reason_code: reasonCode };
     } else {

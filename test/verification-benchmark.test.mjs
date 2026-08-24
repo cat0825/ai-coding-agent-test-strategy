@@ -332,7 +332,7 @@ test("a policy-arm trace cannot be built without the ledger that proves the hook
     "--repo", ".", "--task-manifest", "missing.json",
     "--stream", "missing.ndjson", "--lifecycle", "missing.ndjson", "--collector", "missing.json",
     "--run-id", "r", "--harness", "codex", "--model", "m", "--mode", mode,
-    "--policy-name", "observatory-verification-policy", "--policy-version", "0.3-rewrite",
+    "--policy-name", "observatory-verification-policy", "--policy-version", "0.4-unscoped",
     "--output", "unused.json",
     ...extra,
   ];

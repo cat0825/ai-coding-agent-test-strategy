@@ -293,6 +293,116 @@ test("re-collected test_decision pair records the agent test write on both sides
   assert.ok(report.conclusion.reason_codes.includes("minimum_quality_claim_comparisons_not_met"));
 });
 
+test("six-task paired pilot stays bound to its traces, oracles and enforcement ledger", async () => {
+  const root = path.resolve("fixtures/benchmark/verification-policy-run-2026-08-24");
+  const report = JSON.parse(await readFile(path.join(root, "run-report.json"), "utf8"));
+  assert.equal(report.tasks.length, 6);
+  assert.equal(report.counts.pairs_with_both_traces_complete, 6);
+
+  let ledgerEvents = 0;
+  let denyEvents = 0;
+  const denyReasons = [];
+  const rewrites = [];
+  for (const task of report.tasks) {
+    const pair = {};
+    for (const role of ["baseline", "candidate"]) {
+      const evidence = task[role];
+      const [traceContents, oracleContents] = await Promise.all([
+        readFile(path.join(root, evidence.trace.path)),
+        readFile(path.join(root, evidence.oracle.path)),
+      ]);
+      assert.equal(createHash("sha256").update(traceContents).digest("hex"), evidence.trace.sha256);
+      assert.equal(createHash("sha256").update(oracleContents).digest("hex"), evidence.oracle.sha256);
+      const trace = JSON.parse(traceContents);
+      const oracle = JSON.parse(oracleContents);
+      assert.equal(trace.task_id, task.task_id);
+      assert.equal(trace.mode, report.treatment[role].mode);
+      assert.deepEqual(trace.policy, report.treatment[role].policy);
+      assert.equal(trace.model, report.model);
+      assert.equal(trace.harness, report.harness);
+      assert.equal(trace.completeness, "complete");
+      assert.deepEqual(trace.warnings, []);
+      assert.equal(trace.source.state_evidence_complete, true);
+      assert.equal(oracle.workspace.edit_policy_satisfied, true);
+      assert.equal(oracle.result.status, evidence.oracle.status);
+      assert.equal(trace.source.oracle_definition_sha256, oracle.oracle.definition_sha256);
+      assert.equal(trace.source.post_run_workspace_sha256, oracle.workspace.post_run_workspace_state_sha256);
+      assert.equal(trace.source.post_run_workspace_sha256, evidence.post_run_workspace_state_sha256);
+      pair[role] = trace;
+    }
+    // What makes the pair evidence rather than two runs: same question, same workspace, one difference.
+    assert.equal(pair.baseline.source.scenario_definition_sha256, pair.candidate.source.scenario_definition_sha256);
+    assert.equal(pair.baseline.source.workspace_revision, pair.candidate.source.workspace_revision);
+    assert.notDeepEqual(pair.baseline.policy, pair.candidate.policy);
+    assert.equal(task.baseline.oracle.status, task.candidate.oracle.status);
+
+    const decisions = pair.candidate.events.filter((event) => event.event_type === "policy_decision");
+    assert.ok(decisions.length > 0, `${task.task_id} candidate carries no policy decisions`);
+    ledgerEvents += decisions.length;
+    for (const event of decisions.filter(({ data }) => data.decision === "deny")) {
+      denyEvents += 1;
+      denyReasons.push(event.data.reason_code);
+    }
+    for (const event of decisions.filter(({ data }) => data.rewrite !== null)) {
+      rewrites.push({ task_id: task.task_id, ...event.data.rewrite, decision: event.data.decision });
+    }
+    // The hook matches Bash only, so every executed command must be observed and none may run ungated.
+    const coverage = task.candidate.enforcement_coverage;
+    assert.equal(coverage.ungated_executions, 0, `${task.task_id} ran a command with no PreToolUse record`);
+    assert.equal(coverage.unobserved_executions, 0, `${task.task_id} executed a command that left no PostToolUse record`);
+    assert.equal(coverage.complete, true);
+  }
+  assert.equal(ledgerEvents, report.policy_decisions.ledger_events);
+  assert.equal(denyEvents, report.policy_decisions.deny_events);
+
+  // The first live observation of the v0.4 unscoped-selection deny, which until this batch had only unit
+  // coverage, and the two fail-closed denials of pure inspection commands that are its known cost. Both are
+  // asserted so a policy change has to come here and say which one it changed.
+  assert.ok(denyReasons.includes("unscoped_test_command_denied"));
+  assert.equal(denyReasons.filter((reason) => reason === "command_semantics_incomplete:runner_structure_unrecognized").length, 2);
+
+  // The L2 rewrite path's first paired-collection evidence; before this it was a single-arm manual probe.
+  // Every applied rewrite must land on the tier the task declared -- a rewrite that narrowed to anything
+  // else would be the fabricated target the whole policy exists to rule out -- and every withdrawal must
+  // say why, so "no rewrite was offered" cannot be confused with "no rewrite existed".
+  const applied = rewrites.filter((rewrite) => rewrite.applied);
+  const withdrawn = rewrites.filter((rewrite) => !rewrite.applied);
+  assert.equal(applied.length, 2);
+  assert.deepEqual([...new Set(applied.map((rewrite) => rewrite.to_tier))], ["affected"]);
+  assert.deepEqual(applied.map((rewrite) => rewrite.decision), ["rewrite", "rewrite"]);
+  assert.deepEqual(applied.map((rewrite) => rewrite.from_reason_code).sort(),
+    ["unscoped_test_command_denied", "untargeted_full_suite_denied"]);
+  assert.deepEqual(withdrawn.map((rewrite) => rewrite.declined_reason).sort(),
+    ["budget_would_be_exceeded:test_execution_budget_exceeded", "script_body_not_inspectable"]);
+  assert.ok(withdrawn.every((rewrite) => rewrite.decision === "deny" && rewrite.to_tier === null));
+
+  // vp_flaky_retry_once's hidden oracle cannot judge this task, and that is asserted here so a later oracle
+  // redesign has to come and change it on purpose rather than quietly turning a no-op verdict into a real
+  // one. The fixture's flaky marker is one-shot (src/verification-workspace.mjs), the task requires the
+  // agent to consume it, and the oracle then runs on a copy of that same post-run workspace -- so it always
+  // passes, never observes the signature it expects, and always reports `failed`. Both arms' reports are
+  // byte-identical, which is the point: this verdict cannot tell the two arms apart. The retry behaviour
+  // this task exists to check is visible only in the traces.
+  const flaky = report.tasks.find((task) => task.task_id === "vp_flaky_retry_once");
+  const flakyOracle = JSON.parse(await readFile(path.join(root, flaky.baseline.oracle.path), "utf8"));
+  assert.deepEqual(flakyOracle.result.expected_failure_signatures, ["diagnostics:intermittent-fixture"]);
+  assert.equal(flaky.baseline.oracle.sha256, flaky.candidate.oracle.sha256);
+  for (const role of ["baseline", "candidate"]) {
+    assert.equal(flaky[role].oracle.status, "failed");
+    assert.deepEqual(flaky[role].oracle.failure_signatures, []);
+    assert.deepEqual(flaky[role].observed_failure_signatures, ["diagnostics:intermittent-fixture"]);
+  }
+
+  assert.equal(report.conclusion.quality_claim_eligible, false);
+  assert.ok(report.conclusion.reason_codes.includes("minimum_quality_claim_comparisons_not_met"));
+  assert.ok(report.counts.quality_claim_eligible_comparisons < report.counts.required_quality_claim_comparisons);
+
+  const audit = JSON.parse(await readFile(path.join(root, report.audit.path), "utf8"));
+  assert.equal(createHash("sha256").update(await readFile(path.join(root, report.audit.path))).digest("hex"), report.audit.sha256);
+  assert.equal(audit.pairs_usable, audit.pairs_total);
+  assert.equal(audit.pairs_usable, report.tasks.length);
+});
+
 test("external fixture qualification stays bound to executed preflight reports", async () => {
   const root = path.resolve("fixtures/benchmark/external-fixture-qualification-2026-08-22");
   const report = JSON.parse(await readFile(path.join(root, "qualification-report.json"), "utf8"));

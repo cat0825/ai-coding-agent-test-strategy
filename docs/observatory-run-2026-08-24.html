@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Verification Observatory · 2026-08-24 配对试点</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page:           #f9f9f7;
+    --surface-1:      #fcfcfb;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --grid:           #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #2a78d6;
+    --series-2:       #eb6834;
+    --seq-250:        #86b6ef;
+    --seq-450:        #2a78d6;
+    --seq-600:        #184f95;
+    --good:           #0ca30c;
+    --warning:        #fab219;
+    --critical:       #d03b3b;
+    --deemph:         #c3c2b7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page:           #0d0d0d;
+      --surface-1:      #1a1a19;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --grid:           #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-1:       #3987e5;
+      --series-2:       #d95926;
+      --seq-250:        #86b6ef;
+      --seq-450:        #3987e5;
+      --seq-600:        #184f95;
+      --deemph:         #383835;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page:           #0d0d0d;
+    --surface-1:      #1a1a19;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --series-1:       #3987e5;
+    --series-2:       #d95926;
+    --seq-250:        #86b6ef;
+    --seq-450:        #3987e5;
+    --seq-600:        #184f95;
+    --deemph:         #383835;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+  }
+  .viz-root {
+    background: var(--page);
+    min-height: 100vh;
+    padding: 48px 32px 96px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  .topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 40px; }
+  .eyebrow {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-muted); margin: 0 0 10px;
+  }
+  h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 8px; }
+  .sub { font-size: 14px; color: var(--text-secondary); margin: 0; max-width: 62ch; line-height: 1.6; }
+  .controls { display: flex; gap: 8px; align-items: center; }
+  button {
+    font: inherit; font-size: 12px; color: var(--text-secondary);
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 12px; cursor: pointer;
+    transition: color 140ms ease, border-color 140ms ease;
+  }
+  button:hover { color: var(--text-primary); border-color: var(--baseline); }
+  button:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+
+  section { margin-top: 40px; }
+  h2 { font-size: 15px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.005em; }
+  .note { font-size: 13px; color: var(--text-secondary); margin: 0 0 18px; line-height: 1.6; max-width: 74ch; }
+
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px 24px;
+  }
+
+  .hero { display: flex; align-items: flex-end; gap: 40px; flex-wrap: wrap; }
+  .hero-fig { font-size: 56px; font-weight: 600; line-height: 1; letter-spacing: -0.02em; }
+  .hero-cap { font-size: 13px; color: var(--text-secondary); line-height: 1.6; max-width: 46ch; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 14px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+  .tile .lab { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+  .tile .val { font-size: 26px; font-weight: 600; line-height: 1.1; }
+  .tile .foot { font-size: 11.5px; color: var(--text-muted); margin-top: 7px; display: flex; align-items: center; gap: 5px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  caption { text-align: left; font-size: 12px; color: var(--text-muted); padding-bottom: 10px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--grid); }
+  th { font-size: 11.5px; font-weight: 600; color: var(--text-secondary); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody tr:last-child td { border-bottom: none; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px; color: var(--text-secondary);
+  }
+
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .key { width: 14px; height: 3px; border-radius: 2px; flex: none; }
+
+  .tip {
+    position: fixed; pointer-events: none; opacity: 0;
+    background: var(--surface-1); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 9px;
+    padding: 9px 11px; font-size: 12px; line-height: 1.55;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.16); z-index: 50;
+    transition: opacity 100ms ease; max-width: 268px;
+  }
+  .tip b { font-weight: 600; }
+  .tip .r { color: var(--text-secondary); }
+
+  .redline { border-left: 2px solid var(--critical); padding-left: 16px; }
+  .redline li { font-size: 13px; color: var(--text-secondary); line-height: 1.65; margin-bottom: 7px; }
+  .redline li b { color: var(--text-primary); font-weight: 600; }
+
+  .hidden { display: none; }
+  svg { display: block; overflow: visible; }
+  svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .tick { font-size: 11px; fill: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .axlab { font-size: 11.5px; fill: var(--text-secondary); }
+  .vlab { font-size: 11.5px; fill: var(--text-primary); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .hit { fill: transparent; cursor: default; }
+  footer { margin-top: 48px; font-size: 12px; color: var(--text-muted); line-height: 1.7; }
+</style>
+</head>
+<body data-palette="#2a78d6,#eb6834">
+<div class="viz-root">
+<div class="wrap">
+
+  <div class="topbar">
+    <div>
+      <p class="eyebrow">Agent Verification Observatory · issue #36</p>
+      <h1>六题配对试点采集</h1>
+      <p class="sub">2026-08-24 一次运行，baseline / candidate 双臂。所有数字取自
+        <code>fixtures/benchmark/verification-policy-run-2026-08-24/</code>，可从已签入证据复算。</p>
+    </div>
+    <div class="controls">
+      <button id="theme">切换亮/暗</button>
+      <button id="tabletoggle">显示全部数据表</button>
+    </div>
+  </div>
+
+  <div class="card hero">
+    <div>
+      <div class="eyebrow">验收标准通过</div>
+      <div class="hero-fig">6<span style="color:var(--text-muted);font-weight:400">/7</span></div>
+    </div>
+    <p class="hero-cap">唯一没过的是第 5 条：独立 oracle report 还不是 evaluation 的直接输入，
+      目前只是被引用的派生合同。12 条 trace 全部 <code>complete</code>、<code>warnings: []</code>。</p>
+  </div>
+
+  <section>
+    <h2>采集完整性</h2>
+    <p class="note">这一排是「链路是否可信」的体检，不是效果指标。</p>
+    <div class="kpis">
+      <div class="tile"><div class="lab">配对任务</div><div class="val">6 / 6</div>
+        <div class="foot"><span class="dot" style="background:var(--good)"></span>pairing_integrity 全部 true</div></div>
+      <div class="tile"><div class="lab">完整 trace</div><div class="val">12</div>
+        <div class="foot"><span class="dot" style="background:var(--good)"></span>partial 0 · warnings 0</div></div>
+      <div class="tile"><div class="lab">工作区摘要匹配</div><div class="val">12 / 12</div>
+        <div class="foot"><span class="dot" style="background:var(--good)"></span>oracle 与 trace 同一状态</div></div>
+      <div class="tile"><div class="lab">审计可用配对</div><div class="val">6 / 6</div>
+        <div class="foot"><span class="dot" style="background:var(--good)"></span>7 字段重推 6/6 通过</div></div>
+      <div class="tile"><div class="lab">质量声明门槛</div><div class="val">6 / 30</div>
+        <div class="foot"><span class="dot" style="background:var(--warning)"></span>未达最低比较数</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>策略决策构成</h2>
+    <p class="note">140 条 ledger 事件按决策类型分解。allow 与 observe 合计 133 条，是常态流量；
+      真正改变 Agent 行为的是 5 条 deny 和 2 条生效改写。</p>
+    <div class="card">
+      <div id="c-decisions"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>每题 shell 调用数：baseline 对 candidate</h2>
+    <p class="note"><b>这不是效率结论。</b>两侧都掺着策略缺陷和 harness 行为 ——
+      <code>vp_unknown_impact_full_fallback</code> 的 candidate 臂被 fail-closed 白丢 5 次调用，
+      <code>vp_public_behavior_test_required</code> 的 baseline 19 对 candidate 12 也不是策略效果。
+      放在这里只为看形态，不作任何省时判断。</p>
+    <div class="card">
+      <div class="legend">
+        <span><i class="key" style="background:var(--series-1)"></i>baseline</span>
+        <span><i class="key" style="background:var(--series-2)"></i>candidate</span>
+      </div>
+      <div id="c-calls"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>L2 改写路径</h2>
+    <p class="note">这轮第一次拿到配对的改写证据：4 条带 rewrite 块的决策，2 条生效、2 条撤回。
+      生效的都落在题目自己声明的 <code>affected</code> tier —— 命令照跑，验证回合不丢。</p>
+    <div class="card">
+      <table>
+        <caption>来源：各 candidate trace 的 <code>policy_decision</code> 事件</caption>
+        <thead><tr><th>任务</th><th>决策</th><th>结果</th><th>tier / 撤回理由</th></tr></thead>
+        <tbody>
+          <tr><td><code>vp_affected_failure</code></td><td>rewrite</td>
+            <td><span class="dot" style="background:var(--good);display:inline-block"></span> 生效</td><td><code>affected</code></td></tr>
+          <tr><td><code>vp_public_behavior_test_required</code></td><td>rewrite</td>
+            <td><span class="dot" style="background:var(--good);display:inline-block"></span> 生效</td><td><code>affected</code></td></tr>
+          <tr><td><code>vp_public_behavior_test_required</code></td><td>deny</td>
+            <td><span class="dot" style="background:var(--warning);display:inline-block"></span> 撤回</td><td><code>budget_would_be_exceeded</code></td></tr>
+          <tr><td><code>vp_local_correct_stop</code></td><td>deny</td>
+            <td><span class="dot" style="background:var(--warning);display:inline-block"></span> 撤回</td><td><code>script_body_not_inspectable</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>两个已量化的缺陷</h2>
+    <p class="note">都不是这轮要修的，但都已经能精确算出代价，写进已知代价而不是留在印象里。</p>
+    <div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">
+      <div class="tile">
+        <div class="lab">闸门尺度不一致的代价</div>
+        <div class="val">31 次过闸丢 5 次</div>
+        <div class="foot"><span class="dot" style="background:var(--critical)"></span>2 条被拒 + 同批 3 条被 codex 一起丢</div>
+        <p style="font-size:12.5px;color:var(--text-secondary);line-height:1.6;margin:12px 0 0">
+          闸门用整串正则、判定按段分解。一条 <code>rg</code> 的搜索模式里出现 <code>pytest</code>
+          就被认成测试命令，9 段命令词里一个 runner 都没有，于是 fail-closed 拒掉纯查看命令。</p>
+      </div>
+      <div class="tile">
+        <div class="lab">oracle 结构性失效</div>
+        <div class="val">2 次探测均 exit 0</div>
+        <div class="foot"><span class="dot" style="background:var(--critical)"></span>两臂报告逐字节相同 <code>9e937e11</code></div>
+        <p style="font-size:12.5px;color:var(--text-secondary);line-height:1.6;margin:12px 0 0">
+          <code>vp_flaky_retry_once</code> 的 flaky marker 是一次性的，被 Agent 必须的第一次运行消耗掉，
+          oracle 在 post-run 副本里必然 pass、必然报 failed。审计器两道关卡都放行了这种恒为 failed 的判定。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>独立 oracle 判定</h2>
+    <p class="note"><code>status</code> 是 oracle 自己的判定，<code>workspace_status</code> 是题目预期。
+      两者不同不等于出错 —— <code>vp_affected_failure</code> 预期工作区失败、oracle 判定 passed，是对的。
+      六题的两臂 oracle 摘要全部相同，因为五题禁止编辑、Agent 确实一个文件都没改。</p>
+    <div class="card">
+      <table>
+        <caption>来源：<code>run-report.json</code> 与 <code>oracles/*.json</code></caption>
+        <thead><tr><th>任务</th><th>预期工作区</th><th>oracle 判定</th><th>失败签名</th><th class="num">摘要一致</th></tr></thead>
+        <tbody id="oracle-rows"></tbody>
+      </table>
+      <p class="note" style="margin:14px 0 0">† <code>vp_flaky_retry_once</code> 这一行的 failed
+        是结构性的、恒为 failed，<b>不可作为判定读</b>。两臂报告逐字节相同（<code>9e937e11…</code>），零信息量。
+        怎么修是待拍的设计决定，不在本轮结论内。</p>
+    </div>
+  </section>
+
+  <section id="fulltable" class="hidden">
+    <h2>全部配对数据</h2>
+    <p class="note">图里每个值都在这张表里，图表只是它的另一种读法。</p>
+    <div class="card">
+      <table>
+        <caption>来源：<code>run-report.json</code> · tasks[]</caption>
+        <thead><tr>
+          <th>任务</th><th class="num">b shell</th><th class="num">c shell</th>
+          <th class="num">b 验证</th><th class="num">c 验证</th>
+          <th class="num">b 测试编辑</th><th class="num">c 测试编辑</th><th>配对完整</th>
+        </tr></thead>
+        <tbody id="full-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>不可越的红线</h2>
+    <ul class="redline" style="list-style:none;padding-left:16px;margin:0">
+      <li><b>6 个配对不等于效率结论。</b>不能说省了时间，不能说故障发现率没降，不能计入正式 30 题。</li>
+      <li><b>调用数差不能读成效率信号。</b>两侧都掺着策略缺陷和 harness 行为。</li>
+      <li><b><code>vp_flaky_retry_once</code> 的 oracle 结论不能当判定读。</b>它恒为 failed，零信息量。</li>
+      <li><b>六题全来自本仓库历史，样本自指。</b>这正是 #39 要解决的问题。</li>
+    </ul>
+  </section>
+
+  <footer>
+    证据目录 <code>fixtures/benchmark/verification-policy-run-2026-08-24/</code> ·
+    harness <code>codex-cli@0.149.0</code> · model <code>gpt-5.6-sol</code> · effort high ·
+    candidate 策略 <code>observatory-verification-policy@0.4-unscoped</code><br>
+    权威文档 <code>docs/handoff-2026-08-24.md</code> 与 <code>docs/verification-policy-benchmark-v0.1.md</code>；
+    <code>STATUS.md</code> / <code>SESSION.md</code> 已过期。
+  </footer>
+
+</div>
+</div>
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+<script type="module">
+const DATA = [
+  { id:"vp_local_correct_stop",            b:{sh:8,  ver:1, te:0}, c:{sh:8,  ver:1, te:0}, exp:"passed", st:"passed", sig:"—" },
+  { id:"vp_affected_failure",              b:{sh:7,  ver:1, te:0}, c:{sh:8,  ver:2, te:0}, exp:"failed", st:"passed", sig:"evaluation:quality-claim-regression" },
+  { id:"vp_unknown_impact_full_fallback",  b:{sh:22, ver:2, te:0}, c:{sh:26, ver:2, te:0}, exp:"failed", st:"passed", sig:"configuration:missing-check-entry" },
+  { id:"vp_repeat_pass_stop",              b:{sh:5,  ver:1, te:0}, c:{sh:5,  ver:1, te:0}, exp:"passed", st:"passed", sig:"—" },
+  { id:"vp_flaky_retry_once",              b:{sh:7,  ver:2, te:0}, c:{sh:7,  ver:2, te:0}, exp:"flaky",  st:"failed", sig:"diagnostics:intermittent-fixture", void:true },
+  { id:"vp_public_behavior_test_required", b:{sh:19, ver:2, te:1}, c:{sh:12, ver:2, te:1}, exp:"passed", st:"passed", sig:"—" },
+];
+const DECISIONS = [
+  { k:"allow",   n:69, d:"过闸放行，命令原样执行" },
+  { k:"observe", n:64, d:"影子模式记录，不干预" },
+  { k:"deny",    n:5,  d:"拒绝，Agent 丢一个验证回合" },
+  { k:"rewrite", n:2,  d:"改写到 affected tier，命令照跑" },
+];
+const short = s => s.replace(/^vp_/,"");
+const CSS = n => getComputedStyle(document.querySelector(".viz-root")).getPropertyValue(n).trim();
+const tip = document.getElementById("tip");
+function showTip(e, html) {
+  tip.innerHTML = html; tip.style.opacity = "1";
+  const r = tip.getBoundingClientRect();
+  let x = e.clientX + 14, y = e.clientY - r.height - 10;
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+  if (y < 8) y = e.clientY + 16;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+const hideTip = () => { tip.style.opacity = "0"; };
+const el = (t, a = {}) => {
+  const n = document.createElementNS("http://www.w3.org/2000/svg", t);
+  for (const k in a) n.setAttribute(k, a[k]);
+  return n;
+};
+function niceTicks(max, count = 4) {
+  const raw = max / count, mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw) ?? mag * 10;
+  const out = []; for (let v = 0; v <= max + 1e-9; v += step) out.push(v);
+  return out;
+}
+
+/* ---- 决策构成：单序列水平条，量级用同一色相的顺序步 ---- */
+function drawDecisions() {
+  const host = document.getElementById("c-decisions");
+  const W = host.clientWidth || 900, rowH = 42, padL = 86, padR = 74, padT = 6;
+  const H = padT + DECISIONS.length * rowH + 8;
+  const svg = el("svg", { viewBox:`0 0 ${W} ${H}`, width:"100%", height:H, role:"img",
+    "aria-label":"策略决策构成：allow 69、observe 64、deny 5、rewrite 2" });
+  const max = 69, plotW = W - padL - padR;
+  const x = v => padL + (v / max) * plotW;
+  const single = CSS("--seq-450");
+  const steps = [single, single, single, single];
+  niceTicks(max).forEach(t => {
+    svg.append(el("line", { x1:x(t), x2:x(t), y1:padT, y2:H-8, stroke:CSS("--grid"), "stroke-width":1 }));
+    const tx = el("text", { x:x(t), y:H-8+14, class:"tick", "text-anchor":"middle" });
+    tx.textContent = t; svg.append(tx);
+  });
+  DECISIONS.forEach((d, i) => {
+    const y = padT + i * rowH, bh = 17, by = y + (rowH - bh) / 2 - 3;
+    const lab = el("text", { x:padL-12, y:by+bh/2+4, class:"axlab", "text-anchor":"end" });
+    lab.textContent = d.k; svg.append(lab);
+    const w = Math.max(x(d.n) - padL, 2);
+    svg.append(el("path", { d:`M${padL},${by} H${padL+w-4} a4,4 0 0 1 4,4 V${by+bh-4} a4,4 0 0 1 -4,4 H${padL} Z`,
+      fill:steps[i] }));
+    const v = el("text", { x:padL+w+9, y:by+bh/2+4, class:"vlab" });
+    v.textContent = d.n; svg.append(v);
+    const hit = el("rect", { x:padL, y, width:plotW, height:rowH, class:"hit" });
+    hit.addEventListener("mousemove", e => showTip(e, `<b>${d.k}</b> · ${d.n} 条<br><span class="r">${d.d}</span>`));
+    hit.addEventListener("mouseleave", hideTip);
+    svg.append(hit);
+  });
+  svg.append(el("line", { x1:padL, x2:padL, y1:padT, y2:H-8, stroke:CSS("--baseline"), "stroke-width":1 }));
+  host.replaceChildren(svg);
+}
+
+/* ---- 每题调用数：分组条，两序列 ---- */
+function drawCalls() {
+  const host = document.getElementById("c-calls");
+  const W = host.clientWidth || 900, padL = 40, padR = 16, padT = 10, padB = 58;
+  const H = 296, plotW = W - padL - padR, plotH = H - padT - padB;
+  const max = 30, groups = DATA.length;
+  const gw = plotW / groups, bw = Math.min(26, (gw - 22) / 2);
+  const y = v => padT + plotH - (v / max) * plotH;
+  const svg = el("svg", { viewBox:`0 0 ${W} ${H}`, width:"100%", height:H, role:"img",
+    "aria-label":"每题 shell 调用数，baseline 与 candidate 分组对比，形态展示不作效率结论" });
+  niceTicks(max).forEach(t => {
+    svg.append(el("line", { x1:padL, x2:W-padR, y1:y(t), y2:y(t), stroke:CSS("--grid"), "stroke-width":1 }));
+    const tx = el("text", { x:padL-9, y:y(t)+4, class:"tick", "text-anchor":"end" });
+    tx.textContent = t; svg.append(tx);
+  });
+  const c1 = CSS("--series-1"), c2 = CSS("--series-2"), surf = CSS("--surface-1");
+  DATA.forEach((d, i) => {
+    const cx = padL + gw * i + gw / 2;
+    [[d.b.sh, c1, "baseline", -1], [d.c.sh, c2, "candidate", 1]].forEach(([v, col, name, side]) => {
+      const bx = cx + (side < 0 ? -bw - 1 : 1), top = y(v), h = padT + plotH - top;
+      svg.append(el("path", { d:`M${bx},${padT+plotH} V${top+4} a4,4 0 0 1 4,-4 H${bx+bw-4} a4,4 0 0 1 4,4 V${padT+plotH} Z`,
+        fill:col, stroke:surf, "stroke-width":2, "paint-order":"stroke" }));
+      const hit = el("rect", { x:bx, y:top-6, width:bw, height:h+12, class:"hit" });
+      hit.addEventListener("mousemove", e => showTip(e,
+        `<b>${short(d.id)}</b><br>${name} · <b>${v}</b> 次 shell 调用<br><span class="r">验证回合 ${name==="baseline"?d.b.ver:d.c.ver} · 测试文件改动 ${name==="baseline"?d.b.te:d.c.te}</span>`));
+      hit.addEventListener("mouseleave", hideTip);
+      svg.append(hit);
+    });
+    const lines = short(d.id).split("_");
+    const t1 = el("text", { x:cx, y:padT+plotH+18, class:"tick", "text-anchor":"middle" });
+    t1.textContent = lines.slice(0, 2).join("_"); svg.append(t1);
+    if (lines.length > 2) {
+      const t2 = el("text", { x:cx, y:padT+plotH+31, class:"tick", "text-anchor":"middle" });
+      t2.textContent = lines.slice(2).join("_"); svg.append(t2);
+    }
+  });
+  svg.append(el("line", { x1:padL, x2:W-padR, y1:padT+plotH, y2:padT+plotH, stroke:CSS("--baseline"), "stroke-width":1 }));
+  const note = el("text", { x:padL, y:H-8, class:"tick" });
+  note.textContent = "纵轴：shell 调用次数（同一坐标轴，无双轴）"; svg.append(note);
+  host.replaceChildren(svg);
+}
+
+function fillTables() {
+  const ok = `<span class="dot" style="background:var(--good);display:inline-block"></span>`;
+  const warn = `<span class="dot" style="background:var(--warning);display:inline-block"></span>`;
+  document.getElementById("oracle-rows").innerHTML = DATA.map(d => `<tr>
+    <td><code>${short(d.id)}</code></td><td>${d.exp}</td>
+    <td>${d.st === "passed" ? ok + " passed" : warn + " failed"}${d.void ? ` <abbr title="该判定结构上恒为 failed，不可作为判定读">†</abbr>` : ""}</td>
+    <td style="font-size:12px;color:var(--text-secondary)">${d.sig}</td>
+    <td class="num">是</td></tr>`).join("");
+  document.getElementById("full-rows").innerHTML = DATA.map(d => `<tr>
+    <td><code>${short(d.id)}</code></td>
+    <td class="num">${d.b.sh}</td><td class="num">${d.c.sh}</td>
+    <td class="num">${d.b.ver}</td><td class="num">${d.c.ver}</td>
+    <td class="num">${d.b.te}</td><td class="num">${d.c.te}</td>
+    <td>${ok} 是</td></tr>`).join("");
+}
+
+const redraw = () => { drawDecisions(); drawCalls(); };
+fillTables(); redraw();
+
+document.getElementById("theme").addEventListener("click", () => {
+  const cur = document.documentElement.getAttribute("data-theme");
+  document.documentElement.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+  requestAnimationFrame(redraw);
+});
+const tt = document.getElementById("tabletoggle");
+tt.addEventListener("click", () => {
+  const s = document.getElementById("fulltable");
+  const hid = s.classList.toggle("hidden");
+  tt.textContent = hid ? "显示全部数据表" : "隐藏全部数据表";
+});
+let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(redraw, 120); });
+</script>
+</body>
+</html>

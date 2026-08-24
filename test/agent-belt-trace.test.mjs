@@ -87,6 +87,29 @@ function entries(records) {
   return records.map((record, index) => ({ line: index + 1, record }));
 }
 
+// What the hook stamps on every ledger record: sha256(session_id).slice(0, 16), unsalted.
+function sessionDigest(threadId) {
+  return createHash("sha256").update(threadId).digest("hex").slice(0, 16);
+}
+
+function policyDecision(overrides = {}) {
+  return {
+    observed_at: "2026-08-18T00:00:00.650Z",
+    event: "policy.pre_tool",
+    source_line: 1,
+    source_ref: "policy-decisions.ndjson",
+    session_id_sha256: sessionDigest("thread-1"),
+    decision: "deny",
+    reason_code: "repeat_after_pass_denied",
+    tier: "fast",
+    tool_use_id_sha256: "ab12cd34ef567890",
+    canonical_command_id: `baseline:pytest:semantic:${"f".repeat(64)}`,
+    command_semantic_sha256: "f".repeat(64),
+    budget: { test_executions: 1, immediate_duration_ms: 500, agent_turns: 1, failed_test_turns: 0 },
+    ...overrides,
+  };
+}
+
 function resequence(records) {
   return records.map((record, sequence) => ({ ...record, sequence }));
 }
@@ -167,27 +190,181 @@ test("candidate traces include sanitized verification policy decisions", () => {
     sourceFormat: "codex-cli-lifecycle-v2",
     policyLedgerSourceRef: "policy-decisions.ndjson",
     policyLedgerSha256: "e".repeat(64),
-    policyDecisions: [{
-      observed_at: "2026-08-18T00:00:00.650Z",
-      event: "policy.pre_tool",
-      source_line: 1,
-      source_ref: "policy-decisions.ndjson",
-      decision: "deny",
-      reason_code: "repeat_after_pass_denied",
-      tier: "fast",
-      canonical_command_id: `baseline:pytest:semantic:${"f".repeat(64)}`,
-      command_semantic_sha256: "f".repeat(64),
-      budget: { test_executions: 1, immediate_duration_ms: 500, agent_turns: 1, failed_test_turns: 0 },
-    }],
+    policyDecisions: [policyDecision()],
   });
   const decision = trace.events.find(({ event_type }) => event_type === "policy_decision");
 
   assert.equal(trace.completeness, "complete");
+  assert.deepEqual(trace.warnings, []);
   assert.equal(decision.data.decision, "deny");
   assert.equal(decision.data.reason_code, "repeat_after_pass_denied");
   assert.equal(trace.source.policy_ledger_sha256, "e".repeat(64));
   assert.equal(validateTrace(trace).valid, true);
   assert.doesNotMatch(JSON.stringify(trace), /session-secret|private\/workspace|raw_command/);
+});
+
+// A rewrite is the only decision where the command that ran is not the command the agent asked for, so a
+// trace that keeps `decision: "rewrite"` and drops the rest cannot show that the substitution happened or
+// what it substituted. The rewritten command's own identity is what binds the PostToolUse record to it.
+test("candidate traces carry the rewrite substitution, not just the rewrite verdict", () => {
+  const trace = convert(lifecycleRecords(), streamRecords(), [], {
+    initialChangedFiles: ["src/trace.mjs"],
+    initialStateSha256: "d".repeat(64),
+    finalStateSha256: "d".repeat(64),
+    workspaceStateChanged: false,
+    sourceFormat: "codex-cli-lifecycle-v2",
+    policyLedgerSourceRef: "policy-decisions.ndjson",
+    policyLedgerSha256: "e".repeat(64),
+    policyDecisions: [policyDecision({
+      decision: "rewrite",
+      reason_code: "untargeted_full_suite_rewritten",
+      tier: "full",
+      rewrite: {
+        applied: true,
+        to_tier: "affected",
+        canonical_command_id: `baseline:node:--test:semantic:${"a".repeat(64)}`,
+        command_sha256: "b".repeat(64),
+        from_reason_code: "untargeted_full_suite_denied",
+        raw_command: "node --test test/secret-path.test.mjs",
+      },
+    })],
+  });
+  const decision = trace.events.find(({ event_type }) => event_type === "policy_decision");
+
+  assert.equal(trace.completeness, "complete");
+  assert.deepEqual(trace.warnings, []);
+  assert.equal(decision.data.tool_use_id_sha256, "ab12cd34ef567890");
+  assert.deepEqual(decision.data.rewrite, {
+    applied: true,
+    to_tier: "affected",
+    canonical_command_id: `baseline:node:--test:semantic:${"a".repeat(64)}`,
+    command_sha256: "b".repeat(64),
+    from_reason_code: "untargeted_full_suite_denied",
+    declined_reason: null,
+  });
+  // Picked fields, not a spread: the hook writes this block and a later version of it must not be able to
+  // put a command string into a published trace without this converter being changed to allow it.
+  assert.doesNotMatch(JSON.stringify(trace), /secret-path/);
+  assert.equal(validateTrace(trace).valid, true);
+});
+
+// Withdrawing the rewrite when the narrower command breaks the same budget is a designed outcome, and the
+// reason a reader can tell it from "no rewrite was available" is the declined_reason.
+test("a withdrawn rewrite records why it was withdrawn", () => {
+  const trace = convert(lifecycleRecords(), streamRecords(), [], {
+    initialChangedFiles: ["src/trace.mjs"],
+    initialStateSha256: "d".repeat(64),
+    finalStateSha256: "d".repeat(64),
+    workspaceStateChanged: false,
+    sourceFormat: "codex-cli-lifecycle-v2",
+    policyLedgerSourceRef: "policy-decisions.ndjson",
+    policyLedgerSha256: "e".repeat(64),
+    policyDecisions: [
+      policyDecision({
+        decision: "deny",
+        reason_code: "untargeted_full_suite_denied",
+        tier: "full",
+        rewrite: {
+          applied: false,
+          declined_reason: "budget_would_be_exceeded:test_execution_budget_exceeded",
+          from_reason_code: "untargeted_full_suite_denied",
+        },
+      }),
+      policyDecision({ source_line: 2, decision: "allow", reason_code: "within_budget", rewrite: null }),
+    ],
+  });
+  const [withdrawn, plain] = trace.events.filter(({ event_type }) => event_type === "policy_decision");
+
+  assert.equal(withdrawn.data.rewrite.applied, false);
+  assert.equal(withdrawn.data.rewrite.declined_reason, "budget_would_be_exceeded:test_execution_budget_exceeded");
+  assert.equal(withdrawn.data.rewrite.to_tier, null);
+  // A decision the hook never considered rewriting is null rather than an object claiming applied: false,
+  // which would read as a withdrawal that never happened.
+  assert.equal(plain.data.rewrite, null);
+  assert.equal(validateTrace(trace).valid, true);
+});
+
+test("a ledger left by an earlier session is not accepted as this run's enforcement", () => {
+  const options = {
+    initialChangedFiles: ["src/trace.mjs"],
+    initialStateSha256: "d".repeat(64),
+    finalStateSha256: "d".repeat(64),
+    workspaceStateChanged: false,
+    sourceFormat: "codex-cli-lifecycle-v2",
+    policyLedgerSourceRef: "policy-decisions.ndjson",
+    policyLedgerSha256: "e".repeat(64),
+  };
+
+  // The hook silently does not fire, and the ledger file from the previous run is still on disk. Both the
+  // missing-file and empty-file checks pass, so without binding the session this reads as a run that simply
+  // stayed inside every budget.
+  const stale = convert(lifecycleRecords(), streamRecords(), [], {
+    ...options,
+    policyDecisions: [policyDecision({ session_id_sha256: sessionDigest("thread-0") })],
+  });
+  assert.equal(stale.completeness, "partial");
+  assert.deepEqual(stale.warnings, ["policy_ledger_session_mismatch"]);
+  assert.equal(stale.source.state_evidence_complete, false);
+
+  // One matching record does not vouch for the rest: a ledger appended to across runs has to fail too.
+  const mixed = convert(lifecycleRecords(), streamRecords(), [], {
+    ...options,
+    policyDecisions: [policyDecision(), policyDecision({ source_line: 2, session_id_sha256: sessionDigest("thread-0") })],
+  });
+  assert.deepEqual(mixed.warnings, ["policy_ledger_session_mismatch"]);
+
+  // A record with no session stamp at all cannot be bound either, and unbindable is not compliant.
+  const unstamped = convert(lifecycleRecords(), streamRecords(), [], {
+    ...options,
+    policyDecisions: [policyDecision({ session_id_sha256: undefined })],
+  });
+  assert.deepEqual(unstamped.warnings, ["policy_ledger_session_mismatch"]);
+
+  // No thread.started to bind against: the ledger may well be this run's, but nothing here proves it.
+  const noThread = convert(
+    lifecycleRecords().filter(({ event }) => event !== "thread.started"),
+    streamRecords().filter(({ type }) => type !== "thread.started"),
+    [],
+    { ...options, policyDecisions: [policyDecision()] },
+  );
+  assert.ok(noThread.warnings.includes("policy_ledger_session_unbindable"));
+  assert.equal(noThread.source.state_evidence_complete, false);
+});
+
+test("a slewing system clock does not reorder policy decisions against the commands they gate", () => {
+  // The collector stamps monotonic_ns and observed_at together, so a system clock being slewed drifts the
+  // wall clock behind the monotonic counter within one session. The ledger has no monotonic counter, so
+  // ordering by monotonic time compares the counter against a wall-clock reading -- here the command
+  // completes at monotonic 600ms but reads .520Z, while the PostToolUse record that describes it reads
+  // .560Z and maps to 560ms.
+  const lifecycle = lifecycleRecords().map((record) => (record.event === "item.completed"
+    ? { ...record, observed_at: "2026-08-18T00:00:00.520Z" }
+    : record));
+  const trace = convert(lifecycle, streamRecords(), [], {
+    initialChangedFiles: ["src/trace.mjs"],
+    initialStateSha256: "d".repeat(64),
+    finalStateSha256: "d".repeat(64),
+    workspaceStateChanged: false,
+    sourceFormat: "codex-cli-lifecycle-v2",
+    policyLedgerSourceRef: "policy-decisions.ndjson",
+    policyLedgerSha256: "e".repeat(64),
+    policyDecisions: [policyDecision({
+      observed_at: "2026-08-18T00:00:00.560Z",
+      event: "policy.post_tool",
+      decision: "observe",
+      reason_code: "test_execution_observed",
+    })],
+  });
+
+  const timestamps = trace.events.map(({ timestamp }) => Date.parse(timestamp));
+  assert.deepEqual(timestamps, [...timestamps].sort((left, right) => left - right));
+  assert.equal(validateTrace(trace).valid, true);
+  assert.equal(trace.completeness, "complete");
+  assert.deepEqual(trace.warnings, []);
+  // PostToolUse cannot precede the completion it reports, whatever the two clocks say.
+  const resultIndex = trace.events.findIndex(({ event_type }) => event_type === "test_result");
+  const decisionIndex = trace.events.findIndex(({ event_type }) => event_type === "policy_decision");
+  assert.ok(resultIndex < decisionIndex, `expected test_result before policy_decision, got ${resultIndex} and ${decisionIndex}`);
 });
 
 test("post-run oracle matching binds a semantic failure signature without raw output", () => {

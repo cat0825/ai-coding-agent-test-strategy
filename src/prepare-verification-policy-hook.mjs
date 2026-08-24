@@ -100,7 +100,7 @@ async function main(argv) {
   const fullSuite = await resolveFullSuiteTestFiles(manifest.workspace, commands.full);
   const policy = {
     schema_version: 1,
-    policy: { name: "observatory-verification-policy", version: "0.3-rewrite" },
+    policy: { name: "observatory-verification-policy", version: "0.4-unscoped" },
     task_id: manifest.task_id,
     mode: manifest.mode,
     behavior_class: task.behavior_class,

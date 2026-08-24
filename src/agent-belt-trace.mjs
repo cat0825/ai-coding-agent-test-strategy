@@ -253,6 +253,22 @@ export function convertAgentBeltLifecycleToTrace({
     warnings.add("thread_identity_mismatch");
   }
 
+  // A ledger left behind by an earlier run passes both the missing-file and empty-file checks, so a
+  // candidate arm whose hook never fired would otherwise read as a run that simply stayed inside every
+  // budget: complete trace, zero denials, nothing to distinguish it from compliance. The hook records
+  // sha256(session_id).slice(0, 16) unsalted, and codex's lifecycle thread id is that same session id
+  // (observed on live runs), so the ledger can be bound to the session it claims to describe.
+  const policyLedgerRecords = binding.policyDecisions ?? [];
+  if (policyLedgerRecords.length > 0) {
+    const expectedSession = typeof threadEntry?.record.thread_id === "string"
+      ? sha256(threadEntry.record.thread_id).slice(0, 16)
+      : null;
+    if (expectedSession === null) warnState("policy_ledger_session_unbindable");
+    else if (policyLedgerRecords.some((decision) => decision.session_id_sha256 !== expectedSession)) {
+      warnState("policy_ledger_session_mismatch");
+    }
+  }
+
   const starts = groupEvents(lifecycle, "item.started");
   const completions = groupEvents(lifecycle, "item.completed");
   const streamStarts = groupStreamItems(stream, "item.started");
@@ -580,6 +596,20 @@ export function convertAgentBeltLifecycleToTrace({
   const bootstrapObservedMs = Date.parse(bootstrap.record.observed_at);
   const policyDecisionMonotonic = (decision) => bootstrapMonotonic
     + Math.round((Date.parse(decision.observed_at) - bootstrapObservedMs) * 1_000_000);
+  // A rewrite is the one decision whose point is that the command the agent asked for is not the command
+  // that ran, so a trace that records only `decision: "rewrite"` cannot support the claim the rewrite path
+  // exists to make. Fields are picked rather than spread: the ledger is written by the hook and a later
+  // version adding a raw command string there must not reach a published trace by default.
+  const policyRewrite = (rewrite) => (isObject(rewrite)
+    ? {
+      applied: rewrite.applied === true,
+      to_tier: rewrite.to_tier ?? null,
+      canonical_command_id: rewrite.canonical_command_id ?? null,
+      command_sha256: rewrite.command_sha256 ?? null,
+      from_reason_code: rewrite.from_reason_code ?? null,
+      declined_reason: rewrite.declined_reason ?? null,
+    }
+    : null);
   // A non-test command whose workspace effect was snapshotted is no longer opaque,
   // so it must not collapse the observed state into unknown.
   const snapshotObservedCallIds = new Set(usableShellFileChanges.map(({ callId }) => callId));
@@ -593,6 +623,7 @@ export function convertAgentBeltLifecycleToTrace({
     ...usableResults.map((result) => ({
       kind: "test_result",
       monotonicNs: result.completion.record.monotonic_ns,
+      observedMs: Date.parse(result.completion.record.observed_at),
       value: result,
     })),
     ...usableFileChanges
@@ -600,6 +631,7 @@ export function convertAgentBeltLifecycleToTrace({
       .map((change) => ({
         kind: "file_change",
         monotonicNs: change.entry.record.monotonic_ns,
+        observedMs: Date.parse(change.entry.record.observed_at),
         value: change,
       })),
     ...usableShellFileChanges
@@ -607,24 +639,39 @@ export function convertAgentBeltLifecycleToTrace({
       .map((change) => ({
         kind: "shell_file_change",
         monotonicNs: change.entry.record.monotonic_ns,
+        observedMs: Date.parse(change.entry.record.observed_at),
         value: change,
       })),
     ...observedWaits.map((wait) => ({
       kind: "wait",
       monotonicNs: wait.completion.record.monotonic_ns,
+      observedMs: Date.parse(wait.completion.record.observed_at),
       value: wait,
     })),
     ...unknownStateCommands.map((command) => ({
       kind: "unknown_state",
       monotonicNs: command.completion.record.monotonic_ns,
+      observedMs: Date.parse(command.completion.record.observed_at),
       value: command,
     })),
     ...(binding.policyDecisions ?? []).map((decision) => ({
       kind: "policy_decision",
       monotonicNs: policyDecisionMonotonic(decision),
+      observedMs: Date.parse(decision.observed_at),
       value: decision,
     })),
-  ].sort((left, right) => left.monotonicNs - right.monotonicNs
+    // Ordered by the same clock the events are stamped with. The collector has a monotonic counter and the
+    // policy ledger does not, so ordering by monotonic time meant comparing the collector's counter against
+    // a wall-clock reading mapped onto it through the session bootstrap -- fine while the two agree, wrong
+    // as soon as the system clock is being slewed. Observed live on vp_flaky_retry_once: the wall clock fell
+    // 82ms behind monotonic over 200s (-412ppm, near the 500ppm adjtime ceiling), which sorted three
+    // PostToolUse records ahead of the command completions they describe and made the trace fail validation
+    // on non-decreasing timestamps. 3 of 14 runs in that batch drifted this way; the other 11 sat at ~19ppm,
+    // which is ordinary offset between the two clock sources and reorders nothing. Wall clock is the only
+    // scale both sources share, and it is what a reader sees, so it decides order; monotonic still breaks
+    // ties, times durations, and its own reordering is caught by `lifecycle_monotonic_reordered`.
+  ].sort((left, right) => left.observedMs - right.observedMs
+    || left.monotonicNs - right.monotonicNs
     || Number(left.kind === "test_result") - Number(right.kind === "test_result"));
 
   let observedStateId = events[0].data.state_id;
@@ -639,8 +686,13 @@ export function convertAgentBeltLifecycleToTrace({
           decision: decision.decision,
           reason_code: decision.reason_code,
           tier: decision.tier ?? null,
+          // The pre and post record of one gated command carry the same tool_use_id digest. Without it a
+          // reader cannot pair them inside the trace, which is what makes a rewrite legible: the pre record
+          // names the command the agent asked for and the post record names the one that ran.
+          tool_use_id_sha256: decision.tool_use_id_sha256 ?? null,
           canonical_command_id: decision.canonical_command_id ?? null,
           command_semantic_sha256: decision.command_semantic_sha256 ?? null,
+          rewrite: policyRewrite(decision.rewrite),
           budget: {
             test_executions: decision.budget?.test_executions ?? 0,
             immediate_duration_ms: decision.budget?.immediate_duration_ms ?? 0,

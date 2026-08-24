@@ -1,0 +1,198 @@
+{
+  "completeness": "complete",
+  "events": [
+    {
+      "data": {
+        "change_kinds": [
+          "test"
+        ],
+        "changed_files": [
+          "test/diagnostics.test.mjs"
+        ],
+        "observation": "materialized_task_state",
+        "repository_commit": "e9bd535012d4657534cf3cef69f394d2e7145387",
+        "state_id": "7e0f99b05a410dce475c1a37f56c4558661eda24527b83df7de0cfeb18a45213"
+      },
+      "event_index": 0,
+      "event_type": "diff",
+      "raw_event_ref": {
+        "event": "turn.started",
+        "kind": "codex-cli-lifecycle",
+        "line": 3,
+        "source_ref": "codex-1787564734482024000-50199-09fa2fe4.ndjson"
+      },
+      "timestamp": "2026-08-24T09:45:34.746Z"
+    },
+    {
+      "data": {
+        "fallback": true,
+        "reasons": [
+          "baseline_unmanaged_agent"
+        ],
+        "risk_level": "standard"
+      },
+      "event_index": 1,
+      "event_type": "risk",
+      "raw_event_ref": {
+        "event": "turn.started",
+        "kind": "codex-cli-lifecycle",
+        "line": 3,
+        "source_ref": "codex-1787564734482024000-50199-09fa2fe4.ndjson"
+      },
+      "timestamp": "2026-08-24T09:45:34.746Z"
+    },
+    {
+      "data": {
+        "affected_workspaces": [],
+        "commands": [
+          {
+            "argv": [
+              "node",
+              "--test"
+            ],
+            "id": "baseline:node:--test:semantic:fc955986a77d50ca3a69f516881069c311b857f43d1406ab4363a5876757a263"
+          }
+        ],
+        "requested_phase": "affected",
+        "selected_phase": "affected",
+        "selection_source": "observed_verification_calls"
+      },
+      "event_index": 2,
+      "event_type": "test_selection",
+      "raw_event_ref": {
+        "event": "turn.started",
+        "kind": "codex-cli-lifecycle",
+        "line": 3,
+        "source_ref": "codex-1787564734482024000-50199-09fa2fe4.ndjson"
+      },
+      "timestamp": "2026-08-24T09:45:34.746Z"
+    },
+    {
+      "data": {
+        "canonical_command_id": "baseline:node:--test:semantic:fc955986a77d50ca3a69f516881069c311b857f43d1406ab4363a5876757a263",
+        "command": [
+          "node",
+          "--test"
+        ],
+        "command_semantics": {
+          "arguments_sha256": "054b47c57336603c70f05f39a10bf121b05eea78e867c87035c89ad39f0bde8a",
+          "complete": true,
+          "cwd_sha256": "14a140ddf5a07cd5e6ef852509aebe76b49e4dc79b669092c111b86854c92d0b",
+          "environment_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "reason": null,
+          "semantic_sha256": "fc955986a77d50ca3a69f516881069c311b857f43d1406ab4363a5876757a263",
+          "version": 1
+        },
+        "duration_ms": 48.432125,
+        "exit_code": 1,
+        "failure_class": null,
+        "failure_signature": "diagnostics:intermittent-fixture",
+        "override": null,
+        "signal": null
+      },
+      "event_index": 3,
+      "event_type": "test_result",
+      "raw_event_ref": {
+        "call_id": "item_7",
+        "event": "item.completed",
+        "kind": "codex-cli-lifecycle",
+        "line": 20,
+        "source_ref": "codex-1787564734482024000-50199-09fa2fe4.ndjson",
+        "start_line": 19,
+        "stream_completion_line": 18,
+        "stream_source_ref": "stream.ndjson",
+        "stream_start_line": 17
+      },
+      "timestamp": "2026-08-24T09:47:06.246Z"
+    },
+    {
+      "data": {
+        "canonical_command_id": "baseline:node:--test:semantic:fc955986a77d50ca3a69f516881069c311b857f43d1406ab4363a5876757a263",
+        "command": [
+          "node",
+          "--test"
+        ],
+        "command_semantics": {
+          "arguments_sha256": "054b47c57336603c70f05f39a10bf121b05eea78e867c87035c89ad39f0bde8a",
+          "complete": true,
+          "cwd_sha256": "14a140ddf5a07cd5e6ef852509aebe76b49e4dc79b669092c111b86854c92d0b",
+          "environment_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "reason": null,
+          "semantic_sha256": "fc955986a77d50ca3a69f516881069c311b857f43d1406ab4363a5876757a263",
+          "version": 1
+        },
+        "duration_ms": 99.431916,
+        "exit_code": 0,
+        "failure_class": null,
+        "failure_signature": null,
+        "override": null,
+        "signal": null
+      },
+      "event_index": 4,
+      "event_type": "test_result",
+      "raw_event_ref": {
+        "call_id": "item_9",
+        "event": "item.completed",
+        "kind": "codex-cli-lifecycle",
+        "line": 23,
+        "source_ref": "codex-1787564734482024000-50199-09fa2fe4.ndjson",
+        "start_line": 22,
+        "stream_completion_line": 21,
+        "stream_source_ref": "stream.ndjson",
+        "stream_start_line": 20
+      },
+      "timestamp": "2026-08-24T09:47:44.716Z"
+    },
+    {
+      "data": {
+        "reason": "observed_turn_completed",
+        "status": "completed"
+      },
+      "event_index": 5,
+      "event_type": "stop",
+      "raw_event_ref": {
+        "event": "turn.completed",
+        "kind": "codex-cli-lifecycle",
+        "line": 28,
+        "source_ref": "codex-1787564734482024000-50199-09fa2fe4.ndjson"
+      },
+      "timestamp": "2026-08-24T09:48:45.464Z"
+    }
+  ],
+  "harness": "codex-cli@0.149.0",
+  "mode": "baseline",
+  "model": "gpt-5.6-sol",
+  "policy": {
+    "name": "unmanaged-coding-agent-baseline",
+    "version": "1"
+  },
+  "repository": "cat0825/ai-coding-agent-test-strategy",
+  "repository_commit": "e9bd535012d4657534cf3cef69f394d2e7145387",
+  "run_id": "baseline-vp-flaky-retry-once",
+  "schema_version": 1,
+  "source": {
+    "collector_sha256": "e97173c5e935aeb5be26d3396ce9fc8702c62de45f5c54af8696633f417a0bcb",
+    "final_workspace_state_sha256": "6e96d14e93564c153a1f2d6036da7d0762d1fe6a68a7869b65c058e8278a7dbb",
+    "format": "codex-cli-lifecycle-v2",
+    "ignored_generated_files": 0,
+    "initial_changed_files": 1,
+    "initial_workspace_state_sha256": "6e96d14e93564c153a1f2d6036da7d0762d1fe6a68a7869b65c058e8278a7dbb",
+    "lifecycle_sha256": "56ccb0f8805bc713cf75582a120a182c10c23e8f4ce19ca6210ac90ac355b7da",
+    "lifecycle_source_ref": "codex-1787564734482024000-50199-09fa2fe4.ndjson",
+    "oracle_definition_sha256": "6c16f97aab38c6e35ddd6ef2927a1031049b742eeff09b2c5ce284fd5fd982bc",
+    "outcome_files_modified": 0,
+    "outcome_sha256": "e0c45c429965012063807233bd559e98d5e3cf115db1b334bc66d7fb861f87d7",
+    "post_run_workspace_sha256": "6e96d14e93564c153a1f2d6036da7d0762d1fe6a68a7869b65c058e8278a7dbb",
+    "record_count": 56,
+    "scenario_definition_sha256": "bb55a1d6865e96a4e33f2434f69eb292770029fa208528953ae4d2d2e182f175",
+    "source_tree": "6417c42a2dc0a5367ab3d074f4f1e5111556bb22",
+    "state_evidence_complete": true,
+    "stream_sha256": "634fb61b92e55263a1ca67066ccec00c7e6eb832354a097471e1f06d19c7a435",
+    "stream_source_ref": "stream.ndjson",
+    "workspace_revision": "586304f4932ed975c01199308d5e1bfe8e20837c",
+    "workspace_state_changed": false
+  },
+  "task_id": "vp_flaky_retry_once",
+  "trace_id": "trace-acefbad7d1e662c267101d8d7c8ffd1648c0c9bd3979affd7a0d73cd063ee2ae",
+  "warnings": []
+}

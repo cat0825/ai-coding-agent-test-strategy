@@ -713,3 +713,57 @@ test("a failing runner summary is recorded as a failed turn, and unreadable outp
   assert.equal(opaqueSession.completed.at(-1).outcome, "unknown");
   assert.deepEqual(opaqueSession.failed_test_turns, []);
 });
+
+test("a project script that runs the suite cannot walk around the full-suite deny", async (t) => {
+  const paths = await harness(t);
+  // Observed live on vp_local_correct_stop: the agent never asked for the declared full tier at all.
+  // It ran `npm run check`, which in that repo ends in `npm test`, and the hook allowed it as an
+  // ordinary in-budget call because the empty target list read as a narrow selection.
+  const script = await evaluateVerificationPolicyHook({
+    payload: payload("npm run check", { tool_use_id: "tool-script" }),
+    config,
+    ...paths,
+  });
+
+  assert.equal(script.decision, "deny");
+  assert.equal(script.reason, "unscoped_test_command_denied");
+  assert.equal(script.record.tier, "other");
+  assert.deepEqual(script.suggestion, config.commands.affected);
+  // Not rewritten: `check` also runs syntax gates, and substituting the affected tier for the whole
+  // invocation would drop them while still looking like a narrowed test run.
+  assert.deepEqual(script.record.rewrite, {
+    applied: false,
+    declined_reason: "script_body_not_inspectable",
+    from_reason_code: "unscoped_test_command_denied",
+  });
+
+  // The declared tiers still behave as before: `npm test` is the full tier and is narrowed, not denied.
+  const declared = await evaluateVerificationPolicyHook({
+    payload: payload("npm test", { tool_use_id: "tool-declared" }),
+    config,
+    ...paths,
+  });
+  assert.equal(declared.decision, "rewrite");
+  assert.equal(declared.command, "node --test test/feature.test.mjs test/api.test.mjs");
+});
+
+test("an unscoped runner is denied but the full-fallback exception still permits it", async (t) => {
+  const paths = await harness(t);
+  // A bare runner names no files, so it cannot be shown to be narrower than the suite it would run.
+  const bare = await evaluateVerificationPolicyHook({
+    payload: payload("npx vitest", { tool_use_id: "tool-bare" }),
+    config,
+    ...paths,
+  });
+  assert.equal(bare.decision, "rewrite");
+  assert.equal(bare.reason, "unscoped_test_command_rewritten");
+  assert.equal(bare.record.tier, "other");
+
+  const permitted = await evaluateVerificationPolicyHook({
+    payload: payload("npm run check", { tool_use_id: "tool-permitted" }),
+    config: { ...config, allow_full_suite: true },
+    ...(await harness(t)),
+  });
+  assert.equal(permitted.decision, "allow");
+  assert.equal(permitted.record.tier, "other");
+});

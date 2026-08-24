@@ -175,17 +175,81 @@ deny 只保住了"不许乱跑全量"，代价是 Agent 白丢一个验证回合
    顺着这条查 collector 能不能识别"策略从未生效的运行"，结论比预想的好一半：ledger 文件缺失会在 `readFile` 炸掉，空 ledger 会被 `parseNdjson` 的"至少一条记录"拒掉，两条都已经 fail-closed。真正的洞只有一个 —— trace CLI 是手敲命令跑的，`--policy-ledger` 漏写时 `policyDecisions` 静默变成 `[]`，trace 照样 `complete`，看上去就是"策略生效了、Agent 全程在预算内、0 条 deny"。现在 `--mode shadow` 强制要求 `--policy-ledger`，baseline 臂不受影响（它按设计没有 hook）。
 
    还剩一个洞没堵：**上一轮留下的 ledger**。hook 这轮静默跳过，但文件里还有旧记录，两道检查都过。好消息是这个可以精确判定 —— ledger 的 `session_id_sha256` 就是 `sha256(session_id).slice(0, 16)`，无盐，实测拿 transcript 里的 session id 一算就对上（`d96bf50be8537c90`）。所以只要把 lifecycle 里的 `thread.started` / `thread_id` 和 ledger 的 session 摘要绑一次，就能证明这份 ledger 属于这次运行。没有现在就做，是因为"`thread_id` 等于 hook payload 的 `session_id`"这一步还没实测过 —— 探针是直接跑 codex 的，没走 wrapper，手上没有 lifecycle 文件。下次走 collector 采集时顺手确认这一条，再补这道检查。
+
+   （2026-08-24 补：这一条已经堵上。走 collector 的六题采集里 `thread_id` 与 hook payload 的 `session_id` 逐个对上，6 个 candidate 臂全部 `bound_to_run=true`，检查已进采集脚本和审计脚本，回归测试覆盖陈 ledger、混入一条陈记录、未打 session 摘要、以及 lifecycle 里没有 `thread.started` 四种情况。）
 2. **outcome 在真机上恒为 unknown**。codex 把 `tool_response` 当原始输出字符串发，没有 exit code 也没有 status。而此前所有单元测试喂的都是带 `exit_code` 的对象 —— 一个真机从不产生的形状。结果 outcome 路径对着 fixture 全绿、在生产里全死，每次真实运行都记 `unknown`，失败回合预算和 repeat-after-pass 检查一起失效。现在改成读 runner 自己打的汇总行（`ℹ fail 0` 这类），runner 没打失败总数就老实记 `unknown` —— 只有 pass 数没有 fail 数不能证明没东西失败。
 
-ledger 版本 `0.2-enforced` → `0.3-rewrite`，两个 arm 由构造保证可分。这一节只是单臂手工探针，不是采集配对，不进任何质量或效率样本。
+ledger 版本 `0.2-enforced` → `0.3-rewrite`，两个 arm 由构造保证可分。这一节只是单臂手工探针，不是采集配对，不进任何质量或效率样本。（2026-08-24 补：改写档已经有配对采集里的观测了，四条带改写块的决策，两生效两撤回，见下一节。）
+
+## 六题配对采集（2026-08-24）
+
+六题全部完成同一 Agent/模型的两臂配对采集：baseline（无 hook，`unmanaged-coding-agent-baseline@1`）对 candidate（PreToolUse/PostToolUse hook，`observatory-verification-policy@0.4-unscoped`），harness `codex-cli@0.149.0`，模型 `gpt-5.6-sol`，effort `high`。两臂唯一的差别就是 hook，提示逐字节相同并记摘要。
+
+判定不看采集脚本自己的记录，另写 `scripts/audit-verification-runs.mjs` 从原始证据重新推。理由有两条：先采的运行不带后加检查的结论（第一批完全早于 enforcement 覆盖检查），以及"两臂被问的是同一个问题、面对的是同一份工作区"是配对的性质，单个运行无论如何记不出来。审计当前 6/6 可用：
+
+| 题 | baseline cmds | candidate cmds | gated | deny | oracle |
+|---|---|---|---|---|---|
+| `vp_affected_failure` | 6 | 8 | 8/8 | 0 | passed |
+| `vp_flaky_retry_once` | 8 | 7 | 7/7 | 0 | failed（判不了，见下文第 6 条） |
+| `vp_local_correct_stop` | 5 | 7 | 7/7 | 1 | passed |
+| `vp_public_behavior_test_required` | 19 | 12 | 12/12 | 2 | passed |
+| `vp_repeat_pass_stop` | 4 | 5 | 5/5 | 0 | passed |
+| `vp_unknown_impact_full_fallback` | 14 | 26 | 26/26 | 2 | passed |
+
+`vp_local_correct_stop` 的那条 deny 是 `unscoped_test_command_denied` —— 上一节第 3 条 glob 绕过修复至此有了真机观测，#43 可以关掉了。
+
+L2 改写档也第一次进了真实配对采集（上一节只是单臂手工探针）。带 `rewrite` 块的决策一共四条，两条生效两条撤回 —— 注意别按 `by_decision` 里的 `rewrite:*` 数，那里只有 2 条：撤回的两条 decision 仍然是 `deny`，改写信息挂在它们的 `rewrite` 块里。
+
+- `vp_affected_failure`：Agent 要的是 `npm test`（tier=full），实际执行的是 `node --test test/evaluation.test.mjs test/trace.test.mjs` —— 题目声明的 `affected`，`command_sha256` 逐字节对得上。窄命令照样捕到了这题的回归：exit 1、`pass 10 / fail 2`、`failure_signature: evaluation:quality-claim-regression`。所以"改写不丢回合"在这题上不是推理，是这题该得的结论一条没少。而 Agent 自己的结题报告写的是"`npm test` fails 2 tests and passes 10" —— `npm test` 一次没跑，那两个数是窄命令的数。自述和审计对不上，和 08-23 探针同一个现象，这次发生在正式配对里。
+- `vp_public_behavior_test_required`：Agent 要的是 `npm test -- --test-name-pattern='benchmark|runtime|preflight'`。它自己已经在收窄了，但收窄方式是测试名正则 —— 不跑一遍没法证明它选中哪些测试，所以判 `unscoped_test_command_denied` 并换成题目声明的 `affected`（文件级、可数）。这条比单纯 `npm test` → affected 更能说明改写档在干什么：拿一个可证明的窄，替掉一个不可证明的窄。
+- 同一题 10:06:36 的 `npm test` 被拒，改写**撤回**，`declined_reason: budget_would_be_exceeded:test_execution_budget_exceeded`，reason code 保留原来的 scope 理由 `untargeted_full_suite_denied`。上一节定的"破同一条预算的改写只是把拒绝推迟一个回合，这时收回建议、保留原 scope 原因"，这是它的首次真机观测。
+- `vp_local_correct_stop` 的 deny 也带撤回，理由是 `script_body_not_inspectable`：被拒的是 `npm run check`，它的 body 是 `node --check … && bash -n … && npm test`，整串换成 affected 会把语法门禁一起吞掉，所以拒绝替换。但 deny 消息里照样附了窄命令建议，Agent 15 秒后自己跑了 `node --test test/trace.test.mjs test/verifier.test.mjs` —— 正是声明的 affected，ledger 记 `allow / within_budget / tier=affected`。不替换也能不丢回合，建议路径本身就有效。
+
+覆盖率按 `tool_use_id` 配对，不按条数比。hook 只匹配 `Bash`，所以"每条执行过的命令都留下 PostToolUse、每条 PostToolUse 背后都有 PreToolUse"是等式而不是不等式；反方向（PreToolUse 有、PostToolUse 无）不算洞，deny 本来就是目的，codex 还会在一批并行调用里有一条被拒时丢掉同批其余的调用。原来按 `shellCommands + denials` 数条数，把两个每条命令都确实过闸的臂判成未强制 —— 是先查清两个真实成因，才改的规则，不是为了让数据通过而放松检查。
+
+这次采集又暴露六个真实缺陷：
+
+1. **系统时钟被 slew 时 trace 顺序反了**。collector 有单调计数器，policy ledger 没有，原来按单调时间排序等于拿计数器和一个经会话引导映射过来的墙钟读数比。`vp_flaky_retry_once` 上墙钟 200s 内落后单调 82ms（-412ppm，接近 `adjtime` 的 500ppm 上限），三条 PostToolUse 记录因此排到了它们所描述的命令完成之前，trace 直接过不了"时间戳不得递减"的校验。14 个运行里 3 个这样漂，其余 11 个稳定在 ~19ppm —— 那是两个时钟源之间的常规偏移，不会改变顺序。改成按墙钟排序：那是两边共有的唯一刻度，也是读者看到的刻度；单调时间继续用来破平局、算时长，它自己的乱序另有 `lifecycle_monotonic_reordered` 兜。回归测试直接喂进一个 PostToolUse 早于其完成记录的 ledger。
+
+2. **unified exec 失败会让本次会话后半段静默失去强制**。codex 建不出 unified exec 进程后，会改走一条不触发 hook 的路径重跑命令。`vp_local_correct_stop/candidate-v0.4-hookloss-observed` 就是现场：10 条命令只有 2 条留下 PostToolUse，而 trace 看上去仍然完整。这份运行改名留档，审计照样把它标成 `enforcement_incomplete:8_unobserved_0_ungated` —— 这正是留它的原因。
+
+3. **非测试命令被 fail-closed 拒掉**。`vp_unknown_impact_full_fallback` 两条 deny 都是 `command_semantics_incomplete:runner_structure_unrecognized`，被拒的却是纯查看命令：
+
+   ```
+   rg -n --hidden -g '!node_modules' -g '!vendor' '(test|pytest|jest|vitest|mocha|cargo test|go test|dotnet test|test-command)' . | head -240
+   ```
+
+   机制是正则闸门先在整串上匹配，`pytest` 出现在 rg 的搜索模式里就把这条命令认成测试命令（`normalizeTestRunnerCommand` 返回 `["pytest"]`），随后逐段分解，9 段的命令词是 `pwd/printf/rg/head/printf/git/printf/rg/head`，一个 runner 都没有，于是 `matches.length !== 1` 走 fail-closed。代价可以精确算：31 次过闸里丢了 5 次 —— 2 条被拒，外加第二条 deny 同批的 3 条已批准命令被 codex 一起丢掉（09:35:05.691/.702/.713 批准，.724 被拒，相隔 11ms 是同一批，三条都没执行）。
+
+   这次不改。fail-closed 的方向是对的：分不清就别放行。但闸门用整串正则、判定按段分解，两者尺度不一致，才让一条 grep 模式里的 `pytest` 变成拒绝理由。真要修是让闸门也按段走，只有某一段本身像 runner 才进入分析——那是改判定路径，得先有单元测试和真机确认，不该塞进这批采集里顺手改。目前记为**已知代价**：candidate 臂在这题上白丢 5 次调用，效率对比不能拿这题说话。
+
+4. **审计读了别的运行的 ledger**。失败运行改名留档后，`run.json` 里记的绝对路径仍指向老名字，而老名字现在被新运行占着。`candidate-v0.3-bypass-observed` 因此报出和 v0.4 运行一模一样的 pre=3/post=2，与已知的 14 条决策矛盾。现在证据一律在运行目录内部解析，绝不读 `run.json` 记的绝对路径。`--rebuild-trace` 也踩到同一个坑的更深一层 —— `task.json` 里的 workspace 路径同样是绝对的 —— materialize 出来的目录名每次随机，所以陈路径不会悄悄解析到别的运行，只会失败；仅当记录路径确实不存在时才在运行目录内重找，且 `task.json` 原样不动：这次运行到底在哪跑的，不能为了让重建成功而改。
+
+5. **trace 把改写信息丢干净了**。写上面那四条改写观测时才发现，trace 的 `policy_decision` 事件只留了 `decision: "rewrite"` 和 reason code，`applied`、`to_tier`、`declined_reason` 全丢，`tool_use_id` 也没留 —— pre 和 post 在 trace 里根本配不上对。也就是说：改写档是整套策略里唯一"Agent 要的命令和真跑的命令不是同一条"的路径，而发布出去的证据恰好证明不了这件事，上面四条当时全靠 `/tmp` 里的 ledger。字段现在补进 trace，逐个挑而不是整块展开 —— ledger 是 hook 写的，将来它多写一个原始命令串，不能就这么进已发布的 trace。补完用 `--rebuild-trace` 把 14 份重推、重审、重发布；也正是因为重推，才看见 `vp_local_correct_stop` 那条 `script_body_not_inspectable` 撤回，在此之前它在发布证据里等于不存在。
+
+6. **flaky 题的独立 oracle 结构上判不了**。核对上面那张表时发现，`vp_flaky_retry_once` 那格我原来写的是"failed（按设计）"，这是错的。它的 oracle 期望 `diagnostics:intermittent-fixture`，实际观测到的是空的：`expected_failure_signatures: ["diagnostics:intermittent-fixture"]`、`failure_signatures: []`、`status: "failed"`。这里的 failed 是"该复现的失败没复现出来"，不是"Agent 弄坏了什么"。
+
+   机制在 `src/verification-workspace.mjs:196`：`diagnostic-flaky-test-v1` 埋进去的测试第一次跑会写下 `.verification-policy-flaky-marker` 并 fail，此后每次都 pass —— 一次性的。而这题的要求就是 Agent 必须自己跑一次、失败后重试一次，那第一次就把 marker 用掉了。oracle 在 Agent 之后、在 post-run 工作区的副本里跑，marker 跟着复制过去，于是必然 pass、必然观测不到期望签名、必然报 failed。实测确认：两臂 post-run 工作区里 marker 都在（内容 `seen`），现在重跑那份测试两臂都是 `pass 8 / fail 0`。
+
+   两臂的 oracle 报告是逐字节相同的（`sha256 9e937e11…`），post-run 工作区摘要也相同（`6e96d14e…`）—— 这个 oracle 连两臂都分不开，它的结论不携带任何信息。审计却照收：`scripts/audit-verification-runs.mjs:119` 只拒绝 passed/failed 之外的状态，`:204` 只要求两臂状态相等，一个结构上恒为 failed 的判定两道检查都过。run-report 里的 `independent_oracle_failure_signatures: 1` 也全部来自这一条，不是一次真实的 oracle 失败。
+
+   这题的 flaky 行为本身有观测，但在 trace 里 —— 两臂的 `observed_failure_signatures` 都含 `diagnostics:intermittent-fixture`。所以缺的不是证据，是"独立判定"这一层对这题在空转。怎么修是设计决定，**还没定**：oracle 跑之前先删掉 marker（那等于 oracle 自己造一次失败，跟独立复现不是一回事）；或者这题的判定改从 trace 的重试形态推（那就不再独立于采集）；或者干脆声明这题不由 oracle 判、判定只认 trace 证据，同时让审计把"结构上判不了的 oracle"标出来而不是照收。三条路都要改隐藏合同或审计规则，不在这批采集里顺手做。
+
+转换器在 12/14 份 trace 产出之后才修好，因此加了 `--rebuild-trace`，从未改动的原始证据（stream、lifecycle、ledger、workspace）重新推导 trace，并和 `run.json` 的 `trace` 块一起更新。它走的是和首次采集同一个调用，不是第二份实现 —— `vp_flaky_retry_once` 此前是手敲 CLI 重建的，结果磁盘上 trace 有效、`run.json` 却还记着修复前的失败退出码，读者无法在不重跑 Agent 的情况下判定哪个对。14 份 trace 现在同源，全部 `complete`、`warnings: []`。
+
+这一节只做采集与可用性判定，不作任何质量或效率结论：6 个配对样本远不到 30 的门槛，且第 3 条已知代价直接影响 candidate 臂的调用数。
 
 ## 不能声称什么
 
-`fixture_ready`、单题 smoke 和两题配对 dry run 只证明题目现场、隐藏判分及采集链可复现。当前只有 2/6 pilot 题完成同一 Agent/模型配对，且没有达到 30 个质量样本门槛，因此：
+`fixture_ready`、单题 smoke、两题配对 dry run 和 2026-08-24 的六题配对，只证明题目现场、隐藏判分及采集链可复现，以及这六个配对本身可用作证据。6 个配对样本没有达到 30 个质量样本门槛，因此：
 
 - 不能声称策略已经节省时间；
 - 不能声称故障发现率没有下降；
 - 不能把这六题计入正式 30-task 质量样本；
 - 不能把原来的 Calculator/Tasktracker 26 题继续扩写成正式 benchmark。
 
-下一步完成剩余 4/6 pilot 配对，并把独立 oracle report 作为 evaluation 的直接输入而非只引用派生合同。六题链路稳定后，再从多个真实 JS/TS 仓库扩展到至少 30 个质量声明任务。
+还要多加一条：**这六题的调用数差不能读成效率信号**。`vp_unknown_impact_full_fallback` 的 candidate 臂被 fail-closed 白丢 5 次调用（见上一节第 3 条），`vp_public_behavior_test_required` 的 baseline 臂 19 次对 candidate 臂 12 次，两侧都掺着策略缺陷和 harness 行为，不是策略效果。
+
+再多一条：**`vp_flaky_retry_once` 的 oracle 结论不能当判定读**。它结构上恒为 failed（见上一节第 6 条），两臂逐字节相同，既不能用来说 candidate 没退化，也不能用来说这题的 flaky 行为被独立复现过。这题现在唯一的判定依据是两臂 trace 里的 `diagnostics:intermittent-fixture`，也就是采集本身 —— 独立那一层还没有。
+
+下一步把闸门改成按段判定后重采，定下 `vp_flaky_retry_once` 的 oracle 怎么改（三条路见上一节第 6 条）并让审计能标出结构上判不了的 oracle，再把独立 oracle report 作为 evaluation 的直接输入而非只引用派生合同。六题链路稳定后，才从多个真实 JS/TS 仓库扩展到至少 30 个质量声明任务。

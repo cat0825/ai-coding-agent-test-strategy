@@ -1,0 +1,519 @@
+{
+  "schema_version": 1,
+  "evidence_class": "paired_verification_policy_run",
+  "benchmark_id": "observatory-verification-policy-pilot-v0.1",
+  "run_date": "2026-08-24",
+  "harness": "codex-cli@0.149.0",
+  "model": "gpt-5.6-sol",
+  "model_reasoning_effort": "high",
+  "provider_note": "Both arms ran against the same relay provider (agentrouter.org, wire_api=responses). The candidate ran in an isolated CODEX_HOME whose only hooks entry was the generated verification policy hook, with --dangerously-bypass-hook-trust so codex 0.149.0 would not silently skip it.",
+  "scope_note": "Six paired pilot tasks collected by scripts/collect-verification-run.mjs and admitted by scripts/audit-verification-runs.mjs, which re-derives eligibility from raw evidence rather than from the collector's own record.",
+  "treatment": {
+    "baseline": {
+      "mode": "baseline",
+      "policy": {
+        "name": "unmanaged-coding-agent-baseline",
+        "version": "1"
+      }
+    },
+    "candidate": {
+      "mode": "shadow",
+      "policy": {
+        "name": "observatory-verification-policy",
+        "version": "0.4-unscoped"
+      },
+      "enforcement": "Codex PreToolUse/PostToolUse hook, deny is executed by the harness rather than requested in the prompt"
+    }
+  },
+  "policy_decisions": {
+    "ledger_events": 140,
+    "by_decision": {
+      "allow:non_test_command": 60,
+      "observe:non_test_tool_observed": 55,
+      "rewrite:untargeted_full_suite_rewritten": 1,
+      "observe:test_execution_observed": 10,
+      "allow:within_budget": 8,
+      "deny:unscoped_test_command_denied": 1,
+      "rewrite:unscoped_test_command_rewritten": 1,
+      "deny:untargeted_full_suite_denied": 1,
+      "deny:test_execution_budget_exceeded": 1,
+      "deny:command_semantics_incomplete:runner_structure_unrecognized": 2
+    },
+    "deny_events": 5
+  },
+  "counts": {
+    "declared_pilot_tasks": 6,
+    "paired_tasks_this_run": 6,
+    "complete_traces": 12,
+    "partial_traces": 0,
+    "independent_oracles_evaluated": 12,
+    "workspace_digest_matches": 12,
+    "pairs_with_both_traces_complete": 6,
+    "quality_claim_eligible_comparisons": 6,
+    "required_quality_claim_comparisons": 30,
+    "independent_oracle_failure_signatures": 1
+  },
+  "audit": {
+    "path": "audit-report.json",
+    "sha256": "ba1add9bbb4b4540d99d3c4325d1df4c1016819e04661ee5938c4eef606973a5",
+    "pairs_total": 6,
+    "pairs_usable": 6
+  },
+  "tasks": [
+    {
+      "task_id": "vp_affected_failure",
+      "pairing_integrity": true,
+      "baseline": {
+        "trace": {
+          "path": "traces/vp_affected_failure-baseline.json",
+          "sha256": "d232f9585fb290d84fec38ed6278f50e4b666a024d6cdfcc521290a2de0f34ca"
+        },
+        "oracle": {
+          "path": "oracles/vp_affected_failure-baseline.json",
+          "sha256": "f1c9539943ea086c28ec131e88d1db55153644e684a3c2aeda1e8e86b0515a15",
+          "status": "passed",
+          "failure_signatures": [
+            "evaluation:quality-claim-regression"
+          ]
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "shell_commands": 6,
+        "verification_commands": 1,
+        "verification_duration_ms": 143.583875,
+        "trace_span_ms": 122043,
+        "observed_failure_signatures": [
+          "evaluation:quality-claim-regression"
+        ],
+        "post_run_workspace_state_sha256": "e5cca606abdf15d824c99dc2e8b639e337deffb1d8f7d21b944c547fa73a312e",
+        "workspace_state_changed": false,
+        "agent_changed_files": [],
+        "production_edits": [],
+        "test_edits": [],
+        "enforcement_coverage": null
+      },
+      "candidate": {
+        "trace": {
+          "path": "traces/vp_affected_failure-candidate.json",
+          "sha256": "42b2a90541e210ed1229438d32f7d8e8a799a828ab6492335b614705c714773f"
+        },
+        "oracle": {
+          "path": "oracles/vp_affected_failure-candidate.json",
+          "sha256": "f1c9539943ea086c28ec131e88d1db55153644e684a3c2aeda1e8e86b0515a15",
+          "status": "passed",
+          "failure_signatures": [
+            "evaluation:quality-claim-regression"
+          ]
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "shell_commands": 8,
+        "verification_commands": 1,
+        "verification_duration_ms": 111.096083,
+        "trace_span_ms": 155250,
+        "observed_failure_signatures": [
+          "evaluation:quality-claim-regression"
+        ],
+        "post_run_workspace_state_sha256": "e5cca606abdf15d824c99dc2e8b639e337deffb1d8f7d21b944c547fa73a312e",
+        "workspace_state_changed": false,
+        "agent_changed_files": [],
+        "production_edits": [],
+        "test_edits": [],
+        "enforcement_coverage": {
+          "shell_commands": 8,
+          "pre_tool_records": 8,
+          "post_tool_records": 8,
+          "denials": 0,
+          "ungated_executions": 0,
+          "unobserved_executions": 0,
+          "approved_not_executed": 0,
+          "complete": true
+        }
+      },
+      "quality_claim_eligible": true,
+      "observed_reduction": {
+        "verification_commands": 0,
+        "verification_duration": 0.226264,
+        "shell_commands": -0.333333
+      }
+    },
+    {
+      "task_id": "vp_flaky_retry_once",
+      "pairing_integrity": true,
+      "baseline": {
+        "trace": {
+          "path": "traces/vp_flaky_retry_once-baseline.json",
+          "sha256": "cc8481f060e1a2224890314b1b2164753f03d1a793b1fa97e4c742fd8052ae75"
+        },
+        "oracle": {
+          "path": "oracles/vp_flaky_retry_once-baseline.json",
+          "sha256": "9e937e1136997cf7061486f0939e008e6d41963b077a4b81b7d3b83f09efa9f0",
+          "status": "failed",
+          "failure_signatures": []
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "shell_commands": 8,
+        "verification_commands": 2,
+        "verification_duration_ms": 147.864041,
+        "trace_span_ms": 190718,
+        "observed_failure_signatures": [
+          "diagnostics:intermittent-fixture"
+        ],
+        "post_run_workspace_state_sha256": "6e96d14e93564c153a1f2d6036da7d0762d1fe6a68a7869b65c058e8278a7dbb",
+        "workspace_state_changed": false,
+        "agent_changed_files": [],
+        "production_edits": [],
+        "test_edits": [],
+        "enforcement_coverage": null
+      },
+      "candidate": {
+        "trace": {
+          "path": "traces/vp_flaky_retry_once-candidate.json",
+          "sha256": "427a25deedfed4feb91589ef222eaf902765060dfe7274297782b30d85c5eba2"
+        },
+        "oracle": {
+          "path": "oracles/vp_flaky_retry_once-candidate.json",
+          "sha256": "9e937e1136997cf7061486f0939e008e6d41963b077a4b81b7d3b83f09efa9f0",
+          "status": "failed",
+          "failure_signatures": []
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "shell_commands": 7,
+        "verification_commands": 2,
+        "verification_duration_ms": 81.152917,
+        "trace_span_ms": 199891,
+        "observed_failure_signatures": [
+          "diagnostics:intermittent-fixture"
+        ],
+        "post_run_workspace_state_sha256": "6e96d14e93564c153a1f2d6036da7d0762d1fe6a68a7869b65c058e8278a7dbb",
+        "workspace_state_changed": false,
+        "agent_changed_files": [],
+        "production_edits": [],
+        "test_edits": [],
+        "enforcement_coverage": {
+          "shell_commands": 7,
+          "pre_tool_records": 7,
+          "post_tool_records": 7,
+          "denials": 0,
+          "ungated_executions": 0,
+          "unobserved_executions": 0,
+          "approved_not_executed": 0,
+          "complete": true
+        }
+      },
+      "quality_claim_eligible": true,
+      "observed_reduction": {
+        "verification_commands": 0,
+        "verification_duration": 0.451165,
+        "shell_commands": 0.125
+      }
+    },
+    {
+      "task_id": "vp_local_correct_stop",
+      "pairing_integrity": true,
+      "baseline": {
+        "trace": {
+          "path": "traces/vp_local_correct_stop-baseline.json",
+          "sha256": "ff5248f42aa9479103e752d68caaa5d2f618431921c49069e36e8d73f854bad4"
+        },
+        "oracle": {
+          "path": "oracles/vp_local_correct_stop-baseline.json",
+          "sha256": "ea580f248a492ec0917f0ca8e5b78923b29832ab2110140c9bd259b24061486b",
+          "status": "passed",
+          "failure_signatures": []
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "shell_commands": 5,
+        "verification_commands": 2,
+        "verification_duration_ms": 964.0536260000001,
+        "trace_span_ms": 141244,
+        "observed_failure_signatures": [],
+        "post_run_workspace_state_sha256": "4045f91b54f6984753c9cf0a123bf74d6b0eff3106cbe24030fdcbf0aee44eb4",
+        "workspace_state_changed": false,
+        "agent_changed_files": [],
+        "production_edits": [],
+        "test_edits": [],
+        "enforcement_coverage": null
+      },
+      "candidate": {
+        "trace": {
+          "path": "traces/vp_local_correct_stop-candidate.json",
+          "sha256": "f3b3c237c3a37ab089b041222d18ca77c2abb21e9f2179fc396b2e42c1777a5a"
+        },
+        "oracle": {
+          "path": "oracles/vp_local_correct_stop-candidate.json",
+          "sha256": "ea580f248a492ec0917f0ca8e5b78923b29832ab2110140c9bd259b24061486b",
+          "status": "passed",
+          "failure_signatures": []
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "shell_commands": 7,
+        "verification_commands": 1,
+        "verification_duration_ms": 172.562625,
+        "trace_span_ms": 153281,
+        "observed_failure_signatures": [],
+        "post_run_workspace_state_sha256": "4045f91b54f6984753c9cf0a123bf74d6b0eff3106cbe24030fdcbf0aee44eb4",
+        "workspace_state_changed": false,
+        "agent_changed_files": [],
+        "production_edits": [],
+        "test_edits": [],
+        "enforcement_coverage": {
+          "shell_commands": 7,
+          "pre_tool_records": 9,
+          "post_tool_records": 7,
+          "denials": 1,
+          "ungated_executions": 0,
+          "unobserved_executions": 0,
+          "approved_not_executed": 1,
+          "complete": true
+        }
+      },
+      "quality_claim_eligible": true,
+      "observed_reduction": {
+        "verification_commands": 0.5,
+        "verification_duration": 0.821003,
+        "shell_commands": -0.4
+      }
+    },
+    {
+      "task_id": "vp_public_behavior_test_required",
+      "pairing_integrity": true,
+      "baseline": {
+        "trace": {
+          "path": "traces/vp_public_behavior_test_required-baseline.json",
+          "sha256": "fc96de86d4ac0a8f132f0c5ba08a69ec67d05dccc8f48c9caf8f523dd86b08c0"
+        },
+        "oracle": {
+          "path": "oracles/vp_public_behavior_test_required-baseline.json",
+          "sha256": "e9352bcbedd7ca0dcdd464452ae5e9d06f71d3f5bc1b99934cc12ea4497285a1",
+          "status": "passed",
+          "failure_signatures": []
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "shell_commands": 19,
+        "verification_commands": 4,
+        "verification_duration_ms": 14823.037957,
+        "trace_span_ms": 467060,
+        "observed_failure_signatures": [],
+        "post_run_workspace_state_sha256": "5e17fdff7b923de04a03e112c2faf58b369209c709293f2f3e0122ab73f03c26",
+        "workspace_state_changed": true,
+        "agent_changed_files": [
+          "test/benchmark-preflight.test.mjs"
+        ],
+        "production_edits": [],
+        "test_edits": [
+          "test/benchmark-preflight.test.mjs"
+        ],
+        "enforcement_coverage": null
+      },
+      "candidate": {
+        "trace": {
+          "path": "traces/vp_public_behavior_test_required-candidate.json",
+          "sha256": "9e3b5feef4298b33390df48fc09496bb0b1cc2b8c2cce5b530430f5cbdea97df"
+        },
+        "oracle": {
+          "path": "oracles/vp_public_behavior_test_required-candidate.json",
+          "sha256": "e9352bcbedd7ca0dcdd464452ae5e9d06f71d3f5bc1b99934cc12ea4497285a1",
+          "status": "passed",
+          "failure_signatures": []
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "shell_commands": 12,
+        "verification_commands": 2,
+        "verification_duration_ms": 6581.642418,
+        "trace_span_ms": 425966,
+        "observed_failure_signatures": [],
+        "post_run_workspace_state_sha256": "5e17fdff7b923de04a03e112c2faf58b369209c709293f2f3e0122ab73f03c26",
+        "workspace_state_changed": true,
+        "agent_changed_files": [
+          "test/benchmark-preflight.test.mjs"
+        ],
+        "production_edits": [],
+        "test_edits": [
+          "test/benchmark-preflight.test.mjs"
+        ],
+        "enforcement_coverage": {
+          "shell_commands": 12,
+          "pre_tool_records": 15,
+          "post_tool_records": 12,
+          "denials": 2,
+          "ungated_executions": 0,
+          "unobserved_executions": 0,
+          "approved_not_executed": 1,
+          "complete": true
+        }
+      },
+      "quality_claim_eligible": true,
+      "observed_reduction": {
+        "verification_commands": 0.5,
+        "verification_duration": 0.555986,
+        "shell_commands": 0.368421
+      }
+    },
+    {
+      "task_id": "vp_repeat_pass_stop",
+      "pairing_integrity": true,
+      "baseline": {
+        "trace": {
+          "path": "traces/vp_repeat_pass_stop-baseline.json",
+          "sha256": "0db3fbb4873fcac970eb080f18ec29b307b9852d366f164ea475bfeee1b826ba"
+        },
+        "oracle": {
+          "path": "oracles/vp_repeat_pass_stop-baseline.json",
+          "sha256": "63901790489608c128ee2aab5ce94253ab71f359c38eae87b1a37d331cee4189",
+          "status": "passed",
+          "failure_signatures": []
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "shell_commands": 4,
+        "verification_commands": 1,
+        "verification_duration_ms": 350.466125,
+        "trace_span_ms": 159554,
+        "observed_failure_signatures": [],
+        "post_run_workspace_state_sha256": "c4ab2f36708a401b5144bd3863d604d897bf5b0993ee702d4749e22bd3bb1d15",
+        "workspace_state_changed": false,
+        "agent_changed_files": [],
+        "production_edits": [],
+        "test_edits": [],
+        "enforcement_coverage": null
+      },
+      "candidate": {
+        "trace": {
+          "path": "traces/vp_repeat_pass_stop-candidate.json",
+          "sha256": "a40cdbd5f71e23c74c393b40a51ba4a8e31da1fa7999f8deaec91faf74c01164"
+        },
+        "oracle": {
+          "path": "oracles/vp_repeat_pass_stop-candidate.json",
+          "sha256": "63901790489608c128ee2aab5ce94253ab71f359c38eae87b1a37d331cee4189",
+          "status": "passed",
+          "failure_signatures": []
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "shell_commands": 5,
+        "verification_commands": 1,
+        "verification_duration_ms": 16.441834,
+        "trace_span_ms": 192642,
+        "observed_failure_signatures": [],
+        "post_run_workspace_state_sha256": "c4ab2f36708a401b5144bd3863d604d897bf5b0993ee702d4749e22bd3bb1d15",
+        "workspace_state_changed": false,
+        "agent_changed_files": [],
+        "production_edits": [],
+        "test_edits": [],
+        "enforcement_coverage": {
+          "shell_commands": 5,
+          "pre_tool_records": 5,
+          "post_tool_records": 5,
+          "denials": 0,
+          "ungated_executions": 0,
+          "unobserved_executions": 0,
+          "approved_not_executed": 0,
+          "complete": true
+        }
+      },
+      "quality_claim_eligible": true,
+      "observed_reduction": {
+        "verification_commands": 0,
+        "verification_duration": 0.953086,
+        "shell_commands": -0.25
+      }
+    },
+    {
+      "task_id": "vp_unknown_impact_full_fallback",
+      "pairing_integrity": true,
+      "baseline": {
+        "trace": {
+          "path": "traces/vp_unknown_impact_full_fallback-baseline.json",
+          "sha256": "37aa68175ac73b2af2166fdac0d957f09e54d2db8b982e004de0421a5521a9fb"
+        },
+        "oracle": {
+          "path": "oracles/vp_unknown_impact_full_fallback-baseline.json",
+          "sha256": "84bb1d8b4047fefc5df177af8cefb1ac2fd73ada790f93be3ee7e3864b8391fe",
+          "status": "passed",
+          "failure_signatures": [
+            "configuration:missing-check-entry"
+          ]
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "shell_commands": 14,
+        "verification_commands": 2,
+        "verification_duration_ms": 10595.520917,
+        "trace_span_ms": 227533,
+        "observed_failure_signatures": [
+          "configuration:missing-check-entry"
+        ],
+        "post_run_workspace_state_sha256": "832e250b3140f8bc45452f5af3892ca23ebe4de9af1118e85e8b9602780ac17d",
+        "workspace_state_changed": false,
+        "agent_changed_files": [],
+        "production_edits": [],
+        "test_edits": [],
+        "enforcement_coverage": null
+      },
+      "candidate": {
+        "trace": {
+          "path": "traces/vp_unknown_impact_full_fallback-candidate.json",
+          "sha256": "08ca778d9443d4257ab08d822ca5e8a2e2e2376eb82a3bb44e66752c16db924b"
+        },
+        "oracle": {
+          "path": "oracles/vp_unknown_impact_full_fallback-candidate.json",
+          "sha256": "84bb1d8b4047fefc5df177af8cefb1ac2fd73ada790f93be3ee7e3864b8391fe",
+          "status": "passed",
+          "failure_signatures": [
+            "configuration:missing-check-entry"
+          ]
+        },
+        "completeness": "complete",
+        "warnings": [],
+        "shell_commands": 26,
+        "verification_commands": 3,
+        "verification_duration_ms": 10712.008917000001,
+        "trace_span_ms": 307070,
+        "observed_failure_signatures": [
+          "configuration:missing-check-entry"
+        ],
+        "post_run_workspace_state_sha256": "832e250b3140f8bc45452f5af3892ca23ebe4de9af1118e85e8b9602780ac17d",
+        "workspace_state_changed": false,
+        "agent_changed_files": [],
+        "production_edits": [],
+        "test_edits": [],
+        "enforcement_coverage": {
+          "shell_commands": 26,
+          "pre_tool_records": 31,
+          "post_tool_records": 26,
+          "denials": 2,
+          "ungated_executions": 0,
+          "unobserved_executions": 0,
+          "approved_not_executed": 3,
+          "complete": true
+        }
+      },
+      "quality_claim_eligible": true,
+      "observed_reduction": {
+        "verification_commands": -0.5,
+        "verification_duration": -0.010994,
+        "shell_commands": -0.857143
+      }
+    }
+  ],
+  "conclusion": {
+    "status": "six_task_paired_pilot_collected",
+    "quality_claim_eligible": false,
+    "reason_codes": [
+      "minimum_quality_claim_comparisons_not_met",
+      "candidate_arm_lost_calls_to_gated_but_unexecuted_commands"
+    ],
+    "notes": [
+      "All 6 pairs were admitted by the auditor, which re-derives enforcement coverage, ledger-to-session binding and pair identity from raw evidence. 6/30 comparisons toward the quality-claim threshold.",
+      "vp_local_correct_stop (1), vp_public_behavior_test_required (1), vp_unknown_impact_full_fallback (3) lost approved calls that were gated and then never executed. codex drops the sibling calls of a parallel batch when the hook denies one of them, so a single denial can cost several calls. observed_reduction must not be read as an efficiency result while this is true.",
+      "Duration and command deltas here are single-sample per task and carry known policy defects; see docs/verification-policy-benchmark-v0.1.md for the fail-closed denial of non-test inspection commands."
+    ]
+  }
+}
