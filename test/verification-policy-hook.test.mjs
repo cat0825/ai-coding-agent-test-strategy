@@ -242,7 +242,7 @@ test("nested and ambiguous runners fail closed", async (t) => {
   assert.equal(ambiguous.reason, "command_semantics_incomplete:multiple_runner_commands");
 });
 
-test("full-suite calls are denied when an affected command is available", async (t) => {
+test("an untargeted full suite is narrowed to the affected tier instead of blocked", async (t) => {
   const paths = await harness(t);
   const result = await evaluateVerificationPolicyHook({
     payload: payload("npm test"),
@@ -250,11 +250,25 @@ test("full-suite calls are denied when an affected command is available", async 
     ...paths,
   });
 
-  assert.equal(result.decision, "deny");
-  assert.equal(result.reason, "untargeted_full_suite_denied");
-  assert.deepEqual(result.suggestion, config.commands.affected);
+  // The full suite still does not run. Replacing it rather than refusing it leaves the agent its
+  // verification turn, which is the whole point of the rewrite tier.
+  assert.equal(result.decision, "rewrite");
+  assert.equal(result.reason, "untargeted_full_suite_rewritten");
+  assert.equal(result.command, "node --test test/feature.test.mjs test/api.test.mjs");
+  assert.equal(result.record.tier, "full");
+  assert.deepEqual(result.record.rewrite, {
+    applied: true,
+    to_tier: "affected",
+    canonical_command_id: result.record.rewrite.canonical_command_id,
+    command_sha256: result.record.rewrite.command_sha256,
+    from_reason_code: "untargeted_full_suite_denied",
+  });
+  // The record names what the agent asked for; the rewrite block names what it became. Neither
+  // carries the command text, so the substituted target is identified only by digest.
+  assert.match(result.record.rewrite.command_sha256, /^[a-f0-9]{64}$/);
+  assert.notEqual(result.record.canonical_command_id, result.record.rewrite.canonical_command_id);
   const ledger = await readFile(paths.ledgerPath, "utf8");
-  assert.doesNotMatch(ledger, /node|test\/feature|npm test/);
+  assert.doesNotMatch(ledger, /test\/feature|test\/api|npm test/);
 });
 
 test("full-suite calls stay denied when wrapped in cd and pipelines", async (t) => {
@@ -282,22 +296,26 @@ test("full-suite calls stay denied when wrapped in cd and pipelines", async (t) 
 
 test("glob-expanded selections cannot escape the full-suite deny", async (t) => {
   const paths = await harness(t);
-  const blocked = await evaluateVerificationPolicyHook({
+  const narrowed = await evaluateVerificationPolicyHook({
     payload: payload("npm test"),
     config,
     ...paths,
   });
-  assert.equal(blocked.decision, "deny");
-  assert.equal(blocked.reason, "untargeted_full_suite_denied");
+  assert.equal(narrowed.decision, "rewrite");
+  assert.equal(narrowed.reason, "untargeted_full_suite_rewritten");
 
   const globbed = await evaluateVerificationPolicyHook({
     payload: payload("node --test test/*.test.mjs 2>&1 | tail -40", { tool_use_id: "tool-glob" }),
     config,
     ...paths,
   });
+  // A pipeline is not rewritable — substituting the whole command string would drop the `tail` the
+  // agent asked for — so the escape is still refused rather than narrowed.
   assert.equal(globbed.decision, "deny");
   assert.equal(globbed.reason, "unbounded_test_selection_denied");
   assert.equal(globbed.record.tier, "other");
+  assert.equal(globbed.record.rewrite.applied, false);
+  assert.equal(globbed.record.rewrite.declined_reason, "compound_command_not_rewritable");
   assert.deepEqual(globbed.suggestion, config.commands.affected);
 
   const ledger = await readFile(paths.ledgerPath, "utf8");
@@ -334,7 +352,11 @@ test("an exhaustive file enumeration cannot escape the full-suite deny", async (
     config: enumerated,
     ...paths,
   });
-  assert.equal(relative.reason, "full_suite_equivalent_selection_denied");
+  // Same enumeration without the pipeline, so this one is rewritable and gets narrowed instead.
+  // Either way it never runs as written, which is the property the check exists for.
+  assert.equal(relative.decision, "rewrite");
+  assert.equal(relative.reason, "full_suite_equivalent_selection_rewritten");
+  assert.equal(relative.command, "node --test test/feature.test.mjs test/api.test.mjs");
 
   const ledger = await readFile(paths.ledgerPath, "utf8");
   assert.doesNotMatch(ledger, /trace\.test\.mjs|tail -40/);
@@ -346,10 +368,12 @@ test("an exhaustive file enumeration cannot escape the full-suite deny", async (
   });
   assert.equal(narrower.decision, "allow");
 
+  // A fresh session, because the rewrite above already spent an execution against this one and the
+  // question here is about the exception, not the budget.
   const fallback = await evaluateVerificationPolicyHook({
     payload: payload("node --test test/feature.test.mjs test/api.test.mjs test/trace.test.mjs", { tool_use_id: "tool-enumerated-allowed" }),
     config: { ...enumerated, allow_full_suite: true },
-    ...paths,
+    ...await harness(t),
   });
   assert.equal(fallback.decision, "allow");
 });
@@ -460,13 +484,45 @@ test("prepare CLI carries the full-fallback exception into generated policy", as
     encoding: "utf8",
   });
   assert.equal(generatedResult.status, 0);
-  assert.equal(JSON.parse(generatedResult.stdout).hookSpecificOutput.permissionDecision, "deny");
+  const generatedResponse = JSON.parse(generatedResult.stdout);
+  assert.equal(generatedResponse.hookSpecificOutput.permissionDecision, "allow");
+  assert.deepEqual(generatedResponse.hookSpecificOutput.updatedInput, {
+    command: `node --test ${ordinaryPolicy.commands.affected.slice(2).join(" ")}`,
+  });
 });
 
-test("generated hook denies an untargeted full suite with Codex-compatible output", async (t) => {
+test("a rewrite reaches Codex as an allow that carries replacement input", async (t) => {
   const paths = await harness(t);
   const hook = path.resolve("scripts/verification-policy-hook.mjs");
   const input = JSON.stringify(payload("npm test"));
+  const result = spawnSync(process.execPath, [
+    hook,
+    "--config", path.join(path.dirname(paths.statePath), "policy.json"),
+    "--state", paths.statePath,
+    "--ledger", paths.ledgerPath,
+  ], { input, cwd: path.resolve("."), encoding: "utf8" });
+
+  assert.equal(result.status, 0);
+  const response = JSON.parse(result.stdout);
+  // codex reads `updatedInput` only next to an explicit allow, and only as an object carrying a
+  // string `command`. It rejects the entire hook response when either is missing rather than
+  // ignoring the field, so both are asserted on the wire and not just in the return value.
+  assert.equal(response.hookSpecificOutput.hookEventName, "PreToolUse");
+  assert.equal(response.hookSpecificOutput.permissionDecision, "allow");
+  assert.equal(typeof response.hookSpecificOutput.updatedInput.command, "string");
+  assert.equal(response.hookSpecificOutput.updatedInput.command, "node --test test/feature.test.mjs test/api.test.mjs");
+  assert.match(response.hookSpecificOutput.permissionDecisionReason, /untargeted_full_suite_rewritten/);
+  // A block would strand the turn, and `decision` is the field codex checks first.
+  assert.equal(response.decision, undefined);
+  assert.deepEqual(Object.keys(response.hookSpecificOutput).sort(),
+    ["hookEventName", "permissionDecision", "permissionDecisionReason", "updatedInput"]);
+});
+
+test("generated hook denies a call it cannot narrow with Codex-compatible output", async (t) => {
+  const paths = await harness(t);
+  const hook = path.resolve("scripts/verification-policy-hook.mjs");
+  // A pipeline around the full suite: the deny path, because rewriting it would drop the `tail`.
+  const input = JSON.stringify(payload("npm test 2>&1 | tail -40"));
   const result = spawnSync(process.execPath, [
     hook,
     "--config", path.join(path.dirname(paths.statePath), "policy.json"),
@@ -482,5 +538,232 @@ test("generated hook denies an untargeted full suite with Codex-compatible outpu
   assert.equal(response.permissionDecision, undefined);
   assert.equal(response.hookSpecificOutput.hookEventName, "PreToolUse");
   assert.equal(response.hookSpecificOutput.permissionDecision, "deny");
+  assert.equal(response.hookSpecificOutput.updatedInput, undefined);
   assert.match(response.hookSpecificOutput.permissionDecisionReason, /untargeted_full_suite_denied/);
+});
+
+test("a full suite is denied, not allowed, when the affected scope cannot be determined", async (t) => {
+  // The gap this closes: the full-suite check used to require a usable affected tier, so a task
+  // that declared none fell through to the budget checks and got its whole suite waved through.
+  // Absence of evidence about the affected scope is not evidence that the full run is needed.
+  const undeclared = { ...config, commands: { fast: config.commands.fast, full: config.commands.full } };
+  const missing = await evaluateVerificationPolicyHook({
+    payload: payload("npm test"),
+    config: undeclared,
+    ...await harness(t),
+  });
+  assert.equal(missing.decision, "deny");
+  assert.equal(missing.reason, "full_suite_scope_undeterminable_denied");
+  assert.equal(missing.suggestion, null);
+
+  // An affected tier the analyzer cannot read is the same situation: no derivable narrower target.
+  // The hook must not fall back to inventing one out of the command it was handed.
+  const unreadable = { ...config, commands: { ...config.commands, affected: ["node", "scripts/custom-runner.mjs"] } };
+  const opaque = await evaluateVerificationPolicyHook({
+    payload: payload("npm test"),
+    config: unreadable,
+    ...await harness(t),
+  });
+  assert.equal(opaque.decision, "deny");
+  assert.equal(opaque.reason, "full_suite_scope_undeterminable_denied");
+  assert.equal(opaque.record.rewrite, null);
+
+  // The exception is still the only way through, and it stays explicit.
+  const granted = await evaluateVerificationPolicyHook({
+    payload: payload("npm test"),
+    config: { ...undeclared, allow_full_suite: true },
+    ...await harness(t),
+  });
+  assert.equal(granted.decision, "allow");
+});
+
+test("no rewrite is offered when the narrower command would break the same budget", async (t) => {
+  const paths = await harness(t);
+  const tight = { ...config, budget: { ...config.budget, max_test_executions: 1 } };
+  const first = await evaluateVerificationPolicyHook({
+    payload: payload("node --test test/feature.test.mjs"),
+    config: tight,
+    ...paths,
+  });
+  assert.equal(first.decision, "allow");
+
+  const denied = await evaluateVerificationPolicyHook({
+    payload: payload("npm test", { tool_use_id: "tool-second", turn_id: "turn-2" }),
+    config: tight,
+    ...paths,
+  });
+  // Substituting the affected tier here would only move the denial one turn later, so the call is
+  // refused on its own terms and the narrower command is not advertised either.
+  assert.equal(denied.decision, "deny");
+  assert.equal(denied.reason, "untargeted_full_suite_denied");
+  assert.equal(denied.record.rewrite.applied, false);
+  assert.equal(denied.record.rewrite.declined_reason, "budget_would_be_exceeded:test_execution_budget_exceeded");
+  assert.equal(denied.suggestion, null);
+});
+
+test("a rewritten call is billed as the command that actually ran", async (t) => {
+  const paths = await harness(t);
+  const rewritten = await evaluateVerificationPolicyHook({
+    payload: payload("npm test"),
+    config,
+    ...paths,
+  });
+  assert.equal(rewritten.decision, "rewrite");
+
+  // codex may report either the original or the substituted input on the way out, so the hook
+  // settles the question from its own pending record rather than from the payload.
+  const observed = await evaluateVerificationPolicyHook({
+    payload: payload("npm test", { hook_event_name: "PostToolUse", exit_code: 0, duration_ms: 400 }),
+    config,
+    ...paths,
+  });
+  assert.equal(observed.record.tier, "affected");
+  assert.equal(observed.record.canonical_command_id, rewritten.record.rewrite.canonical_command_id);
+  assert.notEqual(observed.record.canonical_command_id, rewritten.record.canonical_command_id);
+
+  // The affected tier has now passed, so narrowing to it again would be a repeat. The second
+  // full-suite call is therefore denied rather than rewritten a second time.
+  const repeated = await evaluateVerificationPolicyHook({
+    payload: payload("npm test", { tool_use_id: "tool-again", turn_id: "turn-2" }),
+    config,
+    ...paths,
+  });
+  assert.equal(repeated.decision, "deny");
+  assert.equal(repeated.record.rewrite.declined_reason, "budget_would_be_exceeded:repeat_after_pass_denied");
+});
+
+test("a full suite the task itself calls affected is not rewritten", async (t) => {
+  // When a task declares the affected tier to be the whole suite there is no narrowing to make,
+  // and the run is targeted by that task's own definition rather than an unjustified escalation.
+  const wholeSuiteIsAffected = { ...config, commands: { ...config.commands, affected: config.commands.full } };
+  const result = await evaluateVerificationPolicyHook({
+    payload: payload("npm test"),
+    config: wholeSuiteIsAffected,
+    ...await harness(t),
+  });
+  assert.equal(result.decision, "allow");
+  assert.equal(result.record.reason_code, "within_budget");
+  assert.equal(result.record.tier, "affected");
+  assert.equal(result.record.rewrite, null);
+});
+
+// codex 0.149.0 sends `tool_response` as the raw output string, with no exit code and no status.
+// Every test above feeds an object with `exit_code`, a shape the live harness never produces, so the
+// outcome path was green against a fixture and dead in production.
+test("an outcome is derived from the runner's own summary when the payload carries no exit code", async (t) => {
+  const paths = await harness(t);
+  await evaluateVerificationPolicyHook({
+    payload: payload("node --test test/feature.test.mjs"),
+    config,
+    ...paths,
+  });
+  const post = await evaluateVerificationPolicyHook({
+    payload: payload("node --test test/feature.test.mjs", {
+      hook_event_name: "PostToolUse",
+      tool_response: "✔ works (1.2ms)\nℹ tests 13\nℹ pass 13\nℹ fail 0\nℹ duration_ms 3591\n",
+    }),
+    config,
+    ...paths,
+  });
+  assert.equal(post.decision, "allow");
+  const state = JSON.parse(await readFile(paths.statePath, "utf8"));
+  const [session] = Object.values(state.sessions);
+  assert.equal(session.completed.at(-1).outcome, "passed");
+  assert.deepEqual(session.failed_test_turns, []);
+});
+
+test("a failing runner summary is recorded as a failed turn, and unreadable output stays unknown", async (t) => {
+  const failing = await harness(t);
+  await evaluateVerificationPolicyHook({
+    payload: payload("node --test test/feature.test.mjs"),
+    config,
+    ...failing,
+  });
+  await evaluateVerificationPolicyHook({
+    payload: payload("node --test test/feature.test.mjs", {
+      hook_event_name: "PostToolUse",
+      tool_response: "✖ broke (1.2ms)\nℹ tests 13\nℹ pass 12\nℹ fail 1\n",
+    }),
+    config,
+    ...failing,
+  });
+  const failedState = JSON.parse(await readFile(failing.statePath, "utf8"));
+  const [failedSession] = Object.values(failedState.sessions);
+  assert.equal(failedSession.completed.at(-1).outcome, "failed");
+  assert.equal(failedSession.failed_test_turns.length, 1);
+
+  // No total the runner printed itself, so there is nothing to read. `unknown` is the honest record:
+  // a passing count with no failing count beside it does not establish that nothing failed.
+  const opaque = await harness(t);
+  await evaluateVerificationPolicyHook({
+    payload: payload("node --test test/feature.test.mjs"),
+    config,
+    ...opaque,
+  });
+  await evaluateVerificationPolicyHook({
+    payload: payload("node --test test/feature.test.mjs", {
+      hook_event_name: "PostToolUse",
+      tool_response: "running tests...\n13 passing\ndone\n",
+    }),
+    config,
+    ...opaque,
+  });
+  const opaqueState = JSON.parse(await readFile(opaque.statePath, "utf8"));
+  const [opaqueSession] = Object.values(opaqueState.sessions);
+  assert.equal(opaqueSession.completed.at(-1).outcome, "unknown");
+  assert.deepEqual(opaqueSession.failed_test_turns, []);
+});
+
+test("a project script that runs the suite cannot walk around the full-suite deny", async (t) => {
+  const paths = await harness(t);
+  // Observed live on vp_local_correct_stop: the agent never asked for the declared full tier at all.
+  // It ran `npm run check`, which in that repo ends in `npm test`, and the hook allowed it as an
+  // ordinary in-budget call because the empty target list read as a narrow selection.
+  const script = await evaluateVerificationPolicyHook({
+    payload: payload("npm run check", { tool_use_id: "tool-script" }),
+    config,
+    ...paths,
+  });
+
+  assert.equal(script.decision, "deny");
+  assert.equal(script.reason, "unscoped_test_command_denied");
+  assert.equal(script.record.tier, "other");
+  assert.deepEqual(script.suggestion, config.commands.affected);
+  // Not rewritten: `check` also runs syntax gates, and substituting the affected tier for the whole
+  // invocation would drop them while still looking like a narrowed test run.
+  assert.deepEqual(script.record.rewrite, {
+    applied: false,
+    declined_reason: "script_body_not_inspectable",
+    from_reason_code: "unscoped_test_command_denied",
+  });
+
+  // The declared tiers still behave as before: `npm test` is the full tier and is narrowed, not denied.
+  const declared = await evaluateVerificationPolicyHook({
+    payload: payload("npm test", { tool_use_id: "tool-declared" }),
+    config,
+    ...paths,
+  });
+  assert.equal(declared.decision, "rewrite");
+  assert.equal(declared.command, "node --test test/feature.test.mjs test/api.test.mjs");
+});
+
+test("an unscoped runner is denied but the full-fallback exception still permits it", async (t) => {
+  const paths = await harness(t);
+  // A bare runner names no files, so it cannot be shown to be narrower than the suite it would run.
+  const bare = await evaluateVerificationPolicyHook({
+    payload: payload("npx vitest", { tool_use_id: "tool-bare" }),
+    config,
+    ...paths,
+  });
+  assert.equal(bare.decision, "rewrite");
+  assert.equal(bare.reason, "unscoped_test_command_rewritten");
+  assert.equal(bare.record.tier, "other");
+
+  const permitted = await evaluateVerificationPolicyHook({
+    payload: payload("npm run check", { tool_use_id: "tool-permitted" }),
+    config: { ...config, allow_full_suite: true },
+    ...(await harness(t)),
+  });
+  assert.equal(permitted.decision, "allow");
+  assert.equal(permitted.record.tier, "other");
 });

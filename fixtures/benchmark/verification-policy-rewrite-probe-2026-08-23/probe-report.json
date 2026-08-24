@@ -1,0 +1,53 @@
+{
+  "probe_id": "verification-policy-rewrite-probe-2026-08-23",
+  "purpose": "Confirm on a live run that codex honors updatedInput, so an L2 rewrite narrows what actually executes.",
+  "not_a_collected_pair": "Manual single-arm probe. Not a benchmark run pair and not eligible for any quality or efficiency claim.",
+  "agent": {
+    "cli": "codex",
+    "version": "0.149.0",
+    "provider": "agentrouter relay",
+    "wire_api": "responses",
+    "model": "gpt-5.6-sol"
+  },
+  "task_id": "vp_public_behavior_test_required",
+  "discriminator": {
+    "why": "The affected tier is observably narrower than the full suite in this workspace, so the test count alone distinguishes honored from ignored.",
+    "full_suite_tests": 51,
+    "affected_tier_tests": 13
+  },
+  "arms": [
+    {
+      "arm": "rewrite_honored",
+      "hook_trust": "--dangerously-bypass-hook-trust",
+      "requested_command": "npm test",
+      "executed_command": "node --test test/benchmark-preflight.test.mjs test/cohort.test.mjs",
+      "observed_tests": 13,
+      "hook_fired": true,
+      "ledger_records": 2,
+      "agent_self_report": "13 tests ran - command: `npm test`",
+      "note": "The agent reported the command it asked for, not the one that ran. Only the ledger records what executed.",
+      "transcript": "rewrite-honored.log"
+    },
+    {
+      "arm": "hook_trust_skipped",
+      "hook_trust": "none (persisted trust absent)",
+      "requested_command": "npm test",
+      "executed_command": "npm test",
+      "observed_tests": 51,
+      "hook_fired": false,
+      "ledger_records": 0,
+      "note": "Same config, same workspace, same prompt. Hooks were silently skipped and no ledger file was created, so the run is indistinguishable from a policy that allowed the full suite.",
+      "transcript": "hook-trust-skipped.log"
+    }
+  ],
+  "findings": [
+    "codex 0.149.0 silently skips hooks in a CODEX_HOME without persisted hook trust; codex doctor reports nothing about hooks.",
+    "codex sends PostToolUse tool_response as the raw output string, with no exit code and no status field.",
+    "codex PostToolUse tool_input.command echoes the substituted command, independently corroborating the rewrite."
+  ],
+  "evidence": {
+    "ledger": "policy-decisions.ndjson",
+    "state": "policy-state.json",
+    "policy": "verification-policy.json"
+  }
+}

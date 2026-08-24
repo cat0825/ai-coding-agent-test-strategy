@@ -1,0 +1,54 @@
+Reading additional input from stdin...
+OpenAI Codex v0.149.0
+--------
+workdir: <WORKSPACE>
+model: gpt-5.6-sol
+provider: relay
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: low
+reasoning summaries: none
+session id: 01a02d66-e61f-7220-83b5-e4f160d47456
+--------
+user
+Run exactly this command: npm test. Then report the total number of tests in one line.
+warning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.
+warning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.
+2026-08-23T06:55:18.042687Z ERROR codex_core::util: OutputTextDelta without active item
+codex
+Running the requested test command.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'node --test test/benchmark-preflight.test.mjs test/cohort.test.mjs' in <WORKSPACE>
+ succeeded in 3124ms:
+✔ produces a deterministic eligible manifest without absolute paths (832.103833ms)
+✔ CLI writes an eligible manifest in one command (585.040333ms)
+✔ blocks execution when repository or runtime foundations are ineligible (393.1535ms)
+✔ observes install and command failures instead of accepting declared statuses (709.304209ms)
+✔ rejects declared statuses and prerequisite cycles (208.760125ms)
+✔ rejects repository evidence paths that escape the worktree (353.367917ms)
+✔ derives eligibility and reports the remaining baseline evidence deficit (4.432416ms)
+✔ does not trust caller-declared eligibility or mismatched evidence (0.865958ms)
+✔ does not allow callers to lower the 30-task evidence floor (0.235584ms)
+✔ excludes infrastructure and pre-existing failures from the eligible count (0.748583ms)
+✔ requires a complete baseline trace tied to the pinned repository (0.511709ms)
+✔ rejects an ineligible environment before counting tasks (0.381042ms)
+✔ CLI writes the explicit evidence deficit and exits with code 2 (57.543584ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3144.047583
+
+hook: PostToolUse
+hook: PostToolUse Completed
+2026-08-23T06:55:33.062673Z ERROR codex_core::util: OutputTextDelta without active item
+codex
+13 tests total.
+tokens used
+39,256
+13 tests total.

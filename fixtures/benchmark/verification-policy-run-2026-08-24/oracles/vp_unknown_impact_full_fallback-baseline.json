@@ -1,0 +1,49 @@
+{
+  "benchmark_id": "observatory-verification-policy-pilot-v0.1",
+  "environment": {
+    "benchmark_id": "observatory-verification-policy-pilot-v0.1",
+    "repository_identity": "cat0825/ai-coding-agent-test-strategy",
+    "repository_revision": "e9bd535012d4657534cf3cef69f394d2e7145387",
+    "scenario_definition_sha256": "76224f9ba3d6b1ef4706b17dae45e03e08d6fe9f50b59fa95c6fe33bf3ea545c",
+    "workspace_revision": "586304f4932ed975c01199308d5e1bfe8e20837c"
+  },
+  "evidence_class": "independent_oracle",
+  "execution": {
+    "results": [
+      {
+        "exit_code": 1,
+        "phase": "full"
+      }
+    ],
+    "timeout_ms": 120000
+  },
+  "oracle": {
+    "definition_sha256": "b607d618bd417fdf2e1e94d16c671123246f6b015976532b5414fe1cd02c16f0",
+    "id": "vp-oracle-unknown-impact-full-fallback-v1"
+  },
+  "result": {
+    "expected_failure_signatures": [
+      "configuration:missing-check-entry"
+    ],
+    "failure_signatures": [
+      "configuration:missing-check-entry"
+    ],
+    "status": "passed",
+    "workspace_status": "failed"
+  },
+  "schema_version": 1,
+  "task_id": "vp_unknown_impact_full_fallback",
+  "workspace": {
+    "agent_changed_files": [],
+    "changed_files": [
+      "package.json",
+      "src/test-command.mjs"
+    ],
+    "edit_policy_satisfied": true,
+    "initial_workspace_state_sha256": "832e250b3140f8bc45452f5af3892ca23ebe4de9af1118e85e8b9602780ac17d",
+    "post_run_workspace_state_sha256": "832e250b3140f8bc45452f5af3892ca23ebe4de9af1118e85e8b9602780ac17d",
+    "production_edits": [],
+    "test_edits": []
+  }
+}
+

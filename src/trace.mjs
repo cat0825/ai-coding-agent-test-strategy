@@ -179,8 +179,8 @@ function validateEventData(errors, event) {
       addError(errors, `${path}.attributed`, "must be a boolean");
     }
   } else if (event.event_type === "policy_decision") {
-    if (!["allow", "deny", "observe"].includes(event.data.decision)) {
-      addError(errors, `${path}.decision`, "must be allow, deny, or observe");
+    if (!["allow", "deny", "observe", "rewrite"].includes(event.data.decision)) {
+      addError(errors, `${path}.decision`, "must be allow, deny, observe, or rewrite");
     }
     addRequiredString(errors, event.data.reason_code, `${path}.reason_code`);
     if (event.data.tier !== null && !nonEmptyString(event.data.tier)) {

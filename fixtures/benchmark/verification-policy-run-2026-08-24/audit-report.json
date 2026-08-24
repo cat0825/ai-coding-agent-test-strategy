@@ -1,0 +1,444 @@
+{
+  "schema_version": 1,
+  "root": "/tmp/vp-collect-2026-08-24",
+  "pairs_total": 6,
+  "pairs_usable": 6,
+  "pairs": [
+    {
+      "task_id": "vp_affected_failure",
+      "usable": true,
+      "failures": [],
+      "baseline": {
+        "task_id": "vp_affected_failure",
+        "arm": "baseline",
+        "mode": "baseline",
+        "policy": {
+          "name": "unmanaged-coding-agent-baseline",
+          "version": "1"
+        },
+        "harness": "codex-cli@0.149.0",
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+        "prompt_sha256": "355e1523781808a91076bb682aa60362a2cb92c52385f85586bb3daef52874c4",
+        "workspace_revision": "586304f4932ed975c01199308d5e1bfe8e20837c",
+        "scenario_definition_sha256": "d24a6f86d72256574325a4e4e9ce78f030a377fd198d7f8ab24448697f314181",
+        "collector_sha256": "e97173c5e935aeb5be26d3396ce9fc8702c62de45f5c54af8696633f417a0bcb",
+        "shell_commands": 6,
+        "oracle_status": "passed",
+        "trace_completeness": "complete",
+        "enforcement_coverage": null,
+        "usable": true,
+        "failures": [],
+        "notes": []
+      },
+      "candidate": {
+        "task_id": "vp_affected_failure",
+        "arm": "candidate",
+        "mode": "shadow",
+        "policy": {
+          "name": "observatory-verification-policy",
+          "version": "0.4-unscoped"
+        },
+        "harness": "codex-cli@0.149.0",
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+        "prompt_sha256": "355e1523781808a91076bb682aa60362a2cb92c52385f85586bb3daef52874c4",
+        "workspace_revision": "586304f4932ed975c01199308d5e1bfe8e20837c",
+        "scenario_definition_sha256": "d24a6f86d72256574325a4e4e9ce78f030a377fd198d7f8ab24448697f314181",
+        "collector_sha256": "e97173c5e935aeb5be26d3396ce9fc8702c62de45f5c54af8696633f417a0bcb",
+        "shell_commands": 8,
+        "oracle_status": "passed",
+        "trace_completeness": "complete",
+        "enforcement_coverage": {
+          "shell_commands": 8,
+          "pre_tool_records": 8,
+          "post_tool_records": 8,
+          "denials": 0,
+          "ungated_executions": 0,
+          "unobserved_executions": 0,
+          "approved_not_executed": 0,
+          "complete": true
+        },
+        "usable": true,
+        "failures": [],
+        "notes": []
+      }
+    },
+    {
+      "task_id": "vp_flaky_retry_once",
+      "usable": true,
+      "failures": [],
+      "baseline": {
+        "task_id": "vp_flaky_retry_once",
+        "arm": "baseline",
+        "mode": "baseline",
+        "policy": {
+          "name": "unmanaged-coding-agent-baseline",
+          "version": "1"
+        },
+        "harness": "codex-cli@0.149.0",
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+        "prompt_sha256": "f141917f43e00858c2beb9ab4ad73ff334142fa33e02f4562aa4ef4ec0f7b601",
+        "workspace_revision": "586304f4932ed975c01199308d5e1bfe8e20837c",
+        "scenario_definition_sha256": "bb55a1d6865e96a4e33f2434f69eb292770029fa208528953ae4d2d2e182f175",
+        "collector_sha256": "e97173c5e935aeb5be26d3396ce9fc8702c62de45f5c54af8696633f417a0bcb",
+        "shell_commands": 8,
+        "oracle_status": "failed",
+        "trace_completeness": "complete",
+        "enforcement_coverage": null,
+        "usable": true,
+        "failures": [],
+        "notes": []
+      },
+      "candidate": {
+        "task_id": "vp_flaky_retry_once",
+        "arm": "candidate",
+        "mode": "shadow",
+        "policy": {
+          "name": "observatory-verification-policy",
+          "version": "0.4-unscoped"
+        },
+        "harness": "codex-cli@0.149.0",
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+        "prompt_sha256": "f141917f43e00858c2beb9ab4ad73ff334142fa33e02f4562aa4ef4ec0f7b601",
+        "workspace_revision": "586304f4932ed975c01199308d5e1bfe8e20837c",
+        "scenario_definition_sha256": "bb55a1d6865e96a4e33f2434f69eb292770029fa208528953ae4d2d2e182f175",
+        "collector_sha256": "e97173c5e935aeb5be26d3396ce9fc8702c62de45f5c54af8696633f417a0bcb",
+        "shell_commands": 7,
+        "oracle_status": "failed",
+        "trace_completeness": "complete",
+        "enforcement_coverage": {
+          "shell_commands": 7,
+          "pre_tool_records": 7,
+          "post_tool_records": 7,
+          "denials": 0,
+          "ungated_executions": 0,
+          "unobserved_executions": 0,
+          "approved_not_executed": 0,
+          "complete": true
+        },
+        "usable": true,
+        "failures": [],
+        "notes": []
+      }
+    },
+    {
+      "task_id": "vp_local_correct_stop",
+      "usable": true,
+      "failures": [],
+      "baseline": {
+        "task_id": "vp_local_correct_stop",
+        "arm": "baseline",
+        "mode": "baseline",
+        "policy": {
+          "name": "unmanaged-coding-agent-baseline",
+          "version": "1"
+        },
+        "harness": "codex-cli@0.149.0",
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+        "prompt_sha256": "13f4e25ae872e24080a421b59ba84fb8f5f1a4c59f655cc728f9cfff84993a72",
+        "workspace_revision": "943b77b0df861fcdcb120f0ee3609939e2bd79b9",
+        "scenario_definition_sha256": "4a5d38dc94e22e3085aa58fe06b0227f8569743bde7cce6d7453f3a7ada690d9",
+        "collector_sha256": "e97173c5e935aeb5be26d3396ce9fc8702c62de45f5c54af8696633f417a0bcb",
+        "shell_commands": 5,
+        "oracle_status": "passed",
+        "trace_completeness": "complete",
+        "enforcement_coverage": null,
+        "usable": true,
+        "failures": [],
+        "notes": []
+      },
+      "candidate": {
+        "task_id": "vp_local_correct_stop",
+        "arm": "candidate",
+        "mode": "shadow",
+        "policy": {
+          "name": "observatory-verification-policy",
+          "version": "0.4-unscoped"
+        },
+        "harness": "codex-cli@0.149.0",
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+        "prompt_sha256": "13f4e25ae872e24080a421b59ba84fb8f5f1a4c59f655cc728f9cfff84993a72",
+        "workspace_revision": "943b77b0df861fcdcb120f0ee3609939e2bd79b9",
+        "scenario_definition_sha256": "4a5d38dc94e22e3085aa58fe06b0227f8569743bde7cce6d7453f3a7ada690d9",
+        "collector_sha256": "e97173c5e935aeb5be26d3396ce9fc8702c62de45f5c54af8696633f417a0bcb",
+        "shell_commands": 7,
+        "oracle_status": "passed",
+        "trace_completeness": "complete",
+        "enforcement_coverage": {
+          "shell_commands": 7,
+          "pre_tool_records": 9,
+          "post_tool_records": 7,
+          "denials": 1,
+          "ungated_executions": 0,
+          "unobserved_executions": 0,
+          "approved_not_executed": 1,
+          "complete": true
+        },
+        "usable": true,
+        "failures": [],
+        "notes": [
+          "1 gated command(s) never executed (1 denial(s), 0 unified-exec failure(s))"
+        ]
+      }
+    },
+    {
+      "task_id": "vp_public_behavior_test_required",
+      "usable": true,
+      "failures": [],
+      "baseline": {
+        "task_id": "vp_public_behavior_test_required",
+        "arm": "baseline",
+        "mode": "baseline",
+        "policy": {
+          "name": "unmanaged-coding-agent-baseline",
+          "version": "1"
+        },
+        "harness": "codex-cli@0.149.0",
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+        "prompt_sha256": "a0776bf6ba5595f51e8464211d0e21786d5dfa5db10d45e326a09ab6f5fd2d1b",
+        "workspace_revision": "8d638e17fa927082d9519364ae085d0e3369431d",
+        "scenario_definition_sha256": "0c62807ac5238d40e6adf56bb27a48bdf3006bbba7bafe203e1c3f4eee27e544",
+        "collector_sha256": "e97173c5e935aeb5be26d3396ce9fc8702c62de45f5c54af8696633f417a0bcb",
+        "shell_commands": 19,
+        "oracle_status": "passed",
+        "trace_completeness": "complete",
+        "enforcement_coverage": null,
+        "usable": true,
+        "failures": [],
+        "notes": []
+      },
+      "candidate": {
+        "task_id": "vp_public_behavior_test_required",
+        "arm": "candidate",
+        "mode": "shadow",
+        "policy": {
+          "name": "observatory-verification-policy",
+          "version": "0.4-unscoped"
+        },
+        "harness": "codex-cli@0.149.0",
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+        "prompt_sha256": "a0776bf6ba5595f51e8464211d0e21786d5dfa5db10d45e326a09ab6f5fd2d1b",
+        "workspace_revision": "8d638e17fa927082d9519364ae085d0e3369431d",
+        "scenario_definition_sha256": "0c62807ac5238d40e6adf56bb27a48bdf3006bbba7bafe203e1c3f4eee27e544",
+        "collector_sha256": "e97173c5e935aeb5be26d3396ce9fc8702c62de45f5c54af8696633f417a0bcb",
+        "shell_commands": 12,
+        "oracle_status": "passed",
+        "trace_completeness": "complete",
+        "enforcement_coverage": {
+          "shell_commands": 12,
+          "pre_tool_records": 15,
+          "post_tool_records": 12,
+          "denials": 2,
+          "ungated_executions": 0,
+          "unobserved_executions": 0,
+          "approved_not_executed": 1,
+          "complete": true
+        },
+        "usable": true,
+        "failures": [],
+        "notes": [
+          "1 gated command(s) never executed (2 denial(s), 1 unified-exec failure(s))"
+        ]
+      }
+    },
+    {
+      "task_id": "vp_repeat_pass_stop",
+      "usable": true,
+      "failures": [],
+      "baseline": {
+        "task_id": "vp_repeat_pass_stop",
+        "arm": "baseline",
+        "mode": "baseline",
+        "policy": {
+          "name": "unmanaged-coding-agent-baseline",
+          "version": "1"
+        },
+        "harness": "codex-cli@0.149.0",
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+        "prompt_sha256": "fa42cd2c73bd70ebb2e11f51e42d20142cd705ad35436f48a3b70c18e5396450",
+        "workspace_revision": "f5b0f4d2b89947514b87ac0f5f84b515e2358ee6",
+        "scenario_definition_sha256": "0692defeab3a05f16de0225c37837c2fcf4c3180eb9ddc238cfaf1ff973c2e47",
+        "collector_sha256": "e97173c5e935aeb5be26d3396ce9fc8702c62de45f5c54af8696633f417a0bcb",
+        "shell_commands": 4,
+        "oracle_status": "passed",
+        "trace_completeness": "complete",
+        "enforcement_coverage": null,
+        "usable": true,
+        "failures": [],
+        "notes": []
+      },
+      "candidate": {
+        "task_id": "vp_repeat_pass_stop",
+        "arm": "candidate",
+        "mode": "shadow",
+        "policy": {
+          "name": "observatory-verification-policy",
+          "version": "0.4-unscoped"
+        },
+        "harness": "codex-cli@0.149.0",
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+        "prompt_sha256": "fa42cd2c73bd70ebb2e11f51e42d20142cd705ad35436f48a3b70c18e5396450",
+        "workspace_revision": "f5b0f4d2b89947514b87ac0f5f84b515e2358ee6",
+        "scenario_definition_sha256": "0692defeab3a05f16de0225c37837c2fcf4c3180eb9ddc238cfaf1ff973c2e47",
+        "collector_sha256": "e97173c5e935aeb5be26d3396ce9fc8702c62de45f5c54af8696633f417a0bcb",
+        "shell_commands": 5,
+        "oracle_status": "passed",
+        "trace_completeness": "complete",
+        "enforcement_coverage": {
+          "shell_commands": 5,
+          "pre_tool_records": 5,
+          "post_tool_records": 5,
+          "denials": 0,
+          "ungated_executions": 0,
+          "unobserved_executions": 0,
+          "approved_not_executed": 0,
+          "complete": true
+        },
+        "usable": true,
+        "failures": [],
+        "notes": []
+      }
+    },
+    {
+      "task_id": "vp_unknown_impact_full_fallback",
+      "usable": true,
+      "failures": [],
+      "baseline": {
+        "task_id": "vp_unknown_impact_full_fallback",
+        "arm": "baseline",
+        "mode": "baseline",
+        "policy": {
+          "name": "unmanaged-coding-agent-baseline",
+          "version": "1"
+        },
+        "harness": "codex-cli@0.149.0",
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+        "prompt_sha256": "8902b2ef8a786ccc16ce061dc2b89ce30a4ea49dd95e3a1ab288b282bdfd34ae",
+        "workspace_revision": "586304f4932ed975c01199308d5e1bfe8e20837c",
+        "scenario_definition_sha256": "76224f9ba3d6b1ef4706b17dae45e03e08d6fe9f50b59fa95c6fe33bf3ea545c",
+        "collector_sha256": "e97173c5e935aeb5be26d3396ce9fc8702c62de45f5c54af8696633f417a0bcb",
+        "shell_commands": 14,
+        "oracle_status": "passed",
+        "trace_completeness": "complete",
+        "enforcement_coverage": null,
+        "usable": true,
+        "failures": [],
+        "notes": []
+      },
+      "candidate": {
+        "task_id": "vp_unknown_impact_full_fallback",
+        "arm": "candidate",
+        "mode": "shadow",
+        "policy": {
+          "name": "observatory-verification-policy",
+          "version": "0.4-unscoped"
+        },
+        "harness": "codex-cli@0.149.0",
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+        "prompt_sha256": "8902b2ef8a786ccc16ce061dc2b89ce30a4ea49dd95e3a1ab288b282bdfd34ae",
+        "workspace_revision": "586304f4932ed975c01199308d5e1bfe8e20837c",
+        "scenario_definition_sha256": "76224f9ba3d6b1ef4706b17dae45e03e08d6fe9f50b59fa95c6fe33bf3ea545c",
+        "collector_sha256": "e97173c5e935aeb5be26d3396ce9fc8702c62de45f5c54af8696633f417a0bcb",
+        "shell_commands": 26,
+        "oracle_status": "passed",
+        "trace_completeness": "complete",
+        "enforcement_coverage": {
+          "shell_commands": 26,
+          "pre_tool_records": 31,
+          "post_tool_records": 26,
+          "denials": 2,
+          "ungated_executions": 0,
+          "unobserved_executions": 0,
+          "approved_not_executed": 3,
+          "complete": true
+        },
+        "usable": true,
+        "failures": [],
+        "notes": [
+          "3 gated command(s) never executed (2 denial(s), 0 unified-exec failure(s))"
+        ]
+      }
+    }
+  ],
+  "archived_runs": [
+    {
+      "task_id": "vp_local_correct_stop",
+      "arm": "candidate-v0.3-bypass-observed",
+      "mode": "shadow",
+      "policy": {
+        "name": "observatory-verification-policy",
+        "version": "0.3-rewrite"
+      },
+      "harness": "codex-cli@0.149.0",
+      "model": "gpt-5.6-sol",
+      "effort": "high",
+      "prompt_sha256": "13f4e25ae872e24080a421b59ba84fb8f5f1a4c59f655cc728f9cfff84993a72",
+      "workspace_revision": "943b77b0df861fcdcb120f0ee3609939e2bd79b9",
+      "scenario_definition_sha256": "4a5d38dc94e22e3085aa58fe06b0227f8569743bde7cce6d7453f3a7ada690d9",
+      "collector_sha256": "e97173c5e935aeb5be26d3396ce9fc8702c62de45f5c54af8696633f417a0bcb",
+      "shell_commands": 7,
+      "oracle_status": "passed",
+      "trace_completeness": "complete",
+      "enforcement_coverage": {
+        "shell_commands": 7,
+        "pre_tool_records": 7,
+        "post_tool_records": 7,
+        "denials": 0,
+        "ungated_executions": 0,
+        "unobserved_executions": 0,
+        "approved_not_executed": 0,
+        "complete": true
+      },
+      "usable": true,
+      "failures": [],
+      "notes": []
+    },
+    {
+      "task_id": "vp_local_correct_stop",
+      "arm": "candidate-v0.4-hookloss-observed",
+      "mode": "shadow",
+      "policy": {
+        "name": "observatory-verification-policy",
+        "version": "0.4-unscoped"
+      },
+      "harness": "codex-cli@0.149.0",
+      "model": "gpt-5.6-sol",
+      "effort": "high",
+      "prompt_sha256": "13f4e25ae872e24080a421b59ba84fb8f5f1a4c59f655cc728f9cfff84993a72",
+      "workspace_revision": "943b77b0df861fcdcb120f0ee3609939e2bd79b9",
+      "scenario_definition_sha256": "4a5d38dc94e22e3085aa58fe06b0227f8569743bde7cce6d7453f3a7ada690d9",
+      "collector_sha256": "e97173c5e935aeb5be26d3396ce9fc8702c62de45f5c54af8696633f417a0bcb",
+      "shell_commands": 10,
+      "oracle_status": "passed",
+      "trace_completeness": "complete",
+      "enforcement_coverage": {
+        "shell_commands": 10,
+        "pre_tool_records": 3,
+        "post_tool_records": 2,
+        "denials": 0,
+        "ungated_executions": 0,
+        "unobserved_executions": 8,
+        "approved_not_executed": 1,
+        "complete": false
+      },
+      "usable": false,
+      "failures": [
+        "enforcement_incomplete:8_unobserved_0_ungated"
+      ],
+      "notes": [
+        "1 gated command(s) never executed (0 denial(s), 1 unified-exec failure(s))"
+      ]
+    }
+  ]
+}

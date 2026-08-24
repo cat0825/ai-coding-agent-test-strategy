@@ -63,7 +63,7 @@ async function main(argv) {
   await mkdir(stateDir, { recursive: true, mode: 0o700 });
   const policy = {
     schema_version: 1,
-    policy: { name: "observatory-verification-policy", version: "0.2-enforced" },
+    policy: { name: "observatory-verification-policy", version: "0.4-unscoped" },
     task_id: `repository:${packageJson.name ?? "unknown"}`,
     mode: "shadow",
     behavior_class: "repository_general",

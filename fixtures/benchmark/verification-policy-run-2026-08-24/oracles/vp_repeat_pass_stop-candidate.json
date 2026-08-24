@@ -1,0 +1,48 @@
+{
+  "benchmark_id": "observatory-verification-policy-pilot-v0.1",
+  "environment": {
+    "benchmark_id": "observatory-verification-policy-pilot-v0.1",
+    "repository_identity": "cat0825/ai-coding-agent-test-strategy",
+    "repository_revision": "00fe0ddeaf0668cae23c02e9964df6ae467e3811",
+    "scenario_definition_sha256": "0692defeab3a05f16de0225c37837c2fcf4c3180eb9ddc238cfaf1ff973c2e47",
+    "workspace_revision": "f5b0f4d2b89947514b87ac0f5f84b515e2358ee6"
+  },
+  "evidence_class": "independent_oracle",
+  "execution": {
+    "results": [
+      {
+        "exit_code": 0,
+        "phase": "fast"
+      }
+    ],
+    "timeout_ms": 120000
+  },
+  "oracle": {
+    "definition_sha256": "aa2ad9addb0f91176619c0215afb6f1bbf064f13d2b13ae21961afb6673f496b",
+    "id": "vp-oracle-repeat-pass-stop-v1"
+  },
+  "result": {
+    "expected_failure_signatures": [],
+    "failure_signatures": [],
+    "status": "passed",
+    "workspace_status": "passed"
+  },
+  "schema_version": 1,
+  "task_id": "vp_repeat_pass_stop",
+  "workspace": {
+    "agent_changed_files": [],
+    "changed_files": [
+      "fixtures/traces/conservative-escalation.json",
+      "fixtures/traces/failed-retry.json",
+      "fixtures/traces/success.json",
+      "src/trace.mjs",
+      "test/trace.test.mjs"
+    ],
+    "edit_policy_satisfied": true,
+    "initial_workspace_state_sha256": "c4ab2f36708a401b5144bd3863d604d897bf5b0993ee702d4749e22bd3bb1d15",
+    "post_run_workspace_state_sha256": "c4ab2f36708a401b5144bd3863d604d897bf5b0993ee702d4749e22bd3bb1d15",
+    "production_edits": [],
+    "test_edits": []
+  }
+}
+
