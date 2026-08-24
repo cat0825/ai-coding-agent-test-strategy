@@ -10,6 +10,7 @@ import { verifyCollectorProvenance } from "./collector-provenance.mjs";
 import { validateVerificationBenchmark } from "./verification-benchmark.mjs";
 import {
   matchRequiredFailureSignatures,
+  parseFixtureRepositoryOption,
   verificationPostRunWorkspaceSha256,
   verificationWorkspaceChangedFiles,
   verificationWorkspaceFileSha256,
@@ -19,18 +20,19 @@ import {
 const SHA256 = /^[a-f0-9]{64}$/i;
 
 function usage() {
-  return "Usage: node src/verification-trace-cli.mjs --plan PLAN --oracles ORACLES --repo REPOSITORY --task-manifest TASK_JSON --stream STREAM_NDJSON --lifecycle LIFECYCLE_NDJSON --collector COLLECTOR_JSON --policy-ledger POLICY_NDJSON --run-id ID --harness NAME --model MODEL --mode baseline|shadow --policy-name NAME --policy-version VERSION --output TRACE_JSON\n";
+  return "Usage: node src/verification-trace-cli.mjs --plan PLAN --oracles ORACLES --repo REPOSITORY --task-manifest TASK_JSON --stream STREAM_NDJSON --lifecycle LIFECYCLE_NDJSON --collector COLLECTOR_JSON --policy-ledger POLICY_NDJSON --run-id ID --harness NAME --model MODEL --mode baseline|shadow --policy-name NAME --policy-version VERSION --output TRACE_JSON [--fixture-repo FIXTURE_ID=PATH]\n";
 }
 
 function parseArguments(argv) {
-  const options = {};
+  const options = { fixture_repo: [] };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--help" || argument === "-h") return { help: true };
-    if (["--plan", "--oracles", "--repo", "--task-manifest", "--stream", "--lifecycle", "--collector", "--policy-ledger", "--run-id", "--harness", "--model", "--mode", "--policy-name", "--policy-version", "--output"].includes(argument)) {
+    if (["--plan", "--oracles", "--repo", "--task-manifest", "--stream", "--lifecycle", "--collector", "--policy-ledger", "--run-id", "--harness", "--model", "--mode", "--policy-name", "--policy-version", "--output", "--fixture-repo"].includes(argument)) {
       const value = argv[index + 1];
       if (!value || value.startsWith("--")) throw new Error(`${argument} requires a value`);
-      options[argument.slice(2).replaceAll("-", "_")] = value;
+      if (argument === "--fixture-repo") options.fixture_repo.push(value);
+      else options[argument.slice(2).replaceAll("-", "_")] = value;
       index += 1;
     } else {
       throw new Error(`Unknown option: ${argument}`);
@@ -93,6 +95,7 @@ async function main(argv) {
     plan,
     taskManifest: manifest,
     sourceRepository: await realpath(options.repo),
+    fixtureRepositories: parseFixtureRepositoryOption(options.fixture_repo),
   });
   const finalStateSha256 = await verificationPostRunWorkspaceSha256(workspace);
   const workspaceStateChanged = finalStateSha256 !== manifest.workspace_state_sha256;

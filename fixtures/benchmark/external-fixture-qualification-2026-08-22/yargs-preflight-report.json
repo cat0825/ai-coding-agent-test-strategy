@@ -1,0 +1,106 @@
+{
+  "benchmark_id": "observatory-verification-policy-fixture-yargs",
+  "commands": [
+    {
+      "definition_sha256": "92a24089a8226bf957a0e9b2ff60535631d9992be23dbc24e6db56635e1f3271",
+      "exit_code": 0,
+      "id": "compile",
+      "prerequisites": [],
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "definition_sha256": "0140ef4d18256b20a9fa7da7c6dd854ca63ca148d3ecb5622fc1f6aa3a34f160",
+      "exit_code": 0,
+      "id": "check",
+      "prerequisites": [],
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "definition_sha256": "f0b250e18cc65f3adf3cfa4a082e57810efb8064c6ae4e2416d5e267cb0e8452",
+      "exit_code": 0,
+      "id": "test",
+      "prerequisites": [
+        "compile"
+      ],
+      "required": true,
+      "status": "passed"
+    }
+  ],
+  "conclusion": {
+    "reasons": [],
+    "status": "eligible"
+  },
+  "evidence_class": "benchmark_environment",
+  "install": {
+    "artifacts": [],
+    "definition_sha256": "3bd6e8ade01ceb69e5f8fe27173b9cafbd1f59848f05f0856ddbc992a78d69a0",
+    "exit_code": 0,
+    "lockfile": {
+      "checksum_match": true,
+      "expected_sha256": "06b3c838d9452ee690ca42a706a597b285da6542f7f2d28117133dc404edac40",
+      "file": "package-lock.json",
+      "present": true,
+      "sha256": "06b3c838d9452ee690ca42a706a597b285da6542f7f2d28117133dc404edac40"
+    },
+    "required_paths": [
+      {
+        "path": "node_modules/.bin/c8",
+        "present": true
+      },
+      {
+        "path": "node_modules/.bin/gts",
+        "present": true
+      },
+      {
+        "path": "node_modules/.bin/mocha",
+        "present": true
+      },
+      {
+        "path": "node_modules/.bin/tsc",
+        "present": true
+      }
+    ],
+    "status": "passed"
+  },
+  "repository": {
+    "clean": true,
+    "expected_revision": "2a4378bdc2eac9cf7d0cdfe0a52b1b25f779806a",
+    "identity": "yargs/yargs",
+    "observed_revision": "2a4378bdc2eac9cf7d0cdfe0a52b1b25f779806a"
+  },
+  "runtime": {
+    "expected": {
+      "arch": "arm64",
+      "platform": "darwin",
+      "tools": [
+        {
+          "id": "node",
+          "major": 26
+        },
+        {
+          "id": "npm",
+          "major": 11
+        }
+      ]
+    },
+    "observed": {
+      "arch": "arm64",
+      "platform": "darwin",
+      "tools": [
+        {
+          "id": "node",
+          "major": 26,
+          "status": "passed"
+        },
+        {
+          "id": "npm",
+          "major": 11,
+          "status": "passed"
+        }
+      ]
+    }
+  },
+  "schema_version": 1
+}

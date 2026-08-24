@@ -17,8 +17,93 @@ function taskById(plan, taskId) {
   return task;
 }
 
+// `--fixture-repo FIXTURE_ID=PATH` is repeatable, one entry per external fixture checkout.
+export function parseFixtureRepositoryOption(values) {
+  if (!Array.isArray(values) || values.length === 0) return null;
+  const result = {};
+  for (const value of values) {
+    const separator = value.indexOf("=");
+    if (separator <= 0) throw new Error(`--fixture-repo must be FIXTURE_ID=PATH, received: ${value}`);
+    const fixtureId = value.slice(0, separator);
+    if (result[fixtureId]) throw new Error(`--fixture-repo ${fixtureId} was supplied more than once`);
+    result[fixtureId] = path.resolve(value.slice(separator + 1));
+  }
+  return result;
+}
+
 function oracleByTaskId(oracles, taskId) {
   return oracles.oracles.find((candidate) => candidate.task_id === taskId);
+}
+
+function fixtureForTask(plan, task) {
+  const fixture = plan.fixtures?.find(({ fixture_id: fixtureId }) => fixtureId === task.fixture_id);
+  if (!fixture) throw new Error(`Task references unknown fixture: ${task.fixture_id}`);
+  return fixture;
+}
+
+// The plan only points at the qualification report; eligibility is read back out of the observed
+// preflight evidence and the report digest is recomputed here. A plan therefore cannot admit an
+// external repository by asserting that it is qualified.
+export async function verifyFixtureQualification({ fixture, sourceRepository }) {
+  const { path: reportPath, sha256: expectedDigest, fixture_id: qualifiedId } = fixture.origin.qualification;
+  const root = await realpath(sourceRepository);
+  const resolved = path.resolve(root, reportPath);
+  if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) {
+    throw new Error(`Fixture ${fixture.fixture_id} qualification path escapes the repository: ${reportPath}`);
+  }
+  const contents = await readFile(resolved, "utf8").catch(() => null);
+  if (contents === null) throw new Error(`Fixture ${fixture.fixture_id} qualification report is missing: ${reportPath}`);
+  const digest = createHash("sha256").update(contents).digest("hex");
+  if (digest !== expectedDigest.toLowerCase()) {
+    throw new Error(`Fixture ${fixture.fixture_id} qualification report digest does not match the plan`);
+  }
+  let report;
+  try {
+    report = JSON.parse(contents);
+  } catch {
+    throw new Error(`Fixture ${fixture.fixture_id} qualification report is not JSON`);
+  }
+  const entry = report.fixtures?.find(({ fixture_id: id }) => id === qualifiedId);
+  if (!entry) throw new Error(`Fixture ${fixture.fixture_id} has no qualification entry for ${qualifiedId}`);
+  if (entry.observed?.status !== "eligible") {
+    throw new Error(`Fixture ${fixture.fixture_id} was not observed eligible: ${entry.observed?.status ?? "no observed status"}`);
+  }
+  if (entry.repository?.identity !== fixture.repository?.identity) {
+    throw new Error(`Fixture ${fixture.fixture_id} was qualified for ${entry.repository?.identity}, not ${fixture.repository?.identity}`);
+  }
+  if (entry.repository?.revision !== fixture.repository?.revision) {
+    throw new Error(`Fixture ${fixture.fixture_id} was qualified at ${entry.repository?.revision}, not ${fixture.repository?.revision}`);
+  }
+  // A red upstream build at the pinned revision would make every observed failure ambiguous: it
+  // could belong to the agent under test or be inherited. Checked here rather than left to the prose
+  // so a fixture cannot be admitted while its recorded CI evidence says otherwise.
+  if (entry.upstream_ci?.conclusion !== "green") {
+    throw new Error(`Fixture ${fixture.fixture_id} has no green upstream CI recorded at ${fixture.repository?.revision}: ${entry.upstream_ci?.conclusion ?? "no upstream_ci evidence"}`);
+  }
+  return { report_path: reportPath, report_sha256: digest, qualified_fixture_id: qualifiedId };
+}
+
+// A checkout supplied on the command line is untrusted input. Accepting it only after the
+// fixture pinned revision is found inside it keeps a task from being materialized against a
+// repository that merely has the right directory name.
+async function resolveFixtureRepository({ fixture, sourceRepository, fixtureRepositories }) {
+  const supplied = fixtureRepositories?.[fixture.fixture_id];
+  if (fixture.origin?.kind === "external_clone") {
+    await verifyFixtureQualification({ fixture, sourceRepository });
+    if (!supplied) {
+      throw new Error(`Fixture ${fixture.fixture_id} is an external clone and needs --fixture-repo ${fixture.fixture_id}=PATH`);
+    }
+  } else if (supplied && supplied !== sourceRepository) {
+    throw new Error(`Fixture ${fixture.fixture_id} is the source repository and cannot be redirected`);
+  }
+  const root = await realpath(supplied ?? sourceRepository);
+  const revision = fixture.repository?.revision;
+  if (!GIT_REVISION.test(revision ?? "")) throw new Error(`Fixture ${fixture.fixture_id} has no pinned revision`);
+  const present = await run(["git", "cat-file", "-e", `${revision}^{commit}`], root);
+  if (present.exit_code !== 0) {
+    throw new Error(`Fixture ${fixture.fixture_id} checkout does not contain pinned revision ${revision}`);
+  }
+  return root;
 }
 
 async function run(command, cwd, timeoutMs = 30_000, extraEnvironment = {}) {
@@ -189,7 +274,7 @@ export async function verificationWorkspaceStateSha256(workspace) {
 
 export const verificationPostRunWorkspaceSha256 = verificationWorkspaceStateSha256;
 
-export async function verifyMaterializedVerificationTask({ plan, taskManifest, sourceRepository }) {
+export async function verifyMaterializedVerificationTask({ plan, taskManifest, sourceRepository, fixtureRepositories = null }) {
   const task = taskById(plan, taskManifest?.task_id);
   if (verificationTaskDefinitionDigest(task.definition) !== task.scenario_definition_sha256
     || taskManifest.scenario_definition_sha256 !== task.scenario_definition_sha256) {
@@ -214,13 +299,14 @@ export async function verifyMaterializedVerificationTask({ plan, taskManifest, s
   const workspace = await realpath(taskManifest.workspace);
   const observedRevision = await git(["rev-parse", "HEAD"], workspace);
   if (observedRevision !== taskManifest.workspace_revision) throw new Error("Workspace revision does not match the task manifest");
+  const fixture = fixtureForTask(plan, task);
+  // The base tree is compared against the repository the fixture pins, so an external task
+  // cannot be validated against this repository by accident.
   const sourceBinding = await verifyVerificationWorkspaceSource({
-    sourceRepository,
+    sourceRepository: await resolveFixtureRepository({ fixture, sourceRepository, fixtureRepositories }),
     workspace,
     sourceBaseRevision: task.definition.source.base_revision,
   });
-  const fixture = plan.fixtures?.find(({ fixture_id: fixtureId }) => fixtureId === task.fixture_id);
-  if (!fixture) throw new Error(`Task references unknown fixture: ${task.fixture_id}`);
   return { task, fixture, workspace, sourceBinding };
 }
 
@@ -243,10 +329,12 @@ export async function materializeVerificationTask({
   sourceRepository,
   outputParent = os.tmpdir(),
   applyChange = true,
+  fixtureRepositories = null,
 }) {
   const task = taskById(plan, taskId);
   if (!/^[a-z0-9][a-z0-9_-]{0,79}$/.test(task.task_id)) throw new Error("Task id is not safe for workspace materialization");
-  const sourceRoot = await realpath(sourceRepository);
+  const fixture = fixtureForTask(plan, task);
+  const sourceRoot = await resolveFixtureRepository({ fixture, sourceRepository, fixtureRepositories });
   await mkdir(outputParent, { recursive: true });
   const parent = await realpath(outputParent);
   const containerRoot = await mkdtemp(path.join(parent, `verification-${taskId}-`));
@@ -320,8 +408,21 @@ export function matchRequiredFailureSignatures(requiredSignatures, executionResu
   return requiredSignatures.every((signature) => (semanticMatchers[signature] ?? ((output) => output.includes(signature)))(failureOutput));
 }
 
-async function qualifyTask({ plan, oracles, task, sourceRepository, outputParent, timeoutMs }) {
+async function qualifyTask({ plan, oracles, task, sourceRepository, outputParent, timeoutMs, fixtureRepositories }) {
   const oracle = oracleByTaskId(oracles, task.task_id);
+  const fixtureRoot = await resolveFixtureRepository({
+    fixture: fixtureForTask(plan, task),
+    sourceRepository,
+    fixtureRepositories,
+  });
+  const materialize = (applyChange = true) => materializeVerificationTask({
+    plan,
+    taskId: task.task_id,
+    sourceRepository,
+    outputParent,
+    applyChange,
+    fixtureRepositories,
+  });
   const executions = [];
   const executionResults = [];
   const execute = async (materialized, phase) => {
@@ -332,12 +433,12 @@ async function qualifyTask({ plan, oracles, task, sourceRepository, outputParent
   };
 
   if (oracle.reference_test_paths.length > 0) {
-    const gold = await materializeVerificationTask({ plan, taskId: task.task_id, sourceRepository, outputParent });
-    const mutant = await materializeVerificationTask({ plan, taskId: task.task_id, sourceRepository, outputParent, applyChange: false });
+    const gold = await materialize();
+    const mutant = await materialize(false);
     try {
       const visibleExit = task.behavior_class === "test_required" ? null : await execute(gold, "fast");
-      await applyHiddenReferenceTests({ task, oracle, sourceRepository, materialized: gold });
-      await applyHiddenReferenceTests({ task, oracle, sourceRepository, materialized: mutant });
+      await applyHiddenReferenceTests({ task, oracle, sourceRepository: fixtureRoot, materialized: gold });
+      await applyHiddenReferenceTests({ task, oracle, sourceRepository: fixtureRoot, materialized: mutant });
       const goldExit = await execute(gold, "fast");
       const mutantExit = await execute(mutant, "fast");
       const observed = visibleExit === null ? [goldExit, mutantExit] : [visibleExit, goldExit, mutantExit];
@@ -350,7 +451,7 @@ async function qualifyTask({ plan, oracles, task, sourceRepository, outputParent
     }
   }
 
-  const materialized = await materializeVerificationTask({ plan, taskId: task.task_id, sourceRepository, outputParent });
+  const materialized = await materialize();
   try {
     let expected;
     let observed;
@@ -379,14 +480,14 @@ async function qualifyTask({ plan, oracles, task, sourceRepository, outputParent
   }
 }
 
-export async function qualifyVerificationPilot({ plan, oracles, sourceRepository, outputParent = os.tmpdir(), timeoutMs = 120_000 }) {
+export async function qualifyVerificationPilot({ plan, oracles, sourceRepository, outputParent = os.tmpdir(), timeoutMs = 120_000, fixtureRepositories = null }) {
   const errors = validateVerificationBenchmark(plan, oracles);
   if (errors.length > 0) throw new VerificationBenchmarkValidationError(errors);
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 600_000) throw new Error("timeoutMs must be between 1 and 600000");
   const sourceRoot = await realpath(sourceRepository);
   const taskReports = [];
   for (const task of plan.tasks) {
-    taskReports.push(await qualifyTask({ plan, oracles, task, sourceRepository: sourceRoot, outputParent, timeoutMs }));
+    taskReports.push(await qualifyTask({ plan, oracles, task, sourceRepository: sourceRoot, outputParent, timeoutMs, fixtureRepositories }));
   }
   const ready = taskReports.every(({ status }) => status === "passed");
   return {

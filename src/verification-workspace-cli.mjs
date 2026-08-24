@@ -4,20 +4,23 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { stableJson } from "./benchmark-preflight.mjs";
-import { qualifyVerificationPilot } from "./verification-workspace.mjs";
+import { parseFixtureRepositoryOption, qualifyVerificationPilot } from "./verification-workspace.mjs";
+
+const USAGE = "Usage: verification-workspace-cli --plan PLAN --oracles ORACLES --repo REPOSITORY --output OUTPUT [--fixture-repo FIXTURE_ID=PATH]";
 
 function parseArguments(argv) {
-  const options = {};
+  const options = { "fixture-repo": [] };
   for (let index = 0; index < argv.length; index += 2) {
     const flag = argv[index];
     const value = argv[index + 1];
-    if (!["--plan", "--oracles", "--repo", "--output"].includes(flag) || !value) {
-      throw new Error("Usage: verification-workspace-cli --plan PLAN --oracles ORACLES --repo REPOSITORY --output OUTPUT");
+    if (!["--plan", "--oracles", "--repo", "--output", "--fixture-repo"].includes(flag) || !value) {
+      throw new Error(USAGE);
     }
-    options[flag.slice(2)] = value;
+    if (flag === "--fixture-repo") options["fixture-repo"].push(value);
+    else options[flag.slice(2)] = value;
   }
   if (!options.plan || !options.oracles || !options.repo || !options.output) {
-    throw new Error("Usage: verification-workspace-cli --plan PLAN --oracles ORACLES --repo REPOSITORY --output OUTPUT");
+    throw new Error(USAGE);
   }
   return options;
 }
@@ -32,6 +35,7 @@ async function main() {
     plan,
     oracles,
     sourceRepository: path.resolve(options.repo),
+    fixtureRepositories: parseFixtureRepositoryOption(options["fixture-repo"]),
   });
   const output = path.resolve(options.output);
   await mkdir(path.dirname(output), { recursive: true });

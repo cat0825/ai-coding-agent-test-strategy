@@ -43,24 +43,44 @@
 
 ## 外部 fixture 资格（2026-08-22）
 
-第 1 轮所需的两类场景已经有通过实跑验证的外部仓库，证据在
+第 1 轮所需的两类场景已经有通过实跑验证的外部仓库，另外补了一个外部 `cli_tool`，证据在
 [`external-fixture-qualification-2026-08-22`](../fixtures/benchmark/external-fixture-qualification-2026-08-22/qualification-report.json)。
 
 | fixture | 仓库 | `scenario_class` | 语言 | 观测结果 |
 | :-- | :-- | :-- | :-- | :-- |
 | `external-pino` | `pinojs/pino` | `service_library` | javascript | install / lint / transpile / 545 tests 全部 exit 0 |
 | `external-zustand` | `pmndrs/zustand` | `web_frontend` | typescript | install / `tsc --noEmit` / 224 vitest tests 全部 exit 0 |
+| `external-yargs` | `yargs/yargs` | `cli_tool` | javascript | install / `tsc` compile / gts+eslint / c8+mocha 全部 exit 0 |
 
-资格判定全部走 `src/benchmark-preflight-cli.mjs`，它记录真实退出码，不接受声明状态。两个仓库都是 clean clone + 固定 revision，install 后工作区仍然干净。
+`external-yargs` 不增加新场景类，它补的是另一个弱点：`cli_tool` 此前只在本仓库观测过，
+无法把「验证策略」和「本仓库自己的写法习惯」分开。
 
-被拒的候选也记录在同一份报告里：`preactjs/preact`（Playwright Chromium 装不上）、`expressjs/express`（上游 1 题失败）、`solidjs/solid`、`honojs/hono`、`preactjs/signals`（lockfile overrides 不匹配）。上游测试失败不放宽，也不跳过命令来凑 eligible。
+资格判定全部走 `src/benchmark-preflight-cli.mjs`，它记录真实退出码，不接受声明状态。三个仓库都是 clean clone + 固定 revision，install 后工作区仍然干净。
+
+选取标准和每个被拒候选的理由都写在同一份报告的 `selection_criteria` 与 `rejected` 里：
+`preactjs/preact`（Playwright Chromium 装不上）、`expressjs/express`（上游 1 题失败）、
+`solidjs/solid`、`honojs/hono`、`preactjs/signals`（lockfile overrides 不匹配）、
+`tj/commander.js`（harness 不兼容，见下）。上游测试失败不放宽，也不跳过命令来凑 eligible。
+其中前五条没有记录 pinned revision，只说明了当时为什么弃用，不能按 sha 复现；要重新考虑就得重跑 preflight。
+
+`tj/commander.js` 是唯一因为**环境冲突**被拒的：在 runner 强制的 `CI=1 NO_COLOR=1` 下
+1373 题里挂 2 题，都在 `Command.configureOutput()` 的颜色探测上；把这两个变量清掉则 1372/1372 全过，
+上游 CI 也是绿的。所以这是本 harness 固定环境和它的冲突，不是上游缺陷。不打补丁——
+为了一个 fixture 放宽 runner 环境，会让它的结果和其他 fixture 不可比。
+
+上游 CI 按 pinned revision 读，不看分支尖端，而且只认「该 revision 的 push 触发的工作流」。
+`pinojs/pino` 在这个 sha 上有 9 个 failure 的 check run，全是定时任务 `Lock Threads`
+（锁 issue 的机器人，不跑构建也不跑测试），挂上来只因为 main 当时指着这个 commit。
+这类排除逐条记在 fixture 的 `upstream_ci.excluded` 里并写明理由，不允许静默丢掉一个红色构建。
+`verifyFixtureQualification()` 会强制 `upstream_ci.conclusion === "green"`，
+所以「上游 CI 绿」是代码约束，不只是文档说法。
 
 `pmndrs/zustand` 必须用 `pnpm install --frozen-lockfile`：该 revision 的 `package-lock.json` 与 `package.json` 不同步，`npm ci` 直接拒绝。探针也要用 `pnpm --ignore-workspace --version`，否则 pnpm 会因为仓库的 workspace 文件报错。
 
 ## 现状
 
-- 已授权题目覆盖：`cli_tool` 6 题 / JavaScript。
-- 已具备环境资格但尚未出题：`service_library`（pino）、`web_frontend`（zustand）。
+- 已授权题目覆盖：`cli_tool` 6 题 / JavaScript，全部在本仓库这个 fixture 上。
+- 已具备环境资格但尚未出题：`service_library`（pino）、`web_frontend`（zustand）、`cli_tool`（yargs）。
 - 缺失：`research_script`（仍需 snapshot oracle）。
-- `generalized`：false。场景覆盖按**题目**统计，不按 fixture 统计，因此在这两个仓库上出题之前仍然是 false。这是有意的：只有 fixture 能跑通不等于已经观测到该场景下的验证行为。
+- `generalized`：false。场景覆盖按**题目**统计，不按 fixture 统计，因此在这三个仓库上出题之前仍然是 false。这是有意的：只有 fixture 能跑通不等于已经观测到该场景下的验证行为。设计审计里 `external_repository_coverage` 同时给出 `qualified: 3` 和 `with_tasks: 0`，这两个计数器存在的意义就是让这个差别一直可见。
 - 证据：`fixtures/benchmark/verification-policy-pilot-report.json`、`fixtures/benchmark/external-fixture-qualification-2026-08-22/qualification-report.json`。

@@ -7,7 +7,17 @@
     "Clean clone, hard checkout of the pinned revision, no local edits.",
     "Install with the repository own lockfile; a dirty worktree after install disqualifies the fixture.",
     "Every declared command runs through src/benchmark-preflight-cli.mjs, which records observed exit codes instead of accepting declared statuses.",
-    "Upstream test failures disqualify the fixture. No command is skipped or relaxed to reach eligible."
+    "Commands run with CI=1 and NO_COLOR=1 because the benchmark runner forces them; a suite whose result depends on those variables is rejected as harness-incompatible rather than patched.",
+    "Upstream test failures disqualify the fixture. No command is skipped or relaxed to reach eligible.",
+    "Upstream CI is read from the GitHub Actions API at the pinned revision, not at the branch tip. Only workflows triggered by the push of that revision count as the build signal; scheduled repository housekeeping that attaches to the same sha is excluded and every exclusion is recorded per fixture with its conclusion, so an exclusion cannot quietly hide a red build."
+  ],
+  "selection_criteria": [
+    "JavaScript or TypeScript, so the existing affected-test tiers and the Node-only runner apply without a second toolchain.",
+    "Not this repository. A policy tuned on this codebase own conventions cannot be evaluated on it.",
+    "The affected-test decision has to be non-trivial: a layered suite where fast, affected and full differ in cost, so scope selection is a real choice rather than a formality.",
+    "Install has to be reproducible from a committed lockfile, and the worktree has to stay clean afterwards, or repeated runs are not comparable.",
+    "The suite has to pass under the fixed CI=1 NO_COLOR=1 harness environment, unmodified.",
+    "Upstream CI has to be green at the pinned revision, so an observed failure is attributable to the agent under test rather than inherited."
   ],
   "environment": {
     "platform": "darwin",
@@ -32,6 +42,22 @@
       "preflight_report": {
         "path": "pino-preflight-report.json",
         "sha256": "af2df1405af77b25f6d937cc60beae57be4d409c9ee94aa911e2533694bdfd28"
+      },
+      "upstream_ci": {
+        "conclusion": "green",
+        "build_workflows": [
+          { "name": "CI", "path": ".github/workflows/ci.yml", "event": "push", "conclusion": "success" },
+          { "name": "Benchmarks", "path": ".github/workflows/bench.yml", "event": "push", "conclusion": "success" }
+        ],
+        "excluded": [
+          {
+            "name": "Lock Threads",
+            "path": ".github/workflows/lock-threads.yml",
+            "event": "schedule",
+            "conclusion": "failure",
+            "reason": "Nine scheduled runs of an issue-locking bot attach to this sha because main pointed at it on those days. The job named action executes no build and no test, so its failure carries no information about the code at this revision. Recorded rather than dropped, because the raw check-runs API reports 9 failures here and a reader who queries it needs to see why they were excluded."
+          }
+        ]
       },
       "observed": {
         "status": "eligible",
@@ -74,6 +100,18 @@
         "path": "zustand-preflight-report.json",
         "sha256": "8f616fb7a5ca1e3970f3508d71439f969d87902bfcd00044a64a3cbda42253c1"
       },
+      "upstream_ci": {
+        "conclusion": "green",
+        "build_workflows": [
+          { "name": "Test", "path": ".github/workflows/test.yml", "event": "push", "conclusion": "success" },
+          { "name": "Test Multiple Builds", "path": ".github/workflows/test-multiple-builds.yml", "event": "push", "conclusion": "success" },
+          { "name": "Test Multiple Versions", "path": ".github/workflows/test-multiple-versions.yml", "event": "push", "conclusion": "success" },
+          { "name": "Test Old TypeScript", "path": ".github/workflows/test-old-typescript.yml", "event": "push", "conclusion": "success" },
+          { "name": "Preview Release", "path": ".github/workflows/preview-release.yml", "event": "push", "conclusion": "success" },
+          { "name": "Build documentation and deploy to GitHub Pages", "path": ".github/workflows/docs.yml", "event": "push", "conclusion": "success" }
+        ],
+        "excluded": []
+      },
       "observed": {
         "status": "eligible",
         "reasons": [],
@@ -91,33 +129,100 @@
           }
         ]
       }
+    },
+    {
+      "fixture_id": "external-yargs",
+      "repository": {
+        "identity": "yargs/yargs",
+        "revision": "2a4378bdc2eac9cf7d0cdfe0a52b1b25f779806a"
+      },
+      "scenario_class": "cli_tool",
+      "language": "javascript",
+      "reset_strategy": "fresh_isolated_clone",
+      "note": "Argument-parsing CLI library. Adds an external cli_tool repository, a class that until now was covered only by this project own history. Its suite is a TypeScript compile step, a gts lint plus eslint gate, and a mocha run under c8 with --check-leaks.",
+      "preflight_spec": {
+        "path": "yargs-preflight-spec.json",
+        "sha256": "183968723c7848328721633a28ce6b60da918fc9366d20caa2935b4c0e39d5c1"
+      },
+      "preflight_report": {
+        "path": "yargs-preflight-report.json",
+        "sha256": "df4f0895663056c39cb0c97a31f1acae2511db507d5725a1fd8b8a02f39a9165"
+      },
+      "upstream_ci": {
+        "conclusion": "green",
+        "build_workflows": [
+          { "name": "ci", "path": ".github/workflows/ci.yaml", "event": "push", "conclusion": "success" },
+          { "name": "release-please", "path": ".github/workflows/release-please.yml", "event": "push", "conclusion": "success" }
+        ],
+        "excluded": []
+      },
+      "observed": {
+        "status": "eligible",
+        "reasons": [],
+        "install_exit_code": 0,
+        "commands": [
+          {
+            "id": "compile",
+            "status": "passed",
+            "exit_code": 0
+          },
+          {
+            "id": "check",
+            "status": "passed",
+            "exit_code": 0
+          },
+          {
+            "id": "test",
+            "status": "passed",
+            "exit_code": 0
+          }
+        ]
+      }
     }
   ],
   "rejected": [
     {
       "repository": "preactjs/preact",
+      "revision_recorded": false,
       "reason": "unit tests require Playwright Chromium, which did not install in this environment"
     },
     {
       "repository": "expressjs/express",
+      "revision_recorded": false,
       "reason": "upstream suite reported 1259 passing and 1 failing at the pinned revision"
     },
     {
       "repository": "solidjs/solid",
+      "revision_recorded": false,
       "reason": "pnpm monorepo preflight not completed"
     },
     {
       "repository": "honojs/hono",
+      "revision_recorded": false,
       "reason": "bun project, preflight not completed"
     },
     {
       "repository": "preactjs/signals",
+      "revision_recorded": false,
       "reason": "pnpm --frozen-lockfile refused the lockfile: overrides configuration mismatch"
+    },
+    {
+      "repository": "tj/commander.js",
+      "revision": "ba6d13ddb4243e5913367734f8c159089ffe7834",
+      "upstream_ci": {
+        "conclusion": "green",
+        "build_workflows": [
+          { "name": "build", "path": ".github/workflows/tests.yml", "event": "push", "conclusion": "success" },
+          { "name": "CodeQL", "path": ".github/workflows/codeql-analysis.yml", "event": "push", "conclusion": "success" }
+        ],
+        "excluded": []
+      },
+      "reason": "harness-incompatible: 2 of 1373 tests fail under the CI=1 NO_COLOR=1 environment the runner forces, both in Command.configureOutput() colour detection (FORCE_COLOR and CLICOLOR_FORCE). The same revision passes 1372 of 1372 with those variables unset, and upstream CI is green, so this is a conflict with the fixed benchmark environment rather than an upstream defect. Not patched, because relaxing the runner environment for one fixture would make its results incomparable with the others."
     }
   ],
   "conclusion": {
     "status": "fixtures_qualified",
-    "qualified_fixtures": 2,
+    "qualified_fixtures": 3,
     "newly_covered_scenario_classes": [
       "service_library",
       "web_frontend"
@@ -129,6 +234,8 @@
     ],
     "notes": [
       "These fixtures are environment-qualified only. The plan reports scenario coverage per task, so coverage stays cli_tool-only until tasks are authored against these repositories.",
+      "external-yargs adds no new scenario class. It removes a different weakness: cli_tool was previously observed only on this repository, so nothing separated the policy from this codebase own conventions.",
+      "Five of the six rejections carry no pinned revision, so they record why a candidate was dropped but are not reproducible at a specific sha. Reconsidering any of them means re-running the preflight rather than trusting the recorded reason.",
       "research_script remains uncovered and still needs a snapshot-style oracle."
     ]
   }

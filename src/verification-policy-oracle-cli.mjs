@@ -5,16 +5,18 @@ import path from "node:path";
 import process from "node:process";
 import { stableJson } from "./benchmark-preflight.mjs";
 import { runVerificationPolicyOracle } from "./verification-policy-oracle.mjs";
+import { parseFixtureRepositoryOption } from "./verification-workspace.mjs";
 
 function parseArguments(argv) {
-  const options = {};
+  const options = { fixture_repo: [] };
   for (let index = 0; index < argv.length; index += 2) {
     const flag = argv[index];
     const value = argv[index + 1];
-    if (!["--plan", "--oracles", "--repo", "--task-manifest", "--output"].includes(flag) || !value) {
-      throw new Error("Usage: verification-policy-oracle-cli --plan PLAN --oracles ORACLES --repo REPOSITORY --task-manifest TASK_JSON --output OUTPUT");
+    if (!["--plan", "--oracles", "--repo", "--task-manifest", "--output", "--fixture-repo"].includes(flag) || !value) {
+      throw new Error("Usage: verification-policy-oracle-cli --plan PLAN --oracles ORACLES --repo REPOSITORY --task-manifest TASK_JSON --output OUTPUT [--fixture-repo FIXTURE_ID=PATH]");
     }
-    options[flag.slice(2).replaceAll("-", "_")] = value;
+    if (flag === "--fixture-repo") options.fixture_repo.push(value);
+    else options[flag.slice(2).replaceAll("-", "_")] = value;
   }
   for (const option of ["plan", "oracles", "repo", "task_manifest", "output"]) {
     if (!options[option]) throw new Error(`--${option.replaceAll("_", "-")} is required`);
@@ -34,6 +36,7 @@ async function main(argv) {
     oracles,
     taskManifest,
     sourceRepository: path.resolve(options.repo),
+    fixtureRepositories: parseFixtureRepositoryOption(options.fixture_repo),
   });
   const output = path.resolve(options.output);
   await mkdir(path.dirname(output), { recursive: true });

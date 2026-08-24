@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import {
   auditVerificationBenchmarkDesign,
+  MINIMUM_EXTERNAL_REPOSITORIES,
   MINIMUM_GENERALIZED_SCENARIO_CLASSES,
   SCENARIO_CLASSES,
   validateVerificationBenchmark,
@@ -22,6 +23,48 @@ async function checkedInputs() {
 
 function copy(value) {
   return structuredClone(value);
+}
+
+const EXTERNAL_WEB_FIXTURE = "external-zustand";
+
+// Authors one task, and the oracle that goes with it, against a declared external fixture. A
+// repository that carries no task contributes no observation, so widening the plan has to add the
+// task rather than just the fixture.
+function withTaskOnFixture({ plan, oracles }, fixtureId) {
+  const widenedPlan = copy(plan);
+  const widenedOracles = copy(oracles);
+  const fixture = widenedPlan.fixtures.find(({ fixture_id: id }) => id === fixtureId);
+  assert.ok(fixture, `plan declares fixture ${fixtureId}`);
+  const slug = fixtureId.replaceAll("-", "_");
+  const task = copy(widenedPlan.tasks[0]);
+  task.task_id = `${slug}_local_pass`;
+  task.semantic_task_key = `verification-policy:${fixtureId}-local-pass`;
+  task.oracle_id = `vp-oracle-${fixtureId}-local-pass-v1`;
+  task.fixture_id = fixtureId;
+  task.definition.source.base_revision = fixture.repository.revision;
+  task.definition.source.change_revision = "c".repeat(40);
+  task.scenario_definition_sha256 = verificationTaskDefinitionDigest(task.definition);
+  widenedPlan.tasks.push(task);
+  const oracle = copy(widenedOracles.oracles.find(({ task_id: taskId }) => taskId === widenedPlan.tasks[0].task_id));
+  oracle.oracle_id = task.oracle_id;
+  oracle.task_id = task.task_id;
+  oracle.independent_oracle_id = `${oracle.independent_oracle_id}-${slug}`;
+  widenedOracles.oracles.push(oracle);
+  return { plan: widenedPlan, oracles: widenedOracles, fixture, task };
+}
+
+// Strips every external fixture, leaving the plan as it stood before any repository was qualified.
+function withoutExternalFixtures({ plan, oracles }) {
+  const reduced = copy(plan);
+  const keptIds = new Set(reduced.fixtures
+    .filter(({ origin }) => origin.kind === "source_repository")
+    .map(({ fixture_id: id }) => id));
+  reduced.fixtures = reduced.fixtures.filter(({ fixture_id: id }) => keptIds.has(id));
+  reduced.tasks = reduced.tasks.filter(({ fixture_id: id }) => keptIds.has(id));
+  const reducedOracles = copy(oracles);
+  const keptTasks = new Set(reduced.tasks.map(({ task_id: id }) => id));
+  reducedOracles.oracles = reducedOracles.oracles.filter(({ task_id: id }) => keptTasks.has(id));
+  return { plan: reduced, oracles: reducedOracles };
 }
 
 test("checked-in pilot defines six distinct verification behaviors with hidden oracles", async () => {
@@ -110,28 +153,151 @@ test("fixtures must declare a supported usage scenario and language", async () =
   assert.ok(validateVerificationBenchmark(unsupportedLanguage, oracles).some(({ path: field }) => field.endsWith("language")));
 });
 
-test("single-scenario pilots are reported as not generalized", async () => {
+test("qualifying a repository does not by itself widen scenario coverage", async () => {
   const { plan, oracles } = await checkedInputs();
   const report = auditVerificationBenchmarkDesign(plan, oracles);
+  // Three repositories are qualified and two of them cover classes the source repository does not,
+  // yet every task still runs on the source repository, so coverage stays cli_tool-only. Coverage
+  // counts observations, not declarations.
   assert.deepEqual(report.counts.scenario_classes, { cli_tool: 6 });
-  assert.deepEqual(report.counts.languages, ["javascript"]);
+  assert.deepEqual(report.counts.languages, ["javascript", "typescript"]);
+  assert.equal(report.external_repository_coverage.qualified, MINIMUM_EXTERNAL_REPOSITORIES);
+  assert.equal(report.external_repository_coverage.with_tasks, 0);
   assert.equal(report.scenario_coverage.generalized, false);
   assert.deepEqual(report.scenario_coverage.covered, ["cli_tool"]);
   assert.deepEqual(report.scenario_coverage.missing, ["web_frontend", "service_library", "research_script"]);
   assert.ok(report.conclusion.blockers.includes("scenario_classes_not_generalized"));
 
-  const generalized = copy(plan);
-  generalized.fixtures.push({
-    ...copy(plan.fixtures[0]),
-    fixture_id: "observatory-web",
-    scenario_class: "web_frontend",
-    language: "typescript",
-  });
-  generalized.tasks[0].fixture_id = "observatory-web";
-  const widened = auditVerificationBenchmarkDesign(generalized, oracles);
+  const generalized = withTaskOnFixture({ plan, oracles }, EXTERNAL_WEB_FIXTURE);
+  const widened = auditVerificationBenchmarkDesign(generalized.plan, generalized.oracles);
   assert.equal(widened.scenario_coverage.covered.length, MINIMUM_GENERALIZED_SCENARIO_CLASSES);
   assert.equal(widened.scenario_coverage.generalized, true);
+  assert.equal(widened.external_repository_coverage.with_tasks, 1);
   assert.equal(widened.conclusion.blockers.includes("scenario_classes_not_generalized"), false);
+});
+
+test("the six-task pilot stays bound to the source repository", async () => {
+  const { plan, oracles } = await checkedInputs();
+  assert.deepEqual(validateVerificationBenchmark(plan, oracles), []);
+
+  // Adding a repository must not silently shrink the pilot: moving one of the six tasks onto an
+  // external fixture leaves five behaviors observed on the source repository, and that is an error
+  // rather than a widening.
+  const moved = copy(plan);
+  const target = moved.fixtures.find(({ fixture_id: id }) => id === EXTERNAL_WEB_FIXTURE);
+  moved.tasks[0].fixture_id = target.fixture_id;
+  moved.tasks[0].definition.source.base_revision = target.repository.revision;
+  moved.tasks[0].scenario_definition_sha256 = verificationTaskDefinitionDigest(moved.tasks[0].definition);
+  assert.ok(validateVerificationBenchmark(moved, oracles)
+    .some(({ path: field, message }) => field === "tasks" && message.includes("on the source_repository fixture")));
+
+  const twoSources = copy(plan);
+  twoSources.fixtures.push({ ...copy(plan.fixtures[0]), fixture_id: "observatory-node-2" });
+  assert.ok(validateVerificationBenchmark(twoSources, oracles)
+    .some(({ path: field, message }) => field === "fixtures" && message.includes("exactly one source_repository")));
+
+  const noSource = copy(plan);
+  noSource.fixtures[0].origin = copy(plan.fixtures.find(({ fixture_id: id }) => id === EXTERNAL_WEB_FIXTURE).origin);
+  assert.ok(validateVerificationBenchmark(noSource, oracles)
+    .some(({ path: field, message }) => field === "fixtures" && message.includes("exactly one source_repository")));
+
+  // A behavior class is scoped to its fixture, so re-observing local_pass on another repository is
+  // allowed while repeating it inside one repository is not.
+  const reobserved = withTaskOnFixture({ plan, oracles }, EXTERNAL_WEB_FIXTURE);
+  assert.deepEqual(validateVerificationBenchmark(reobserved.plan, reobserved.oracles), []);
+  assert.equal(reobserved.task.behavior_class, plan.tasks[0].behavior_class);
+
+  const collided = withTaskOnFixture({ plan, oracles }, EXTERNAL_WEB_FIXTURE);
+  collided.plan.tasks.at(-1).fixture_id = plan.fixtures[0].fixture_id;
+  assert.ok(validateVerificationBenchmark(collided.plan, collided.oracles)
+    .some(({ path: field, message }) => field.endsWith("behavior_class") && message === "must be unique within its fixture"));
+});
+
+test("external fixtures cannot vouch for their own qualification", async () => {
+  const { plan, oracles } = await checkedInputs();
+  const externalIndex = plan.fixtures.findIndex(({ fixture_id: id }) => id === EXTERNAL_WEB_FIXTURE);
+
+  function mutated(mutate) {
+    const next = copy(plan);
+    mutate(next.fixtures[externalIndex]);
+    return validateVerificationBenchmark(next, oracles);
+  }
+
+  assert.ok(mutated((fixture) => { fixture.origin.eligible = true; })
+    .some(({ path: field, message }) => field.endsWith(".origin") && message.includes("must not declare its own qualification")));
+
+  assert.ok(mutated((fixture) => { fixture.origin.status = "qualified"; })
+    .some(({ path: field, message }) => field.endsWith(".origin") && message.includes("must not declare its own qualification")));
+
+  assert.ok(mutated((fixture) => { delete fixture.origin.qualification; })
+    .some(({ path: field }) => field.endsWith(".origin.qualification")));
+
+  assert.ok(mutated((fixture) => { fixture.origin.qualification.sha256 = "not-a-digest"; })
+    .some(({ path: field }) => field.endsWith(".origin.qualification.sha256")));
+
+  assert.ok(mutated((fixture) => { fixture.origin.qualification.path = "../../etc/passwd"; })
+    .some(({ path: field, message }) => field.endsWith(".origin.qualification.path") && message.includes("must stay inside")));
+
+  assert.ok(mutated((fixture) => { delete fixture.origin.qualification.fixture_id; })
+    .some(({ path: field }) => field.endsWith(".origin.qualification.fixture_id")));
+
+  assert.ok(mutated((fixture) => { delete fixture.origin.clone_url; })
+    .some(({ path: field }) => field.endsWith(".origin.clone_url")));
+
+  const misplacedCloneUrl = copy(plan);
+  misplacedCloneUrl.fixtures[0].origin.clone_url = "https://github.com/example/web.git";
+  assert.ok(validateVerificationBenchmark(misplacedCloneUrl, oracles)
+    .some(({ path: field, message }) => field.endsWith(".origin.clone_url") && message.includes("does not apply")));
+
+  const noOrigin = copy(plan);
+  delete noOrigin.fixtures[0].origin;
+  assert.ok(validateVerificationBenchmark(noOrigin, oracles).some(({ path: field }) => field.endsWith(".origin")));
+
+  const inventedKind = copy(plan);
+  inventedKind.fixtures[0].origin = { kind: "vendored_copy" };
+  assert.ok(validateVerificationBenchmark(inventedKind, oracles).some(({ path: field }) => field.endsWith(".origin.kind")));
+});
+
+test("a task on an external fixture is pinned to the qualified revision", async () => {
+  const { plan, oracles } = await checkedInputs();
+  const drifted = withTaskOnFixture({ plan, oracles }, EXTERNAL_WEB_FIXTURE);
+  const task = drifted.plan.tasks.at(-1);
+  task.definition.source.base_revision = "d".repeat(40);
+  task.scenario_definition_sha256 = verificationTaskDefinitionDigest(task.definition);
+  assert.ok(validateVerificationBenchmark(drifted.plan, drifted.oracles)
+    .some(({ path: field, message }) => field.endsWith("definition.source.base_revision") && message === "must be the pinned fixture revision"));
+});
+
+test("external repository coverage counts qualified fixtures and the ones carrying tasks", async () => {
+  const { plan, oracles } = await checkedInputs();
+  const report = auditVerificationBenchmarkDesign(plan, oracles);
+  assert.equal(report.counts.external_repositories, MINIMUM_EXTERNAL_REPOSITORIES);
+  assert.equal(report.external_repository_coverage.qualified, MINIMUM_EXTERNAL_REPOSITORIES);
+  // Every qualified repository is still task-free, so the minimum is met on environment evidence
+  // alone. That is the difference the two counters exist to keep visible.
+  assert.equal(report.external_repository_coverage.with_tasks, 0);
+  assert.equal(report.external_repository_coverage.satisfied, true);
+  assert.equal(report.conclusion.blockers.includes("external_repositories_below_minimum"), false);
+  assert.deepEqual(
+    report.external_repository_coverage.repositories.map(({ fixture_id: fixtureId, identity, tasks }) => [fixtureId, identity, tasks]),
+    [
+      ["external-pino", "pinojs/pino", 0],
+      ["external-yargs", "yargs/yargs", 0],
+      ["external-zustand", "pmndrs/zustand", 0],
+    ],
+  );
+  for (const repository of report.external_repository_coverage.repositories) {
+    assert.equal(repository.qualification.fixture_id, repository.fixture_id);
+    assert.match(repository.qualification.sha256, /^[a-f0-9]{64}$/);
+  }
+
+  // Before any repository was qualified the audit had to say so, and it did.
+  const reduced = withoutExternalFixtures({ plan, oracles });
+  const before = auditVerificationBenchmarkDesign(reduced.plan, reduced.oracles);
+  assert.equal(before.counts.external_repositories, 0);
+  assert.deepEqual(before.external_repository_coverage.repositories, []);
+  assert.equal(before.external_repository_coverage.satisfied, false);
+  assert.ok(before.conclusion.blockers.includes("external_repositories_below_minimum"));
 });
 
 test("CLI writes a deterministic design audit", async (t) => {
