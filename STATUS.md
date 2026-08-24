@@ -1,6 +1,8 @@
 # 项目状态
 
-状态：**Observatory MVP 与 state-aware collector v2 已实现 / Verification Policy pilot 工作区 6/6 合格 / 已完成 2/6 配对 dry run / 正式质量样本仍为 0/30**
+状态（2026-08-25）：**机制已全部落地(采集 → trace → 审计 → 强制)/ 六题配对 6/6 完成且全部通过审计 / 正式配对样本 6/30 / 有效 oracle 失败样本 0/10 / 评估仍为 `evidence_insufficient`,`efficiency_claim: not_supported`**
+
+硬阻塞只有一个:#57 —— 唯一那条失败样本结构上恒为 failed,不能算样本。修掉之前采集到的失败样本都不算数。
 
 ## 已完成
 
@@ -41,13 +43,24 @@
 - 两题 dry run 的耗时观察为毫秒量级（1123.2ms→63.6ms、191.2ms→91.2ms），candidate 均为 `mode: shadow`；评估仍为 `evidence_insufficient` / `not_supported`，因为只有 2/6 pilot 题且 quality-claim eligible 为 0/30。百分比不作为结论引用。
 - 全仓库 `npm run check` 通过；设计与 smoke 报告仍标记 `quality_claim_eligible: false`。
 
+### 2026-08-20 之后新增
+
+- 六题配对已全部采集完成(#36 从 2/6 走到 6/6)：12 条 trace 全部 `complete`、`warnings: []`、0 条 partial；12/12 工作区摘要吻合(未观测执行 0、未过闸执行 0)；审计器从原始证据重算 7 个字段,不采信采集器自述,6/6 配对通过。六题 `quality_claim_eligible: true` 全过,卡在 `conclusion` 那一层 —— 是数量不够,不是质量不合格。
+- candidate 臂不再只是 shadow 观察：deny 已真正强制(#52),L2 改写路径首次拿到配对证据(#56)。本轮记录 140 个策略决策事件,含 5 次 deny、2 次 rewrite 生效。
+- 外部 fixture 环境资格已落地(#53 / #39)：`pinojs/pino`(service_library)、`pmndrs/zustand`(web_frontend)、`yargs/yargs`(cli_tool 外部)三个通过资格检查。另有 6 个候选被拒且理由在案,没有为凑数放宽 —— 其中 commander 在 `CI=1 NO_COLOR=1` 下 2/1373 失败属环境冲突,没打补丁,因为为单个 fixture 放宽 runner 环境会让它和其他 fixture 不可比。
+- VerifyTrace 已补 `wait` 事件类型(#50),轮询不再被误判为 `exact_repeat`(#38 解决)。
+- 三个审计脚本已签入版本库：`scripts/audit-verification-runs.mjs`、`collect-verification-run.mjs`、`publish-verification-run.mjs`。`docs/verification-policy-benchmark-v0.1.md` 按行号引用的证据不再悬空。
+- PR #49–#56 全部合并,Open PR 为 0。
+
 ## 当前未完成
 
-- 剩余 4/6 pilot 题的 baseline/candidate 配对未采集，硬阻塞是 provider 凭据 401（两次尝试的 `agent_commands_executed` 均为 0）。
-- 正式质量样本为 0/30，独立 oracle 失败样本为 1/10，两个门槛都未达到。
-- 正式任务仍未绑定外部仓库固定 revision，当前 6 题全部来自本仓库历史（#39）。
-- VerifyTrace 缺 `wait` 事件类型，轮询会被 `exact_repeat` 误判（#38）。
-- candidate 仍只有 shadow 观察模式，未启用 hook 或 permission 强制。
+四个硬门槛写在 #17 验收标准里,任何一条不满足,评估就停在 `evidence_insufficient`,不允许对外说"省了多少"或"没漏故障"。
+
+- **有效 oracle 失败样本 0/10（#57,唯一硬阻塞)。** 报告里记着 1 条失败签名,但它结构上恒为 failed,不能算样本。`vp_flaky_retry_once` 的 flaky 标记在 `src/verification-workspace.mjs:196` 是一次性的,被 Agent 必须的第一次运行消耗掉,oracle 在 post-run 副本里必然 pass、必然报 failed,两臂 oracle 报告逐字节相同,零信息量。30 对可以靠时间堆出来,失败样本不行 —— 它要求 oracle 能因为正确的原因失败。
+- **配对比较数 6/30。** 6 对全部通过审计,还缺 24 对。`minimum_quality_claim_comparisons_not_met`。
+- **场景覆盖 1/2。** 门槛是 2 类(`src/verification-benchmark.mjs:18` 的 `MINIMUM_GENERALIZED_SCENARIO_CLASSES = 2`),不是 4 类 —— 四类(`cli_tool` / `web_frontend` / `service_library` / `research_script`)是枚举全集,不是要求。现只有 `cli_tool` 且 6 题全出自本仓库历史(`generalized: false`)。在 pino 或 zustand 上出一道题就满足。
+- **外部 fixture 已出题 0/3。** 环境资格过了不等于已观测到该场景下的验证行为 —— 场景覆盖按**题目**算,不按 fixture 算。
+- **闸门有缺陷,在虚耗调用。** 闸门用整串正则、判定按段分解,两把尺子不一致:一条 `rg` 命令只要搜索模式里出现 `pytest` 就被当成测试命令,逐段分解找不到 runner,fail-closed 拒掉。代价能精确算 —— `vp_unknown_impact_full_fallback` 过闸 31 次,白丢 5 次。必须在扩量前修,否则 30 对里每一对都掺同样噪声。
 
 ## 证据边界与历史决策（仍然生效的约束）
 
@@ -62,17 +75,17 @@
 - smoke run 未显式固定模型，只能证明链路与现象；固定 `gpt-5.6-sol` 的两次尝试因 provider 凭据 401 失败且未执行任何 Agent 命令，不能计入正式配对。
 - 当前 6 题都来自本仓库历史或受控故障，只用于隔离测评合同；正式 30 题仍需从多个真实 JS/TS 仓库选取。
 
-## Issue 与 PR 现状（2026-08-19）
+## Issue 与 PR 现状（2026-08-25）
 
-- MVP 的 7 个实现 issue(#2 到 #8)全部关闭并合入默认分支;17 个 PR 已全部合并,Open PR 为 0。
-- #30 已关闭:6 题定义与资格检查完成,采集工作转入 #36。
-- 仍开启:#36(六题配对,当前 2/6)、#16(baseline cohort,当前 4/30)、#17(candidate cohort 与安全门,当前 0/30)、#1(roadmap)。
-- 新增 #38:VerifyTrace 缺 `wait` 事件类型,轮询会被误判为 `exact_repeat`;本机遥测显示轮询占墙钟 9.3%,高于测试类的 8.6%。
-- 新增 #39:正式任务需改为绑定外部仓库固定 revision,当前 6 题全部来自本仓库历史,样本自指。
+- Open PR 为 0。#49–#56 全部合并,其中 #55(外部仓库取题)与 #56(L2 改写)是 stacked,已按 #55 → #56 顺序合入。
+- #36 已走到 6/6,六题配对采集完成。#38(`wait` 事件)由 #50 解决,#39(外部取题)由 #55 落地,deny 强制由 #52 落地。
+- 仍开启:**#57**(隐藏 oracle 结构上无法因正确原因失败 —— 唯一硬阻塞,待设计决定)、#16(baseline cohort)、#17(candidate cohort 与安全门,当前 6/30)、#1(roadmap)。
 
 ## 下一阶段
 
-1. 先审阅、测试并提交当前 30 项本地改动，确保加固代码、fixture、报告和文档进入远程分支。
-2. 先排查 provider 凭据 401，再完成剩余 4/6 题的 baseline/candidate 配对，并保留 trace、独立 Oracle 和 workspace digest 证据。
-3. 六题配对成立后重新运行 evaluation；只有链路稳定且不漏故障，才从多个真实 JS/TS 仓库扩展正式 30 题。
-4. 按 stacked 依赖顺序审阅 PR #34、#35 及前置 PR；不直接合并默认分支。
+按"解锁了什么"排,不按工作量排。1 和 2 都必须在 3 之前,因为它们决定采集到的数据算不算数;3 必须在 4 之前,因为它验证流水线。
+
+1. **拍板 #57 的 oracle 怎么修（设计决定,等人拍)。** `minimum_oracle_failures` 是 `src/evaluation.mjs:9` 的独立门槛项,当前有效样本 0 —— 先修再采,采到的才算数;反过来先采后修,前面采的全废。倾向的方案:声明这题不由 oracle 判、只认 trace 证据,同时让审计器标出"结构上判不了的 oracle"。三条路里唯一不破坏"审计独立于采集"这条主纪律的,代价只是新增一类审计标记,而这个标记本身有复用价值 —— 以后能自动拦住同类的恒为 failed 判定。
+2. **闸门改按段判定(v0.5)后重采。** 不改就一直虚耗调用,且现有数字永远不能当效率结论读。必须在扩量之前。
+3. **在 `pino` 上出第一道题。** 选 pino 不是随便挑:它是 `service_library`,一道题同时解掉"场景覆盖 1/2"和"样本自指"。这道题跑通就等于验证了外部出题这条流水线。
+4. **扩到 30 对。** 前三步做完这步才是纯堆量:24 对,按六题一轮算四轮,可放后台批跑。直接冲 30 对的风险是万一外部出题有坑,24 对全白跑。

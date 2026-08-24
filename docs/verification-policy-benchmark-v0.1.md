@@ -190,7 +190,7 @@ ledger 版本 `0.2-enforced` → `0.3-rewrite`，两个 arm 由构造保证可�
 | 题 | baseline cmds | candidate cmds | gated | deny | oracle |
 |---|---|---|---|---|---|
 | `vp_affected_failure` | 6 | 8 | 8/8 | 0 | passed |
-| `vp_flaky_retry_once` | 8 | 7 | 7/7 | 0 | failed（判不了，见下文第 6 条） |
+| `vp_flaky_retry_once` | 8 | 7 | 7/7 | 0 | undecided（不由 oracle 判，见下文第 6 条） |
 | `vp_local_correct_stop` | 5 | 7 | 7/7 | 1 | passed |
 | `vp_public_behavior_test_required` | 19 | 12 | 12/12 | 2 | passed |
 | `vp_repeat_pass_stop` | 4 | 5 | 5/5 | 0 | passed |
@@ -233,7 +233,13 @@ L2 改写档也第一次进了真实配对采集（上一节只是单臂手工�
 
    两臂的 oracle 报告是逐字节相同的（`sha256 9e937e11…`），post-run 工作区摘要也相同（`6e96d14e…`）—— 这个 oracle 连两臂都分不开，它的结论不携带任何信息。审计却照收：`scripts/audit-verification-runs.mjs:119` 只拒绝 passed/failed 之外的状态，`:204` 只要求两臂状态相等，一个结构上恒为 failed 的判定两道检查都过。run-report 里的 `independent_oracle_failure_signatures: 1` 也全部来自这一条，不是一次真实的 oracle 失败。
 
-   这题的 flaky 行为本身有观测，但在 trace 里 —— 两臂的 `observed_failure_signatures` 都含 `diagnostics:intermittent-fixture`。所以缺的不是证据，是"独立判定"这一层对这题在空转。怎么修是设计决定，**还没定**：oracle 跑之前先删掉 marker（那等于 oracle 自己造一次失败，跟独立复现不是一回事）；或者这题的判定改从 trace 的重试形态推（那就不再独立于采集）；或者干脆声明这题不由 oracle 判、判定只认 trace 证据，同时让审计把"结构上判不了的 oracle"标出来而不是照收。三条路都要改隐藏合同或审计规则，不在这批采集里顺手做。
+   这题的 flaky 行为本身有观测，但在 trace 里 —— 两臂的 `observed_failure_signatures` 都含 `diagnostics:intermittent-fixture`。所以缺的不是证据，是"独立判定"这一层对这题在空转。
+
+   **2026-08-25 已定：这题不由 oracle 判。** 三条路里另外两条各要拿一条既有保证去换一格绿 —— oracle 跑前删 marker 等于 oracle 自己造一次失败，从 trace 的重试形态反推等于放弃"独立于采集"。选定的这条只增加一类审计标记，代价最小，而且这个标记以后能自动拦住同类恒为 failed 的判定。
+
+   隐藏合同里 `vp_flaky_retry_once` 的 oracle 现在声明 `status: "undecided"`，并必须同时交出 `undecidable_reason`（为什么判不了）、`deciding_evidence: "trace_only"`（那么由谁判）、空的 `failure_signatures` 和空的 `execution.results`。其余五题仍走可判定路径，未受影响。`minimum_oracle_failures`（`src/evaluation.mjs:9`）不需要改：它数的是 `failure_signatures.length`，而 undecided 交空数组，判不了的题因此不会虚增失败样本。
+
+   审计器（`scripts/audit-verification-runs.mjs:113` 起）接受 `undecided` 进 usable，但会从报告里重算那三个条件而不是信状态字段：声称判不了却没给理由、没指明由谁判、跑了命令、或仍报了失败签名，四种都会被拦成 unusable。回归测试在 `test/audit-verification-runs.test.mjs` —— 这也是这个审计脚本的第一个测试。
 
 转换器在 12/14 份 trace 产出之后才修好，因此加了 `--rebuild-trace`，从未改动的原始证据（stream、lifecycle、ledger、workspace）重新推导 trace，并和 `run.json` 的 `trace` 块一起更新。它走的是和首次采集同一个调用，不是第二份实现 —— `vp_flaky_retry_once` 此前是手敲 CLI 重建的，结果磁盘上 trace 有效、`run.json` 却还记着修复前的失败退出码，读者无法在不重跑 Agent 的情况下判定哪个对。14 份 trace 现在同源，全部 `complete`、`warnings: []`。
 
@@ -250,6 +256,6 @@ L2 改写档也第一次进了真实配对采集（上一节只是单臂手工�
 
 还要多加一条：**这六题的调用数差不能读成效率信号**。`vp_unknown_impact_full_fallback` 的 candidate 臂被 fail-closed 白丢 5 次调用（见上一节第 3 条），`vp_public_behavior_test_required` 的 baseline 臂 19 次对 candidate 臂 12 次，两侧都掺着策略缺陷和 harness 行为，不是策略效果。
 
-再多一条：**`vp_flaky_retry_once` 的 oracle 结论不能当判定读**。它结构上恒为 failed（见上一节第 6 条），两臂逐字节相同，既不能用来说 candidate 没退化，也不能用来说这题的 flaky 行为被独立复现过。这题现在唯一的判定依据是两臂 trace 里的 `diagnostics:intermittent-fixture`，也就是采集本身 —— 独立那一层还没有。
+再多一条：**`vp_flaky_retry_once` 没有独立判定**。这题的 oracle 已按 2026-08-25 的决定声明为 `undecided`（见上一节第 6 条），不再冒充一个 failed 判定；上面那批采集里它留下的逐字节相同的 failed 报告也因此不能当判定读。这题现在唯一的判定依据是两臂 trace 里的 `diagnostics:intermittent-fixture`，也就是采集本身 —— 独立那一层对这题结构上不存在，而不是暂时缺失。
 
-下一步把闸门改成按段判定后重采，定下 `vp_flaky_retry_once` 的 oracle 怎么改（三条路见上一节第 6 条）并让审计能标出结构上判不了的 oracle，再把独立 oracle report 作为 evaluation 的直接输入而非只引用派生合同。六题链路稳定后，才从多个真实 JS/TS 仓库扩展到至少 30 个质量声明任务。
+`vp_flaky_retry_once` 的 oracle 归属已于 2026-08-25 定案并落地（第 6 条），审计也已能标出结构上判不了的 oracle。下一步把闸门改成按段判定后重采，再把独立 oracle report 作为 evaluation 的直接输入而非只引用派生合同。六题链路稳定后，才从多个真实 JS/TS 仓库扩展到至少 30 个质量声明任务。

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Verification Observatory — 进展与差距 2026-08-25</title>
+<style>
+:root{
+  --bg:#fcfcfb; --surface:#ffffff; --border:#e6e5e1;
+  --text:#0b0b0b; --muted:#52514e;
+  --accent:#2a78d6; --baseline:#86b6ef; --candidate:#2a78d6;
+  --ok:#008300; --warn:#c98500; --bad:#d03b3b; --neutral:#b3b2ad;
+  --track:#f0efec;
+}
+@media (prefers-color-scheme:dark){
+:root{
+  --bg:#1a1a19; --surface:#232322; --border:#383835;
+  --text:#ffffff; --muted:#c3c2b7;
+  --accent:#3987e5; --baseline:#184f95; --candidate:#3987e5;
+  --ok:#0ca30c; --warn:#eda100; --bad:#e34948; --neutral:#52514e;
+  --track:#2b2b29;
+}
+}
+*{box-sizing:border-box}
+body{
+  margin:0; padding:40px 24px 72px;
+  background:var(--bg); color:var(--text);
+  font:15px/1.6 ui-sans-serif,-apple-system,"Segoe UI","PingFang SC","Hiragino Sans GB",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:960px;margin:0 auto}
+h1{font-size:23px;font-weight:600;letter-spacing:-.01em;margin:0 0 6px}
+.sub{color:var(--muted);font-size:13.5px;margin:0 0 8px}
+h2{font-size:15px;font-weight:600;margin:44px 0 4px;letter-spacing:-.005em}
+h2 .h2note{font-weight:400;color:var(--muted);font-size:13px;margin-left:8px}
+.lede{color:var(--muted);font-size:13.5px;margin:0 0 18px;max-width:76ch}
+.badge{
+  display:inline-block;padding:3px 9px;border-radius:999px;
+  font-size:12px;font-weight:500;border:1px solid var(--border);
+  background:var(--surface);color:var(--muted);
+}
+.badge.bad{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 34%,transparent)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:22px 0 8px}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:15px 16px}
+.tile .k{font-size:12px;color:var(--muted);margin-bottom:9px;letter-spacing:.01em}
+.tile .v{font-size:27px;font-weight:600;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.tile .v small{font-size:15px;font-weight:400;color:var(--muted);margin-left:2px}
+.tile .n{font-size:12px;color:var(--muted);margin-top:9px;line-height:1.45}
+.meter{height:5px;border-radius:3px;background:var(--track);overflow:hidden;margin-top:11px}
+.meter i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+.meter i.bad{background:var(--bad)} .meter i.warn{background:var(--warn)} .meter i.ok{background:var(--ok)}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-weight:600;font-size:12px;color:var(--muted);letter-spacing:.02em}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.phase{display:grid;grid-template-columns:232px 1fr 62px;gap:14px;align-items:center;margin:11px 0;font-size:13.5px}
+.phase .track{height:8px;border-radius:4px;background:var(--track);overflow:hidden}
+.phase .track i{display:block;height:100%;border-radius:4px}
+.phase .pct{text-align:right;color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:14px 0 4px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+.note{
+  border-left:2px solid var(--warn);background:var(--surface);
+  padding:11px 14px;border-radius:0 8px 8px 0;font-size:13px;
+  color:var(--muted);margin:16px 0;line-height:1.6;
+}
+.note b{color:var(--text);font-weight:600}
+.rule{border:0;border-top:1px solid var(--border);margin:40px 0 0}
+.foot{color:var(--muted);font-size:12.5px;margin-top:16px;line-height:1.65}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+  background:var(--track);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Agent Verification Observatory</h1>
+<p class="sub">进展与差距 · 数据截至 2026-08-25 · 分支 <code>codex/publish-research</code> @ <code>56364f7</code></p>
+<p><span class="badge bad">evaluation: evidence_insufficient</span> <span class="badge">efficiency_claim: not_supported</span></p>
+
+<p class="lede">
+一句话:<b>骨架已经全部搭完,证据还差一大截。</b>
+能跑的机制(采集 → trace → 审计 → 强制)100% 落地了;
+但用来支撑结论的样本只到目标的 20%,而其中真正能算作"失败样本"的是 <b>0 条</b>。
+</p>
+
+<h2>离"能发结论"还差多少</h2>
+<p class="lede">
+这四个是硬门槛,写在 #17 的验收标准里。任何一条不满足,评估就停在
+<code>evidence_insufficient</code>,不允许对外说"省了多少"或"没漏故障"。
+</p>
+
+<div class="tiles">
+  <div class="tile">
+    <div class="k">配对比较数</div>
+    <div class="v">6<small>/30</small></div>
+    <div class="meter"><i class="warn" style="width:20%"></i></div>
+    <div class="n">6 对全部通过审计,但只到门槛的 20%。还缺 24 对。</div>
+  </div>
+  <div class="tile">
+    <div class="k">有效 oracle 失败样本</div>
+    <div class="v" style="color:var(--bad)">0<small>/10</small></div>
+    <div class="meter"><i class="bad" style="width:0%"></i></div>
+    <div class="n">报告里记着 1 条失败签名,但它结构上恒为 failed(见 #57),不能算样本。实际可用是 0。</div>
+  </div>
+  <div class="tile">
+    <div class="k">场景覆盖</div>
+    <div class="v">1<small>/2 类</small></div>
+    <div class="meter"><i class="warn" style="width:50%"></i></div>
+    <div class="n">门槛是 2 类(<code>src/verification-benchmark.mjs:18</code>),不是 4 类 —— 四类是枚举全集。现只有 <code>cli_tool</code>,6 题全出自本仓库历史,<code>generalized: false</code>。在 pino 或 zustand 上出一道题就满足。</div>
+  </div>
+  <div class="tile">
+    <div class="k">外部 fixture 已出题</div>
+    <div class="v">0<small>/3</small></div>
+    <div class="meter"><i class="bad" style="width:0%"></i></div>
+    <div class="n">pino / zustand / yargs 三个已通过环境资格,但一道题都还没写。</div>
+  </div>
+</div>
+
+<div class="note">
+<b>为什么"有效失败样本 = 0"是最要命的一条。</b>
+30 对比较可以靠时间堆出来,失败样本不行 ——
+它要求 oracle 能因为正确的原因失败。现在唯一那条失败是
+<code>vp_flaky_retry_once</code>:<code>src/verification-workspace.mjs:196</code>
+的 flaky 标记是一次性的,被 Agent 必须的第一次运行消耗掉,
+oracle 在 post-run 副本里必然 pass、必然报 failed。
+两臂的 oracle 报告逐字节相同,零信息量。修不掉它,10 条失败样本这一格永远是 0。
+</div>
+
+<h2>三个阶段的完成度</h2>
+<p class="lede">机制类的活基本干完了,卡点全部集中在最后一段。</p>
+
+<div class="phase">
+  <span>MVP 闭环 <span style="color:var(--muted)">#2–#8</span></span>
+  <span class="track"><i style="width:100%;background:var(--ok)"></i></span>
+  <span class="pct">7/7</span>
+</div>
+<div class="phase">
+  <span>让候选臂真强制 <span style="color:var(--muted)">#38–#45</span></span>
+  <span class="track"><i style="width:100%;background:var(--ok)"></i></span>
+  <span class="pct">5/5</span>
+</div>
+<div class="phase">
+  <span>证据采集 <span style="color:var(--muted)">#30 #36 #57 #16 #17</span></span>
+  <span class="track"><i style="width:40%;background:var(--warn)"></i></span>
+  <span class="pct">2/5</span>
+</div>
+
+<h2>8-24 那轮六题配对<span class="h2note">形态观察,不是效率结论</span></h2>
+<p class="lede">
+每题两臂各跑一次的 shell 调用数。放在这里是为了看策略<b>改变了行为形态</b>,
+不是为了看快慢 —— 理由在下面的红框里。
+</p>
+
+<div class="legend">
+  <span><i class="sw" style="background:var(--baseline)"></i>baseline(无策略)</span>
+  <span><i class="sw" style="background:var(--candidate)"></i>candidate(带策略)</span>
+</div>
+
+<table>
+<thead><tr>
+  <th>任务</th>
+  <th class="num">baseline</th>
+  <th class="num">candidate</th>
+  <th style="width:34%">对比</th>
+  <th class="num">拒绝</th>
+  <th class="num">批了没跑</th>
+</tr></thead>
+<tbody>
+<tr><td><code>vp_affected_failure</code></td><td class="num">6</td><td class="num">8</td>
+<td><span class="sw" style="background:var(--baseline);width:23%;height:9px;border-radius:2px"></span><br>
+<span class="sw" style="background:var(--candidate);width:31%;height:9px;border-radius:2px"></span></td>
+<td class="num">0</td><td class="num">0</td></tr>
+
+<tr><td><code>vp_flaky_retry_once</code></td><td class="num">8</td><td class="num">7</td>
+<td><span class="sw" style="background:var(--baseline);width:31%;height:9px;border-radius:2px"></span><br>
+<span class="sw" style="background:var(--candidate);width:27%;height:9px;border-radius:2px"></span></td>
+<td class="num">0</td><td class="num">0</td></tr>
+
+<tr><td><code>vp_local_correct_stop</code></td><td class="num">5</td><td class="num">7</td>
+<td><span class="sw" style="background:var(--baseline);width:19%;height:9px;border-radius:2px"></span><br>
+<span class="sw" style="background:var(--candidate);width:27%;height:9px;border-radius:2px"></span></td>
+<td class="num">1</td><td class="num">1</td></tr>
+
+<tr><td><code>vp_public_behavior_test_required</code></td><td class="num">19</td><td class="num">12</td>
+<td><span class="sw" style="background:var(--baseline);width:73%;height:9px;border-radius:2px"></span><br>
+<span class="sw" style="background:var(--candidate);width:46%;height:9px;border-radius:2px"></span></td>
+<td class="num">2</td><td class="num">1</td></tr>
+
+<tr><td><code>vp_repeat_pass_stop</code></td><td class="num">4</td><td class="num">5</td>
+<td><span class="sw" style="background:var(--baseline);width:15%;height:9px;border-radius:2px"></span><br>
+<span class="sw" style="background:var(--candidate);width:19%;height:9px;border-radius:2px"></span></td>
+<td class="num">0</td><td class="num">0</td></tr>
+
+<tr><td><code>vp_unknown_impact_full_fallback</code></td><td class="num">14</td><td class="num">26</td>
+<td><span class="sw" style="background:var(--baseline);width:54%;height:9px;border-radius:2px"></span><br>
+<span class="sw" style="background:var(--candidate);width:100%;height:9px;border-radius:2px"></span></td>
+<td class="num">2</td><td class="num">3</td></tr>
+</tbody>
+</table>
+
+<div class="note" style="border-left-color:var(--bad)">
+<b>这张表不能读成效率信号,两个原因都已量化。</b><br>
+① <b>调用数被 harness 行为污染。</b>codex 在并行批里只要有一个调用被 hook 拒掉,
+会把同批的兄弟调用一起丢掉。所以 <code>local_correct_stop</code>(1)、
+<code>public_behavior_test_required</code>(1)、<code>unknown_impact_full_fallback</code>(3)
+一共 5 个"批准了但从没执行"的调用,是 harness 掉的,不是策略省的。<br>
+② <b>闸门本身有缺陷,在虚耗调用。</b>闸门用整串正则、判定按段分解,两把尺子不一样:
+一条 <code>rg</code> 命令只要搜索模式里出现 <code>pytest</code> 就被当成测试命令,
+然后逐段分解找不到 runner,fail-closed 拒掉。
+代价能精确算 —— <code>unknown_impact_full_fallback</code> 过闸 31 次,白丢 5 次。<br>
+所以 <code>vp_unknown_impact_full_fallback</code> 那条 14 → 26 的暴涨,
+读的是这两个缺陷,不是策略的真实开销。
+</div>
+
+<h2>这轮采集本身是干净的</h2>
+<p class="lede">跟上面的红框不冲突:<b>证据链质量</b>没问题,有问题的是<b>能不能拿它下结论</b>。</p>
+
+<div class="tiles">
+  <div class="tile"><div class="k">完整 trace</div><div class="v">12<small>/12</small></div>
+    <div class="meter"><i class="ok" style="width:100%"></i></div>
+    <div class="n">全部 <code>complete</code>,<code>warnings: []</code>,0 条 partial。</div></div>
+  <div class="tile"><div class="k">审计配对字段重推</div><div class="v">6<small>/6</small></div>
+    <div class="meter"><i class="ok" style="width:100%"></i></div>
+    <div class="n">审计器从原始证据重算 7 个字段,不采信采集器自述。</div></div>
+  <div class="tile"><div class="k">工作区摘要吻合</div><div class="v">12<small>/12</small></div>
+    <div class="meter"><i class="ok" style="width:100%"></i></div>
+    <div class="n">未观测执行 0、未过闸执行 0。</div></div>
+  <div class="tile"><div class="k">策略决策事件</div><div class="v">140</div>
+    <div class="n">含 5 次 deny、2 次 rewrite 生效。L2 改写路径首次拿到配对证据。</div></div>
+</div>
+
+<h2>外部仓库:环境过了,题还没出</h2>
+<p class="lede">
+#39 已经落地,正式题目不再从本仓库自己的历史里取。
+但"仓库能跑通"不等于"已观测到该场景下的验证行为" —— 场景覆盖按<b>题目</b>算,不按 fixture 算。
+</p>
+
+<table>
+<thead><tr><th>fixture</th><th>场景类</th><th>环境资格</th><th>已出题</th></tr></thead>
+<tbody>
+<tr><td><code>pinojs/pino</code></td><td>service_library</td>
+<td style="color:var(--ok)">通过</td><td style="color:var(--bad)">0</td></tr>
+<tr><td><code>pmndrs/zustand</code></td><td>web_frontend</td>
+<td style="color:var(--ok)">通过</td><td style="color:var(--bad)">0</td></tr>
+<tr><td><code>yargs/yargs</code></td><td>cli_tool(外部)</td>
+<td style="color:var(--ok)">通过</td><td style="color:var(--bad)">0</td></tr>
+</tbody>
+</table>
+<p class="foot">
+另有 6 个候选被拒,理由都记录在案且没有为了凑数而放宽:
+preact(Playwright 装不上)、express(pinned revision 上游有 1 条失败)、
+solid / hono(pnpm / bun preflight 未完成)、signals(lockfile overrides 不匹配)、
+commander(在 <code>CI=1 NO_COLOR=1</code> 下 2/1373 失败,属环境冲突而非上游缺陷,没打补丁 ——
+为一个 fixture 放宽 runner 环境会让它和其他 fixture 不可比)。
+</p>
+
+<h2>提交这件事已经了结</h2>
+<div class="note" style="border-left-color:var(--ok)">
+<b>上一版看板写的"9 个改动一行都没提交"已经不成立。</b>
+#55 和 #56 都已合并(连同 #49–#54),
+<code>scripts/audit-verification-runs.mjs</code>、<code>collect-verification-run.mjs</code>、
+<code>publish-verification-run.mjs</code> 三个审计脚本现在都在版本库里 ——
+<code>docs/verification-policy-benchmark-v0.1.md</code> 按行号引用的证据不再悬空,
+"文档引用未签入证据"这个纪律问题已消除。<br>
+工作区当前只有一个未跟踪文件:本看板自己。
+</div>
+
+<h2>建议的下一步顺序</h2>
+<table>
+<thead><tr><th style="width:34px"></th><th>动作</th><th>为什么是这个顺序</th></tr></thead>
+<tbody>
+<tr><td class="num">1</td><td>拍板 #57 的 oracle 怎么修<br><span style="color:var(--muted);font-size:12.5px">等你决定,我不自己动</span></td>
+<td>唯一的硬阻塞,且是设计决定。<code>minimum_oracle_failures</code> 是
+<code>src/evaluation.mjs:9</code> 的独立门槛项,当前有效样本 0 ——
+<b>先修再采,采到的才算数</b>;反过来先采后修,前面采的全废。
+我倾向"声明这题不由 oracle 判、只认 trace 证据,
+同时让审计器标出结构上判不了的 oracle" —— 三条路里唯一不破坏
+"审计独立于采集"这条主纪律的,代价只是新增一类审计标记,
+而这个标记本身能复用:以后可自动拦住同类恒为 failed 的判定。</td></tr>
+<tr><td class="num">2</td><td>闸门改按段判定(v0.5)后重采</td>
+<td>必须在扩量之前。不改的话每轮都在虚耗调用(过闸 31 次白丢 5 次),
+更要命的是两把尺子不一致 —— 闸门用整串正则、判定按段分解 ——
+<b>现有数字永远不能当效率结论读</b>。不先修,30 对里每一对都掺同样的噪声。</td></tr>
+<tr><td class="num">3</td><td>在 <code>pino</code> 上出第一道题</td>
+<td>选 pino 不是随便挑的:它是 <code>service_library</code>,一道题同时解掉
+"场景覆盖 1/2"和"样本自指"(<code>generalized: false</code>)。
+这道题跑通就等于验证了外部出题这条流水线。</td></tr>
+<tr><td class="num">4</td><td>扩到 30 对</td>
+<td>前三步做完这步才是纯堆量:24 对,按六题一轮算四轮,可以放后台批跑。
+放在第 3 之后是因为要先验流水线 —— 直接冲 30 对,万一外部出题有坑,24 对全白跑。</td></tr>
+</tbody>
+</table>
+
+<hr class="rule">
+<p class="foot">
+数据来源:<code>fixtures/benchmark/verification-policy-run-2026-08-24/run-report.json</code>、
+<code>external-fixture-qualification-2026-08-22/qualification-report.json</code>、
+<code>docs/handoff-2026-08-24.md</code>、GitHub issue #1 / #16 / #17 / #57 当前状态。<br>
+口径提醒:6 个配对不构成任何效率或故障发现率结论,也不计入正式 30 题
+(当前 <code>6/30</code> + <code>minimum_quality_claim_comparisons_not_met</code>)。
+</p>
+
+</div>
+</body>
+</html>

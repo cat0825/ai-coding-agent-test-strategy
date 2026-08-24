@@ -120,6 +120,41 @@ test("rejects oracle rules that would reward unsafe or excessive verification", 
   assert.ok(validateVerificationBenchmark(plan, noTest).some(({ message }) => message.includes("test_required")));
 });
 
+test("an oracle that cannot decide post-run must say so and name what decides instead", async () => {
+  const { plan, oracles } = await checkedInputs();
+  assert.deepEqual(validateVerificationBenchmark(plan, oracles), []);
+
+  const flakyTask = ({ task_id: taskId }) => taskId === "vp_flaky_retry_once";
+  const checkedIn = oracles.oracles.find(flakyTask);
+  assert.equal(checkedIn.post_run_decidable, false);
+  assert.equal(checkedIn.deciding_evidence, "trace_only");
+
+  // The consumed marker is a property of the behaviour class, not of this one task, so claiming the oracle can
+  // decide must be rejected however the rest of the definition is dressed up.
+  const claimsDecidable = copy(oracles);
+  const forged = claimsDecidable.oracles.find(flakyTask);
+  forged.post_run_decidable = true;
+  forged.deciding_evidence = "independent_oracle";
+  delete forged.undecidable_reason;
+  assert.ok(
+    validateVerificationBenchmark(plan, claimsDecidable).some(({ message }) => message.includes("consumed before the oracle runs")),
+  );
+
+  const noReason = copy(oracles);
+  delete noReason.oracles.find(flakyTask).undecidable_reason;
+  assert.ok(validateVerificationBenchmark(plan, noReason).some(({ path: field }) => field.includes("undecidable_reason")));
+
+  // An undecidable oracle may not point back at itself as the thing that decides the task.
+  const selfDeciding = copy(oracles);
+  selfDeciding.oracles.find(flakyTask).deciding_evidence = "independent_oracle";
+  assert.ok(validateVerificationBenchmark(plan, selfDeciding).some(({ path: field }) => field.includes("deciding_evidence")));
+
+  // A decidable oracle must not borrow the escape hatch.
+  const borrowed = copy(oracles);
+  borrowed.oracles.find(({ task_id: taskId }) => taskId === "vp_local_correct_stop").undecidable_reason = "inconvenient";
+  assert.ok(validateVerificationBenchmark(plan, borrowed).some(({ message }) => message.includes("absent for a decidable oracle")));
+});
+
 test("design audit is explicit about missing execution evidence", async () => {
   const { plan, oracles } = await checkedInputs();
   const report = auditVerificationBenchmarkDesign(plan, oracles);

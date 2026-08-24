@@ -116,7 +116,16 @@ async function auditRun(runDir) {
     oracle = await readJson(paths.oracle);
     // A failing hidden oracle is a result, not a collection fault -- some tasks are supposed to fail. What
     // must hold is that the oracle judged the same workspace the trace describes.
-    if (!["passed", "failed"].includes(oracle.result.status)) failures.push(`oracle_status_${oracle.result.status}`);
+    if (!["passed", "failed", "undecided"].includes(oracle.result.status)) failures.push(`oracle_status_${oracle.result.status}`);
+    // `undecided` is a legitimate status, but only when the oracle declared upfront why it cannot decide and
+    // named what does. Recompute that from the report rather than trusting the status alone: an oracle that
+    // claims undecidability without a reason is hiding a real failure behind it.
+    if (oracle.result.status === "undecided") {
+      if (!oracle.result.undecidable_reason) failures.push("undecided_oracle_without_reason");
+      if (oracle.result.deciding_evidence !== "trace_only") failures.push("undecided_oracle_without_deciding_evidence");
+      if ((oracle.execution?.results ?? []).length !== 0) failures.push("undecided_oracle_executed_commands");
+      if ((oracle.result.failure_signatures ?? []).length !== 0) failures.push("undecided_oracle_claimed_signatures");
+    }
     if (oracle.workspace.edit_policy_satisfied !== true) failures.push("edit_policy_violated");
     if (trace && oracle.workspace.post_run_workspace_state_sha256 !== trace.source.post_run_workspace_sha256) {
       failures.push("oracle_trace_workspace_digest_mismatch");

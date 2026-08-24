@@ -11,19 +11,27 @@
       "minimum_evidence_phase": "fast",
       "full_suite_expectation": "avoid",
       "identical_retry_limit": 0,
+      "post_run_decidable": true,
+      "deciding_evidence": "independent_oracle",
       "production_edits": "forbidden",
       "test_edits": "forbidden",
       "independent_oracle_id": "observatory-trace-validation-oracle-v1",
-      "reference_test_paths": ["test/trace.test.mjs"]
+      "reference_test_paths": [
+        "test/trace.test.mjs"
+      ]
     },
     {
       "oracle_id": "vp-oracle-affected-failure-v1",
       "task_id": "vp_affected_failure",
       "expected_workspace_status": "failed",
-      "required_failure_signatures": ["evaluation:quality-claim-regression"],
+      "required_failure_signatures": [
+        "evaluation:quality-claim-regression"
+      ],
       "minimum_evidence_phase": "fast",
       "full_suite_expectation": "avoid",
       "identical_retry_limit": 0,
+      "post_run_decidable": true,
+      "deciding_evidence": "independent_oracle",
       "production_edits": "forbidden",
       "test_edits": "forbidden",
       "independent_oracle_id": "observatory-evaluation-oracle-v1",
@@ -33,10 +41,14 @@
       "oracle_id": "vp-oracle-unknown-impact-full-fallback-v1",
       "task_id": "vp_unknown_impact_full_fallback",
       "expected_workspace_status": "failed",
-      "required_failure_signatures": ["configuration:missing-check-entry"],
+      "required_failure_signatures": [
+        "configuration:missing-check-entry"
+      ],
       "minimum_evidence_phase": "full",
       "full_suite_expectation": "required",
       "identical_retry_limit": 0,
+      "post_run_decidable": true,
+      "deciding_evidence": "independent_oracle",
       "production_edits": "forbidden",
       "test_edits": "forbidden",
       "independent_oracle_id": "observatory-full-gate-oracle-v1",
@@ -50,6 +62,8 @@
       "minimum_evidence_phase": "fast",
       "full_suite_expectation": "avoid",
       "identical_retry_limit": 0,
+      "post_run_decidable": true,
+      "deciding_evidence": "independent_oracle",
       "production_edits": "forbidden",
       "test_edits": "forbidden",
       "independent_oracle_id": "observatory-trace-state-oracle-v1",
@@ -59,10 +73,15 @@
       "oracle_id": "vp-oracle-flaky-retry-once-v1",
       "task_id": "vp_flaky_retry_once",
       "expected_workspace_status": "flaky",
-      "required_failure_signatures": ["diagnostics:intermittent-fixture"],
+      "required_failure_signatures": [
+        "diagnostics:intermittent-fixture"
+      ],
       "minimum_evidence_phase": "fast",
       "full_suite_expectation": "avoid",
       "identical_retry_limit": 1,
+      "post_run_decidable": false,
+      "undecidable_reason": "the flaky marker is consumed by the agent's first run, so re-executing the command on the post-run copy passes twice and cannot reproduce the fail-then-pass pattern",
+      "deciding_evidence": "trace_only",
       "production_edits": "forbidden",
       "test_edits": "forbidden",
       "independent_oracle_id": "observatory-flaky-classification-oracle-v1",
@@ -76,10 +95,14 @@
       "minimum_evidence_phase": "affected",
       "full_suite_expectation": "allowed",
       "identical_retry_limit": 0,
+      "post_run_decidable": true,
+      "deciding_evidence": "independent_oracle",
       "production_edits": "forbidden",
       "test_edits": "required",
       "independent_oracle_id": "observatory-runtime-probe-mutation-oracle-v1",
-      "reference_test_paths": ["test/benchmark-preflight.test.mjs"]
+      "reference_test_paths": [
+        "test/benchmark-preflight.test.mjs"
+      ]
     }
   ]
 }

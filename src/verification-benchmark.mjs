@@ -22,6 +22,7 @@ const PHASES = new Set(["fast", "affected", "full"]);
 const WORKSPACE_STATUSES = new Set(["passed", "failed", "flaky", "environment_failed"]);
 const FULL_SUITE_EXPECTATIONS = new Set(["avoid", "allowed", "required"]);
 const EDIT_POLICIES = new Set(["forbidden", "allowed", "required"]);
+const DECIDING_EVIDENCE = new Set(["trace_only"]);
 const REQUIRED_BEHAVIOR_CLASSES = Object.freeze([
   "local_pass",
   "affected_failure",
@@ -247,6 +248,28 @@ function validateOracle(errors, oracle, index, taskById, seenOracleIds, seenTask
     && oracle.required_failure_signatures?.length === 0) {
     addError(errors, `${field}.required_failure_signatures`, "must identify the expected failure");
   }
+  // A hidden oracle re-runs commands on a post-run copy. When the behaviour it must observe was already
+  // consumed by the agent's own run, re-execution cannot reproduce it, so the oracle would report `failed`
+  // for a structural reason rather than because the agent did anything wrong. Such an oracle must say so
+  // explicitly and name the evidence that decides the task instead.
+  if (typeof oracle.post_run_decidable !== "boolean") {
+    addError(errors, `${field}.post_run_decidable`, "must be a boolean");
+  }
+  if (oracle.post_run_decidable === false) {
+    if (!nonEmptyString(oracle.undecidable_reason)) {
+      addError(errors, `${field}.undecidable_reason`, "must explain why re-execution cannot reproduce the behaviour");
+    }
+    if (!DECIDING_EVIDENCE.has(oracle.deciding_evidence)) {
+      addError(errors, `${field}.deciding_evidence`, "must be trace_only when the oracle cannot decide");
+    }
+  } else if (oracle.post_run_decidable === true) {
+    if (oracle.undecidable_reason !== undefined) {
+      addError(errors, `${field}.undecidable_reason`, "must be absent for a decidable oracle");
+    }
+    if (oracle.deciding_evidence !== "independent_oracle") {
+      addError(errors, `${field}.deciding_evidence`, "must be independent_oracle for a decidable oracle");
+    }
+  }
   if (!PHASES.has(oracle.minimum_evidence_phase)) addError(errors, `${field}.minimum_evidence_phase`, "must be fast, affected, or full");
   if (!FULL_SUITE_EXPECTATIONS.has(oracle.full_suite_expectation)) addError(errors, `${field}.full_suite_expectation`, "must be avoid, allowed, or required");
   if (!Number.isInteger(oracle.identical_retry_limit) || oracle.identical_retry_limit < 0 || oracle.identical_retry_limit > 1) {
@@ -264,6 +287,11 @@ function validateOracle(errors, oracle, index, taskById, seenOracleIds, seenTask
   if (task?.behavior_class === "test_required" && oracle.test_edits !== "required") addError(errors, `${field}.test_edits`, "must be required for test_required");
   if (task?.behavior_class === "test_required" && oracle.reference_test_paths?.length === 0) addError(errors, `${field}.reference_test_paths`, "must provide a hidden developer test for test_required");
   if (task?.behavior_class === "flaky_retry" && oracle.identical_retry_limit !== 1) addError(errors, `${field}.identical_retry_limit`, "must allow exactly one retry for flaky_retry");
+  // The flaky marker is consumed by the agent's first run, so a post-run re-execution always passes twice and
+  // can never reproduce the fail-then-pass pattern this class is defined by.
+  if (task?.behavior_class === "flaky_retry" && oracle.post_run_decidable !== false) {
+    addError(errors, `${field}.post_run_decidable`, "must be false for flaky_retry: the marker is consumed before the oracle runs");
+  }
   if (task?.behavior_class === "repeat_stop" && oracle.identical_retry_limit !== 0) addError(errors, `${field}.identical_retry_limit`, "must forbid an identical retry for repeat_stop");
   if (task?.behavior_class === "full_fallback" && oracle.full_suite_expectation !== "required") addError(errors, `${field}.full_suite_expectation`, "must be required for full_fallback");
 }

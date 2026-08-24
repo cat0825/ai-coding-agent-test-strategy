@@ -106,6 +106,50 @@ export async function runVerificationPolicyOracle({ plan, oracles, taskManifest,
     executionResults.push({ phase, exit_code: result.exit_code, stdout: result.stdout, stderr: result.stderr });
     return result;
   };
+  // An oracle declared undecidable must not re-run the commands at all: the behaviour it would look for was
+  // consumed before this copy existed, so any status it reported would describe the fixture rather than the
+  // agent. It still records the workspace evidence, which is what the trace is checked against.
+  if (oracle.post_run_decidable === false) {
+    return {
+      schema_version: 1,
+      evidence_class: "independent_oracle",
+      benchmark_id: plan.benchmark_id,
+      task_id: task.task_id,
+      oracle: {
+        id: oracle.oracle_id,
+        definition_sha256: digest(stableJson(oracle)),
+      },
+      environment: {
+        benchmark_id: plan.benchmark_id,
+        repository_identity: fixture.repository.identity,
+        repository_revision: sourceBinding.source_base_revision,
+        workspace_revision: sourceBinding.workspace_revision,
+        scenario_definition_sha256: task.scenario_definition_sha256,
+      },
+      workspace: {
+        initial_workspace_state_sha256: taskManifest.workspace_state_sha256,
+        post_run_workspace_state_sha256: finalStateSha256,
+        changed_files: finalChangedFiles,
+        agent_changed_files: edits.changed_files,
+        production_edits: edits.production_edits,
+        test_edits: edits.test_edits,
+        edit_policy_satisfied: edits.allowed,
+      },
+      execution: {
+        results: [],
+        timeout_ms: timeoutMs,
+        skipped_reason: "post_run_undecidable",
+      },
+      result: {
+        status: "undecided",
+        undecidable_reason: oracle.undecidable_reason,
+        deciding_evidence: oracle.deciding_evidence,
+        workspace_status: oracle.expected_workspace_status,
+        failure_signatures: [],
+        expected_failure_signatures: oracle.required_failure_signatures,
+      },
+    };
+  }
   if (task.behavior_class === "flaky_retry") {
     await execute("fast");
     await execute("fast");
