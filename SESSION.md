@@ -1,3 +1,38 @@
+# Handoff 2026-08-25 晚 收尾检查点（文档口径对齐 + 证据归档 + 分支清理）
+
+本轮没有推进研究门槛，只清理「上一阶段留下的、会让下次接手踩坑的东西」。四条硬门槛数字一个没动：配对 6/30、有效 oracle 失败样本 0/10、场景类 1/2、外部出题 0/3，评估仍为 `evidence_insufficient` / `not_supported`。
+
+## 本轮已完成
+
+### 1. STATUS.md 自相矛盾修掉（`cd5ab47`）
+`57cfc35` 只改了正文，漏了开头第 5 行和 issue 名册：头部仍写「硬阻塞只有一个 #57」，正文第 59/88 行却写 #57 已落地（`9c7c9c9`）。头部是接手第一眼看的位置。现头部指向 **#58** 并带实测代价（过闸 31 次、白丢 5 次），名册补全 5 个 open issue 与 #57 / #43 的关闭记录。
+
+### 2. 交接文档进库（`4bd88e3`）
+08-25 交接文档此前**只存在于仓库外** `~/Documents/`，clone 下来根本没有当期交接：docs/ 停在 08-24 那份（其「所有改动都没提交」的说法早被 `2e9744d` 推翻），README 的指针还指着 08-19。现签入 `docs/handoff-2026-08-25.md`，08-24 那份加失效声明，README 指针更新。
+
+签入时修正了外部草稿里三处过期事实，没有原样固化：#43 已于 08-24 关闭、#1 路线图 #38/#40/#44/#45 四框已勾、STATUS.md 头部矛盾已修。「家务清单」拆成「已完成不用动」与「仍需留意」两节——原来混在一起，接手的人会照着做已经做完的事。
+
+### 3. 原始采集目录的易失性解除
+`/tmp/vp-collect-2026-08-24` 共 1.1GB，其中 **1146MB 是 `codex-home`**（Codex CLI 自己的 sqlite 会话状态与 WAL，非研究证据；已确认无 `auth.json`，但仍不该留存）。重建 trace 真正需要的 stream/lifecycle/run/task/hook 合计不到 1MB，加 workspaces 才 21MB。
+
+已归档至 **`~/Documents/vp-collect-2026-08-24-evidence.tar.gz`（12MB，3723 条目，14 份 stream.ndjson，不含 codex-home）**。放仓库外是因为原始 stream 带绝对路径与完整命令，签入会违反脱敏纪律。至此「重启就没了、`--rebuild-trace` 做不了」这个悬着的问题解除。
+
+顺带解开 14 vs 12 的疑问：`vp_local_correct_stop` 下多出 `candidate-v0.3-bypass-observed` 与 `candidate-v0.4-hookloss-observed` 两个被弃用的跑（早期策略版本的观测失败记录），所以签入 fixture 是 12 条而非 14 条。
+
+### 4. 本地分支清理
+27 → 3。删掉 24 个已完整合并进 HEAD 的 `codex/*` 分支（`git branch -d`，均可从 origin 恢复）。**保留** `codex/decompose-compound-shell`、`codex/observe-shell-file-writes` —— 这两个有远端没有的本地提交，删除需 `-D`，勿顺手清。
+
+### 5. 僵尸副本定性
+`~/Documents/GitHub/ai-coding-agent-test-strategy` 停在 `e2a2fd2`（08-14），6 个脏文件。逐一比对确认**无独有工作**：它的研究文档比签入版多的 2 行差异，恰好是发布前故意脱敏掉的内容（`/Users/qianyuhe/Documents/GitHub/testguard/...` 绝对路径、DMIT VPS 本地引用）。可整目录删除，不必抢救。
+
+## 下一步（顺序不变）
+
+1. **#58**：闸门改按段判定后重采。仍是唯一硬阻塞，必须在扩量前。
+2. **#59**：pino 出第一道外部仓库任务，场景类到 2/2。
+3. **#17**：扩到 30 对，纯堆量，可后台批跑。
+
+---
+
 # Handoff 2026-08-25 检查点（六题配对采集完成 + 阈值核准 + 看板纠错）
 
 ## 当前进度
