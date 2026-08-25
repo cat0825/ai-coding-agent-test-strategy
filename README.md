@@ -36,7 +36,7 @@
 - [使用场景分层 v1](docs/scenario-stratification-v1.md)：四类使用场景的验证形态、采集顺序和泛化门槛。
 - [验证行为任务集调研](docs/coding-agent-verification-task-set-research.md)：任务来源、轨迹 schema 和实验阶段建议。
 - [当前状态与下一步](STATUS.md)：明确已完成、未完成和下一阶段实现边界。
-- [项目交接文档](docs/handoff-2026-08-19.md)：当前分支、PR 链、本地未提交变更、证据状态和可直接执行的下一步。
+- [项目交接文档](docs/handoff-2026-08-25.md)：当前分支、open issue、四条硬门槛对账、证据纪律和可直接执行的下一步。历史版本见 [08-24](docs/handoff-2026-08-24.md)、[08-19](docs/handoff-2026-08-19.md)。
 - [贡献指南](CONTRIBUTING.md)：Issue/PR 边界、验证命令和证据要求。
 
 ## 开发检查
