@@ -28,5 +28,6 @@
 - 测评合同：`verification-policy-benchmark-v0.1.md`、`scenario-stratification-v1.md`、`coding-agent-verification-task-set-research.md`
 - 采集与 trace：`agent-belt-timestamped-trace-v1.md`、`verifytrace-v1.md`、`trace-diagnostics-v1.md`、`trace-replay.md`
 - 审计与判分：`baseline-cohort-v1.md`、`evaluation-harness-v1.md`、`agent-belt-pilot-audit-v1.md`、`agent-belt-independent-oracles-v1.md`、`agent-belt-task-qualification-v1.md`
+- 失败样本出题：[`oracle-failure-sample-design.md`](oracle-failure-sample-design.md)（#67 口径澄清与三道候选题）
 - 环境与推荐：`benchmark-environment-v1.md`、`recommendation-modes-v1.md`、`benchmark-candidate-agent-belt.md`
 - 独立审计记录：`independent-audit-2026-08-18.md`
