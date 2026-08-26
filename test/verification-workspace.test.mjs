@@ -206,6 +206,11 @@ test("all six pilot states reproduce their declared pass and failure patterns", 
   assert.deepEqual(observed, qualification);
   assert.equal(observed.conclusion.status, "fixture_ready");
   assert.equal(observed.counts.qualified_tasks, 6);
+  // No external checkout was supplied here, so the external task is skipped rather than qualified and
+  // the report names the gap. A missing checkout must never read as evidence that the task was observed.
+  assert.equal(observed.counts.skipped_tasks, 1);
+  assert.equal(observed.tasks.find(({ task_id: id }) => id === "vp_external_boundary_diagnosis").status, "skipped");
+  assert.ok(observed.conclusion.blockers.includes("external_fixture_checkouts_not_supplied"));
 });
 
 test("checked-in integration smoke report stays bound to its sanitized trace", async () => {
