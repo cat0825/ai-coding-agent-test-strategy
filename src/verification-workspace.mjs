@@ -492,6 +492,29 @@ async function qualifyTask({ plan, oracles, task, sourceRepository, outputParent
     }
   }
 
+  // A repair task is the one shape where the materialized workspace and the workspace the oracle judges are
+  // opposite by construction: the task hands the agent a broken tree and asks for it to end green. The
+  // `behavior_class` describes that end state, so dispatching qualification on it would compare the broken
+  // tree against the repaired tree's exit code and fail every such task. Both halves are checked instead --
+  // the faulted tree must fail at the declared tier, or the task poses nothing; the unchanged tree must
+  // pass, or no correct repair exists and a red suite could not be read as the agent's fault. Validation
+  // restricts this to `controlled_fault`, where the unchanged tree is what a correct repair reproduces.
+  if (oracle.production_edits === "required") {
+    const faulted = await materialize();
+    const repaired = await materialize(false);
+    try {
+      const faultedExit = await execute(faulted, oracle.minimum_evidence_phase);
+      const repairedExit = await execute(repaired, oracle.minimum_evidence_phase);
+      const expected = ["nonzero", 0];
+      const observed = [faultedExit, repairedExit];
+      const passed = expected.every((value, index) => value === "nonzero" ? observed[index] !== 0 : observed[index] === value)
+        && matchRequiredFailureSignatures(oracle.required_failure_signatures, executionResults);
+      return { task_id: task.task_id, status: passed ? "passed" : "failed", expected_exit_pattern: expected, executions };
+    } finally {
+      await Promise.all([faulted.cleanup(), repaired.cleanup()]);
+    }
+  }
+
   const materialized = await materialize();
   try {
     let expected;

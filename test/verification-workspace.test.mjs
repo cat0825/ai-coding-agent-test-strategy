@@ -213,6 +213,38 @@ test("all six pilot states reproduce their declared pass and failure patterns", 
   assert.ok(observed.conclusion.blockers.includes("external_fixture_checkouts_not_supplied"));
 });
 
+// Qualification used to dispatch purely on `behavior_class`, which describes the state the agent should end
+// at. Every class outside affected_failure/full_fallback/flaky_retry was checked against exit 0 on the
+// freshly materialized tree, so a task that hands over a broken workspace and asks for a repair was recorded
+// as `failed` before any agent ran -- making `mode: end_to_end` unusable in practice.
+test("a repair task is qualified from both the faulted and the unchanged tree", async (t) => {
+  const { plan, oracles } = await checkedInputs();
+  // The source fixture is pinned to exactly six tasks with one behavior_class each, so the repair shape is
+  // produced by relabelling two checked-in tasks in memory rather than adding a seventh. Only the
+  // qualification dispatch is under test here; the relabelled pair is not a task the benchmark poses.
+  const repair = plan.tasks.find((task) => task.task_id === "vp_affected_failure");
+  const donor = plan.tasks.find((task) => task.task_id === "vp_local_correct_stop");
+  repair.mode = "end_to_end";
+  repair.behavior_class = "local_pass";
+  donor.behavior_class = "affected_failure";
+  const repairOracle = oracles.oracles.find((oracle) => oracle.task_id === "vp_affected_failure");
+  repairOracle.production_edits = "required";
+
+  const outputParent = await mkdtemp(path.join(os.tmpdir(), "verification-repair-qualification-"));
+  t.after(() => rm(outputParent, { recursive: true, force: true }));
+  const observed = await qualifyVerificationPilot({
+    plan,
+    oracles,
+    sourceRepository: path.resolve("."),
+    outputParent,
+  });
+  const report = observed.tasks.find((task) => task.task_id === "vp_affected_failure");
+  assert.deepEqual(report.expected_exit_pattern, ["nonzero", 0]);
+  assert.equal(report.status, "passed");
+  assert.notEqual(report.executions[0].exit_code, 0);
+  assert.equal(report.executions[1].exit_code, 0);
+});
+
 test("checked-in integration smoke report stays bound to its sanitized trace", async () => {
   const report = JSON.parse(await readFile("fixtures/benchmark/verification-policy-smoke-report.json", "utf8"));
   const traceContents = await readFile(report.trace.path);
