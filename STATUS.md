@@ -70,7 +70,8 @@
 - Maka 固定 CI-green revision 已通过 `npm ci`、`format:check`、`build:test`、`typecheck` 的真实 preflight，但完整 `npm test` 仍含 PTY、macOS 路径规范化和本机认证能力相关失败；只作为验证样本和环境分类证据。
 - 没有完整真实仓库 cohort，不能声称已经减少测试耗时或 CI 成本；也没有启用 Agent hook/permission 强制。
 - Observatory MVP 的 Issue/PR 仍需按依赖顺序审阅和合并；本地 canonical fixture 不能替代真实 P1/P2 benchmark。
-- 6 题 pilot 目前只完成 2/6 同一 Agent/模型的 baseline/candidate 配对，剩余 4 题尚未采集。
+- 6 题 pilot 配对已 6/6 采集完成（#36），但六题全部出自本仓库历史，`generalized: false`；
+  正式 30 对仍需从多个真实 JS/TS 仓库取题。
 - 两题 dry run 的耗时/命令数下降只能作为采集链校准观察，不能声称策略已经节省测试时间或 CI 成本。
 - smoke run 未显式固定模型，只能证明链路与现象；固定 `gpt-5.6-sol` 的两次尝试因 provider 凭据 401 失败且未执行任何 Agent 命令，不能计入正式配对。
 - 当前 6 题都来自本仓库历史或受控故障，只用于隔离测评合同；正式 30 题仍需从多个真实 JS/TS 仓库选取。

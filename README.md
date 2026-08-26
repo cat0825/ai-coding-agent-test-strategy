@@ -4,7 +4,10 @@
 
 ## 当前进度
 
-**Observatory MVP 与 state-aware collector 已完成；Verification Policy pilot 工作区 6/6 合格，已完成 2/6 同模型 baseline/candidate dry run，质量声明仍为 0/30。**
+进度以 [STATUS.md](STATUS.md) 为唯一权威源，本文件不再重复维护分数（避免双写漂移）。
+
+截至 2026-08-26：机制已全部落地（采集 → trace → 审计 → 强制），六题配对 6/6 完成且通过审计，
+四条硬门槛为 6/30、0/10、1/2、0/3，评估仍为 `evidence_insufficient` / `efficiency_claim: not_supported`。
 
 - 研究问题已收敛为：解释 Coding Agent 为什么重复、扩大或延迟测试，以及浪费从哪一个决策点开始。
 - 第一阶段只做诊断型可视化，服务重度使用 Coding Agent 的个人开发者；不做通用 Agent 观测平台。
