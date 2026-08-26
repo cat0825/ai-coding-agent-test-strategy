@@ -11,8 +11,8 @@
   "counts": {
     "failed_tasks": 0,
     "qualified_tasks": 6,
-    "skipped_tasks": 1,
-    "tasks": 7
+    "skipped_tasks": 2,
+    "tasks": 8
   },
   "evidence_class": "pilot_fixture_qualification",
   "schema_version": 1,
@@ -129,6 +129,11 @@
       "skipped_reason": "no checkout supplied for external fixture external-pino",
       "status": "skipped",
       "task_id": "vp_external_boundary_diagnosis"
+    },
+    {
+      "skipped_reason": "no checkout supplied for external fixture external-pino",
+      "status": "skipped",
+      "task_id": "vp_masked_failure"
     }
   ]
 }

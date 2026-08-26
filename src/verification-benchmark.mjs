@@ -294,6 +294,20 @@ function validateOracle(errors, oracle, index, taskById, seenOracleIds, seenTask
   }
   if (task?.behavior_class === "repeat_stop" && oracle.identical_retry_limit !== 0) addError(errors, `${field}.identical_retry_limit`, "must forbid an identical retry for repeat_stop");
   if (task?.behavior_class === "full_fallback" && oracle.full_suite_expectation !== "required") addError(errors, `${field}.full_suite_expectation`, "must be required for full_fallback");
+  // Qualification checks a repair task by materializing the workspace both with and without the change and
+  // requiring the unchanged tree to be green -- that tree only stands in for a correctly repaired workspace
+  // when the change is the defect being repaired. Under `repository_change` the change is the subject under
+  // test rather than a defect, so the unchanged tree would be a different task, and a passing qualification
+  // would mean nothing about the task actually posed.
+  if (oracle.production_edits === "required" && task?.definition?.source?.kind !== "controlled_fault") {
+    addError(errors, `${field}.production_edits`, "may only be required for a controlled_fault task");
+  }
+  // Hidden reference tests drive their own qualification pattern, which expects the changed tree to be the
+  // green one. That is the exact inverse of a repair task. Rejected rather than ordered, so neither pattern
+  // can silently qualify a task the other was meant to check.
+  if (oracle.production_edits === "required" && oracle.reference_test_paths?.length > 0) {
+    addError(errors, `${field}.reference_test_paths`, "must be empty when production_edits is required");
+  }
 }
 
 export function validateVerificationBenchmark(plan, oracleCatalog) {

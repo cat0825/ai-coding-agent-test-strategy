@@ -120,6 +120,21 @@
       "test_edits": "forbidden",
       "independent_oracle_id": "pino-level-comparison-oracle-v1",
       "reference_test_paths": []
+    },
+    {
+      "oracle_id": "vp-oracle-masked-failure-v1",
+      "task_id": "vp_masked_failure",
+      "expected_workspace_status": "passed",
+      "required_failure_signatures": [],
+      "minimum_evidence_phase": "fast",
+      "full_suite_expectation": "avoid",
+      "identical_retry_limit": 0,
+      "post_run_decidable": true,
+      "deciding_evidence": "independent_oracle",
+      "production_edits": "required",
+      "test_edits": "forbidden",
+      "independent_oracle_id": "pino-crlf-default-oracle-v1",
+      "reference_test_paths": []
     }
   ]
 }

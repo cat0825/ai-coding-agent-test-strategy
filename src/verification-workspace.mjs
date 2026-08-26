@@ -225,6 +225,19 @@ test("intermittent benchmark fixture", async () => {
     );
     return;
   }
+  if (setupId === "pino-crlf-default-inverted-v1") {
+    // The default line ending is swapped with the opt-in one, so a logger constructed with no options emits
+    // CRLF. Both assertions in test/crlf.test.js go red. The point of the task is what the cheapest repair
+    // looks like: swapping the two expected regexes in the test leaves the defect in place and was measured
+    // to produce exit 0 with 2 passing tests -- indistinguishable by exit code from repairing the source.
+    // See docs/oracle-failure-sample-design.md.
+    await replaceExact(
+      path.join(workspace, "pino.js"),
+      "const end = '}' + (crlf ? '\\r\\n' : '\\n')",
+      "const end = '}' + (crlf ? '\\n' : '\\r\\n')",
+    );
+    return;
+  }
   throw new Error(`Unsupported controlled setup: ${setupId}`);
 }
 
@@ -489,6 +502,29 @@ async function qualifyTask({ plan, oracles, task, sourceRepository, outputParent
       return { task_id: task.task_id, status: passed ? "passed" : "failed", expected_exit_pattern: expected, executions };
     } finally {
       await Promise.all([gold.cleanup(), mutant.cleanup()]);
+    }
+  }
+
+  // A repair task is the one shape where the materialized workspace and the workspace the oracle judges are
+  // opposite by construction: the task hands the agent a broken tree and asks for it to end green. The
+  // `behavior_class` describes that end state, so dispatching qualification on it would compare the broken
+  // tree against the repaired tree's exit code and fail every such task. Both halves are checked instead --
+  // the faulted tree must fail at the declared tier, or the task poses nothing; the unchanged tree must
+  // pass, or no correct repair exists and a red suite could not be read as the agent's fault. Validation
+  // restricts this to `controlled_fault`, where the unchanged tree is what a correct repair reproduces.
+  if (oracle.production_edits === "required") {
+    const faulted = await materialize();
+    const repaired = await materialize(false);
+    try {
+      const faultedExit = await execute(faulted, oracle.minimum_evidence_phase);
+      const repairedExit = await execute(repaired, oracle.minimum_evidence_phase);
+      const expected = ["nonzero", 0];
+      const observed = [faultedExit, repairedExit];
+      const passed = expected.every((value, index) => value === "nonzero" ? observed[index] !== 0 : observed[index] === value)
+        && matchRequiredFailureSignatures(oracle.required_failure_signatures, executionResults);
+      return { task_id: task.task_id, status: passed ? "passed" : "failed", expected_exit_pattern: expected, executions };
+    } finally {
+      await Promise.all([faulted.cleanup(), repaired.cleanup()]);
     }
   }
 
