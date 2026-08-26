@@ -356,8 +356,10 @@ test("six-task paired pilot stays bound to its traces, oracles and enforcement l
   assert.equal(denyEvents, report.policy_decisions.deny_events);
 
   // The first live observation of the v0.4 unscoped-selection deny, which until this batch had only unit
-  // coverage, and the two fail-closed denials of pure inspection commands that are its known cost. Both are
-  // asserted so a policy change has to come here and say which one it changed.
+  // coverage, and the two fail-closed denials of pure inspection commands that were its known cost before
+  // the #58 fix. This batch is pre-fix signed-in evidence, so both denials remain in the record; post-fix
+  // runs must not produce them (`rg 'pytest' src/` and friends are non-test commands now), and a policy
+  // change still has to come here and say which one it changed.
   assert.ok(denyReasons.includes("unscoped_test_command_denied"));
   assert.equal(denyReasons.filter((reason) => reason === "command_semantics_incomplete:runner_structure_unrecognized").length, 2);
 

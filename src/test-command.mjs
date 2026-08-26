@@ -4,55 +4,6 @@ import { createHash } from "node:crypto";
 // widen the selected set, never hide a file from it, so a permissive shape is safe here.
 const PATH_LIKE = /\/|\.[cm]?[jt]sx?$/;
 
-const TEST_RUNNER_RULES = Object.freeze([
-  {
-    pattern: /(?:^|[\s"';&|()\n])(?:(uv)\s+run\s+)?(?:(python(?:3)?)\s+-m\s+)?(pytest)(?=[\s"';&|()\n]|$)/i,
-    normalize(match) {
-      if (match[1]) return ["uv", "run", "pytest"];
-      if (match[2]) return [match[2].toLowerCase(), "-m", "pytest"];
-      return ["pytest"];
-    },
-  },
-  {
-    pattern: /(?:^|[\s"';&|()\n])(npm|pnpm|yarn|bun)\s+(?:run\s+)?(test|t)(?=[\s"';&|()\n]|$)/i,
-    normalize(match) {
-      return [match[1].toLowerCase(), match[2].toLowerCase() === "t" ? "test" : match[2].toLowerCase()];
-    },
-  },
-  {
-    pattern: /(?:^|[\s"';&|()\n])(npm|pnpm|yarn|bun)\s+(?:run\s+)?(check)(?=[\s"';&|()\n]|$)/i,
-    normalize(match) {
-      return [match[1].toLowerCase(), "run", match[2].toLowerCase()];
-    },
-  },
-  {
-    pattern: /(?:^|[\s"';&|()\n])(?:(npx|pnpm\s+exec|yarn\s+dlx|bunx)\s+)?(vitest|jest|mocha|ava)(?=[\s"';&|()\n]|$)/i,
-    normalize(match) {
-      return match[1]
-        ? [...match[1].toLowerCase().split(/\s+/), match[2].toLowerCase()]
-        : [match[2].toLowerCase()];
-    },
-  },
-  {
-    pattern: /(?:^|[\s"';&|()\n])(node\s+--test|deno\s+test)(?=[\s"';&|()\n]|$)/i,
-    normalize(match) {
-      return match[1].toLowerCase().split(/\s+/);
-    },
-  },
-  {
-    pattern: /(?:^|[\s"';&|()\n])(go|cargo|dotnet)\s+test(?=[\s"';&|()\n]|$)/i,
-    normalize(match) {
-      return [match[1].toLowerCase(), "test"];
-    },
-  },
-  {
-    pattern: /(?:^|[\s"';&|()\n])((?:\.\/)?(?:mvnw?|gradlew?))\s+test(?=[\s"';&|()\n]|$)/i,
-    normalize(match) {
-      return [match[1].toLowerCase(), "test"];
-    },
-  },
-]);
-
 const SHELLS = new Set(["sh", "bash", "zsh", "dash", "ksh"]);
 const OPERATORS = new Set(["&&", "||", ";", "|", "(", ")", "$(", "\\n"]);
 const DIGEST = /^[a-f0-9]{64}$/i;
@@ -273,7 +224,7 @@ function incompleteAnalysis(command, normalized, reason) {
   const semanticDigest = sha256(JSON.stringify({ raw_command: command }));
   return {
     command: normalized,
-    canonicalId: canonicalTestCommandId(normalized, semanticDigest),
+    canonicalId: canonicalTestCommandId(normalized ?? ["unidentified"], semanticDigest),
     selection: { bounded: false, reason: "incomplete_semantics", targets: [] },
     semantics: {
       version: 1,
@@ -287,20 +238,23 @@ function incompleteAnalysis(command, normalized, reason) {
   };
 }
 
-export function normalizeTestRunnerCommand(command) {
-  if (typeof command !== "string") return null;
-  for (const rule of TEST_RUNNER_RULES) {
-    const match = rule.pattern.exec(command);
-    if (match) return rule.normalize(match);
-  }
-  return null;
+// There is exactly one notion of "invokes a test runner": a segment whose executable, after any
+// env-assignment prefix, is a runner per `runnerAt`. Both the policy decision and the pilot audit
+// derive from this segment decomposition. A runner name appearing inside an argument — a search
+// pattern, an echo string — is not an invocation, and no whole-string matcher may say otherwise:
+// that second, looser reading is what spent denials on `rg 'pytest' src/` in the six-task pilot.
+function segmentRunner(segment) {
+  const prefix = environmentPrefix(segment);
+  const runner = runnerAt(segment, prefix.index);
+  return runner ? { runner, prefix } : null;
 }
 
 export function analyzeTestRunnerCommand(command, { cwdSha256 = null } = {}) {
-  const normalized = normalizeTestRunnerCommand(command);
-  if (!normalized) return null;
+  if (typeof command !== "string") return null;
   const decomposed = decomposeShellCommand(command);
-  if (!decomposed) return incompleteAnalysis(command, normalized, "unparseable_shell_command");
+  // An unparseable command cannot be shown not to invoke a runner, so it fails closed rather
+  // than being waved through as non-test.
+  if (!decomposed) return incompleteAnalysis(command, null, "unparseable_shell_command");
 
   let effectiveCwdSha256 = DIGEST.test(cwdSha256 ?? "") ? cwdSha256.toLowerCase() : null;
   const matches = [];
@@ -326,9 +280,10 @@ export function analyzeTestRunnerCommand(command, { cwdSha256 = null } = {}) {
       });
     }
   }
-  if (matches.length !== 1) {
-    return incompleteAnalysis(command, normalized, matches.length === 0 ? "runner_structure_unrecognized" : "multiple_runner_commands");
-  }
+  // No segment invokes a runner, so this is not a test command at all — regardless of which
+  // runner names its arguments happen to mention.
+  if (matches.length === 0) return null;
+  if (matches.length > 1) return incompleteAnalysis(command, null, "multiple_runner_commands");
 
   const match = matches[0];
   if (!match.cwdSha256) return incompleteAnalysis(command, match.command, "missing_working_directory_evidence");
@@ -365,7 +320,11 @@ export function analyzeTestRunnerCommand(command, { cwdSha256 = null } = {}) {
 }
 
 export function isTestRunnerCommand(command) {
-  return normalizeTestRunnerCommand(command) !== null;
+  if (typeof command !== "string") return false;
+  const decomposed = decomposeShellCommand(command);
+  // Fail closed on unparseable shell: it cannot be shown not to invoke a runner.
+  if (!decomposed) return true;
+  return decomposed.some(({ tokens }) => segmentRunner(tokens) !== null);
 }
 
 export function canonicalTestCommandId(command, semanticDigest = null) {
