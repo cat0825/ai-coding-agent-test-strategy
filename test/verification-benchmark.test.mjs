@@ -70,9 +70,10 @@ function withoutExternalFixtures({ plan, oracles }) {
 test("checked-in pilot defines six distinct verification behaviors with hidden oracles", async () => {
   const { plan, oracles } = await checkedInputs();
   assert.deepEqual(validateVerificationBenchmark(plan, oracles), []);
-  // Six on the source repository plus one re-observation of affected_failure on an external fixture.
-  assert.equal(plan.tasks.length, 7);
-  assert.equal(oracles.oracles.length, 7);
+  // Six on the source repository plus two on an external fixture: a re-observation of affected_failure and
+  // the first repair task, which re-observes local_pass on a tree that starts red.
+  assert.equal(plan.tasks.length, 8);
+  assert.equal(oracles.oracles.length, 8);
   assert.equal(plan.tasks.filter(({ fixture_id: id }) => id === "observatory-node").length, 6);
   assert.deepEqual(
     [...new Set(plan.tasks.map(({ behavior_class: behaviorClass }) => behaviorClass))].sort(),
@@ -80,6 +81,9 @@ test("checked-in pilot defines six distinct verification behaviors with hidden o
   );
   assert.equal(plan.tasks.filter(({ mode }) => mode === "verify_only").length, 6);
   assert.equal(plan.tasks.filter(({ mode }) => mode === "test_decision").length, 1);
+  // end_to_end was declared in the schema long before any task could use it: qualification judged every
+  // repair task against the exit code of an already-repaired tree. This is the first task to exercise it.
+  assert.equal(plan.tasks.filter(({ mode }) => mode === "end_to_end").length, 1);
   for (const task of plan.tasks) {
     assert.equal(task.scenario_definition_sha256, verificationTaskDefinitionDigest(task.definition));
     assert.equal(JSON.stringify(task).includes("expected_workspace_status"), false);
@@ -197,7 +201,7 @@ test("qualifying a repository does not by itself widen scenario coverage", async
   // Three repositories are qualified; only pino carries a task. So service_library is covered and
   // web_frontend is not, even though zustand is qualified and declares it. Coverage counts
   // observations, not declarations -- the two qualified-but-task-free fixtures are the control.
-  assert.deepEqual(report.counts.scenario_classes, { cli_tool: 6, service_library: 1 });
+  assert.deepEqual(report.counts.scenario_classes, { cli_tool: 6, service_library: 2 });
   assert.deepEqual(report.counts.languages, ["javascript", "typescript"]);
   assert.equal(report.external_repository_coverage.qualified, MINIMUM_EXTERNAL_REPOSITORIES);
   assert.equal(report.external_repository_coverage.with_tasks, 1);
@@ -320,7 +324,7 @@ test("external repository coverage counts qualified fixtures and the ones carryi
   assert.deepEqual(
     report.external_repository_coverage.repositories.map(({ fixture_id: fixtureId, identity, tasks }) => [fixtureId, identity, tasks]),
     [
-      ["external-pino", "pinojs/pino", 1],
+      ["external-pino", "pinojs/pino", 2],
       ["external-yargs", "yargs/yargs", 0],
       ["external-zustand", "pmndrs/zustand", 0],
     ],
