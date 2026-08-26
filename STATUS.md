@@ -58,8 +58,8 @@
 
 - **有效 oracle 失败样本 0/10（#57 已落地,但门槛仍未满足)。** 原来记着的那 1 条失败签名已经撤掉:`vp_flaky_retry_once` 的 oracle 现在声明 `status: "undecided"`、交空的 `failure_signatures`,不再冒充判定。这清掉了假样本,没有变出真样本 —— `minimum_oracle_failures`（`src/evaluation.mjs:9`）数的是失败签名,现在如实为 0。这个门槛要由其余五题里能因正确原因失败的 oracle 来满足,或者新出的题来满足;30 对可以靠时间堆出来,失败样本不行。
 - **配对比较数 6/30。** 6 对全部通过审计,还缺 24 对。`minimum_quality_claim_comparisons_not_met`。
-- **场景覆盖 1/2。** 门槛是 2 类(`src/verification-benchmark.mjs:18` 的 `MINIMUM_GENERALIZED_SCENARIO_CLASSES = 2`),不是 4 类 —— 四类(`cli_tool` / `web_frontend` / `service_library` / `research_script`)是枚举全集,不是要求。现只有 `cli_tool` 且 6 题全出自本仓库历史(`generalized: false`)。在 pino 或 zustand 上出一道题就满足。
-- **外部 fixture 已出题 0/3。** 环境资格过了不等于已观测到该场景下的验证行为 —— 场景覆盖按**题目**算,不按 fixture 算。
+- **场景覆盖 2/2 —— 已满足（2026-08-26）。** 门槛是 2 类(`src/verification-benchmark.mjs:18` 的 `MINIMUM_GENERALIZED_SCENARIO_CLASSES = 2`),不是 4 类 —— 四类(`cli_tool` / `web_frontend` / `service_library` / `research_script`)是枚举全集,不是要求。`vp_external_boundary_diagnosis` 落在 `external-pino`(`service_library`)后,`scenario_classes` 为 `{cli_tool: 6, service_library: 1}`、`generalized: true`,`scenario_classes_not_generalized` 已从 blockers 消失(设计审计实测)。**注意这是设计层满足**:审计里 `task_workspaces_not_materialized` / `independent_oracles_not_executed` / `paired_traces_not_collected` 三条仍在,这一条不代表已采到配对证据。
+- **外部 fixture 已出题 1/3。** 环境资格过了不等于已观测到该场景下的验证行为 —— 场景覆盖按**题目**算,不按 fixture 算。pino 有 1 题;yargs / zustand 仍 0 题,资格早就过了但没题就不进覆盖。资格实跑:带 `--fixture-repo external-pino=PATH` 时 `fixture_ready: 7/7`(47 秒);CI 无外部 checkout 时该题记 `skipped` 并在 blockers 里点名 `external_fixture_checkouts_not_supplied`,不冒充已观测。
 - **闸门有缺陷,在虚耗调用。** 闸门用整串正则、判定按段分解,两把尺子不一致:一条 `rg` 命令只要搜索模式里出现 `pytest` 就被当成测试命令,逐段分解找不到 runner,fail-closed 拒掉。代价能精确算 —— `vp_unknown_impact_full_fallback` 过闸 31 次,白丢 5 次。必须在扩量前修,否则 30 对里每一对都掺同样噪声。
 
 ## 证据边界与历史决策（仍然生效的约束）
@@ -80,7 +80,7 @@
 
 - Open PR 为 0。#49–#56 全部合并,其中 #55(外部仓库取题)与 #56(L2 改写)是 stacked,已按 #55 → #56 顺序合入。
 - #36 已走到 6/6,六题配对采集完成。#38(`wait` 事件)由 #50 解决,#39(外部取题)由 #55 落地,deny 强制由 #52 落地。
-- 仍开启(5 个):**#58**(闸门整串匹配 vs 分段决策 —— 唯一硬阻塞,扩量前必修)、**#59**(在 pino 上出第一道外部仓库任务,达成场景类 2/2)、#16(baseline cohort)、#17(candidate cohort 与安全门,当前 6/30)、#1(roadmap)。
+- 仍开启(5 个):**#58**(闸门整串匹配 vs 分段决策 —— 唯一硬阻塞,扩量前必修)、**#59**(在 pino 上出第一道外部仓库任务,达成场景类 2/2 —— **题面已落地,待 PR 合并**)、#16(baseline cohort)、#17(candidate cohort 与安全门,当前 6/30)、#1(roadmap)。
 - #57 已于 2026-08-25 关闭(落地 commit `9c7c9c9`),#43 已于 2026-08-24 关闭(candidate 真机强制策略已有签入证据:`unscoped_test_command_denied` 真机触发)。#1 路线图中 #38 / #40 / #44 / #45 四个已完成项均已勾选,当前未勾选项即 #58 与 #59。
 
 ## 下一阶段
@@ -90,5 +90,5 @@
 ~~1. 拍板 #57 的 oracle 怎么修。~~ **已于 2026-08-25 定案并落地(commit `9c7c9c9`)**:声明这题不由 oracle 判、只认 trace 证据,审计器能标出结构上判不了的 oracle。三条路里唯一不破坏"审计独立于采集"这条主纪律的。采集链路的判定语义现在是干净的,后面采到的数据算数。
 
 1. **闸门改按段判定(v0.5)后重采（#58)。** 不改就一直虚耗调用,且现有数字永远不能当效率结论读。必须在扩量之前。
-2. **在 `pino` 上出第一道题（#59)。** 选 pino 不是随便挑:它是 `service_library`,一道题同时解掉"场景覆盖 1/2"和"样本自指"。这道题跑通就等于验证了外部出题这条流水线。
+~~2. 在 `pino` 上出第一道题（#59)。~~ **题面已落地,待 PR 合并（2026-08-26）**:`vp_external_boundary_diagnosis`,`lib/levels.js` 的 `compareLevel` 升序分支丢边界,fast 层 0.2 秒退出码 1(16 pass / 6 fail)。场景类 2/2 已满足,外部出题流水线走通了一遍——但也暴露物化根本不装依赖(observatory 零依赖所以从没暴露),补了 `provisionFixtureDependencies` 从资格 checkout 拷 `node_modules`。设计文:`docs/oracle-failure-sample-design.md`。
 3. **扩到 30 对（#17)。** 前两步做完这步才是纯堆量:24 对,按六题一轮算四轮,可放后台批跑。直接冲 30 对的风险是万一外部出题有坑,24 对全白跑。

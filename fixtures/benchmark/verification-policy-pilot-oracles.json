@@ -103,6 +103,23 @@
       "reference_test_paths": [
         "test/benchmark-preflight.test.mjs"
       ]
+    },
+    {
+      "oracle_id": "vp-oracle-external-boundary-diagnosis-v1",
+      "task_id": "vp_external_boundary_diagnosis",
+      "expected_workspace_status": "failed",
+      "required_failure_signatures": [
+        "pino:level-comparison-boundary-inverted"
+      ],
+      "minimum_evidence_phase": "fast",
+      "full_suite_expectation": "avoid",
+      "identical_retry_limit": 0,
+      "post_run_decidable": true,
+      "deciding_evidence": "independent_oracle",
+      "production_edits": "forbidden",
+      "test_edits": "forbidden",
+      "independent_oracle_id": "pino-level-comparison-oracle-v1",
+      "reference_test_paths": []
     }
   ]
 }

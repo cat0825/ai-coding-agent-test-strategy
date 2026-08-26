@@ -70,13 +70,15 @@ function withoutExternalFixtures({ plan, oracles }) {
 test("checked-in pilot defines six distinct verification behaviors with hidden oracles", async () => {
   const { plan, oracles } = await checkedInputs();
   assert.deepEqual(validateVerificationBenchmark(plan, oracles), []);
-  assert.equal(plan.tasks.length, 6);
-  assert.equal(oracles.oracles.length, 6);
+  // Six on the source repository plus one re-observation of affected_failure on an external fixture.
+  assert.equal(plan.tasks.length, 7);
+  assert.equal(oracles.oracles.length, 7);
+  assert.equal(plan.tasks.filter(({ fixture_id: id }) => id === "observatory-node").length, 6);
   assert.deepEqual(
     [...new Set(plan.tasks.map(({ behavior_class: behaviorClass }) => behaviorClass))].sort(),
     ["affected_failure", "flaky_retry", "full_fallback", "local_pass", "repeat_stop", "test_required"],
   );
-  assert.equal(plan.tasks.filter(({ mode }) => mode === "verify_only").length, 5);
+  assert.equal(plan.tasks.filter(({ mode }) => mode === "verify_only").length, 6);
   assert.equal(plan.tasks.filter(({ mode }) => mode === "test_decision").length, 1);
   for (const task of plan.tasks) {
     assert.equal(task.scenario_definition_sha256, verificationTaskDefinitionDigest(task.definition));
@@ -160,11 +162,12 @@ test("design audit is explicit about missing execution evidence", async () => {
   const report = auditVerificationBenchmarkDesign(plan, oracles);
   assert.equal(report.conclusion.status, "design_ready");
   assert.equal(report.conclusion.quality_claim_eligible, false);
+  // `scenario_classes_not_generalized` is absent: the external affected_failure task puts a second
+  // scenario class under observation. The remaining three blockers are all execution evidence.
   assert.deepEqual(report.conclusion.blockers, [
     "task_workspaces_not_materialized",
     "independent_oracles_not_executed",
     "paired_traces_not_collected",
-    "scenario_classes_not_generalized",
   ]);
 });
 
@@ -191,24 +194,25 @@ test("fixtures must declare a supported usage scenario and language", async () =
 test("qualifying a repository does not by itself widen scenario coverage", async () => {
   const { plan, oracles } = await checkedInputs();
   const report = auditVerificationBenchmarkDesign(plan, oracles);
-  // Three repositories are qualified and two of them cover classes the source repository does not,
-  // yet every task still runs on the source repository, so coverage stays cli_tool-only. Coverage
-  // counts observations, not declarations.
-  assert.deepEqual(report.counts.scenario_classes, { cli_tool: 6 });
+  // Three repositories are qualified; only pino carries a task. So service_library is covered and
+  // web_frontend is not, even though zustand is qualified and declares it. Coverage counts
+  // observations, not declarations -- the two qualified-but-task-free fixtures are the control.
+  assert.deepEqual(report.counts.scenario_classes, { cli_tool: 6, service_library: 1 });
   assert.deepEqual(report.counts.languages, ["javascript", "typescript"]);
   assert.equal(report.external_repository_coverage.qualified, MINIMUM_EXTERNAL_REPOSITORIES);
-  assert.equal(report.external_repository_coverage.with_tasks, 0);
-  assert.equal(report.scenario_coverage.generalized, false);
-  assert.deepEqual(report.scenario_coverage.covered, ["cli_tool"]);
-  assert.deepEqual(report.scenario_coverage.missing, ["web_frontend", "service_library", "research_script"]);
-  assert.ok(report.conclusion.blockers.includes("scenario_classes_not_generalized"));
+  assert.equal(report.external_repository_coverage.with_tasks, 1);
+  assert.deepEqual(report.scenario_coverage.covered, ["cli_tool", "service_library"]);
+  assert.deepEqual(report.scenario_coverage.missing, ["web_frontend", "research_script"]);
+  assert.equal(report.scenario_coverage.covered.length, MINIMUM_GENERALIZED_SCENARIO_CLASSES);
+  assert.equal(report.scenario_coverage.generalized, true);
+  assert.equal(report.conclusion.blockers.includes("scenario_classes_not_generalized"), false);
 
+  // Giving the qualified web_frontend fixture a task is what moves it out of `missing`.
   const generalized = withTaskOnFixture({ plan, oracles }, EXTERNAL_WEB_FIXTURE);
   const widened = auditVerificationBenchmarkDesign(generalized.plan, generalized.oracles);
-  assert.equal(widened.scenario_coverage.covered.length, MINIMUM_GENERALIZED_SCENARIO_CLASSES);
-  assert.equal(widened.scenario_coverage.generalized, true);
-  assert.equal(widened.external_repository_coverage.with_tasks, 1);
-  assert.equal(widened.conclusion.blockers.includes("scenario_classes_not_generalized"), false);
+  assert.deepEqual(widened.scenario_coverage.covered, ["cli_tool", "service_library", "web_frontend"]);
+  assert.deepEqual(widened.scenario_coverage.missing, ["research_script"]);
+  assert.equal(widened.external_repository_coverage.with_tasks, 2);
 });
 
 test("the six-task pilot stays bound to the source repository", async () => {
@@ -308,15 +312,15 @@ test("external repository coverage counts qualified fixtures and the ones carryi
   const report = auditVerificationBenchmarkDesign(plan, oracles);
   assert.equal(report.counts.external_repositories, MINIMUM_EXTERNAL_REPOSITORIES);
   assert.equal(report.external_repository_coverage.qualified, MINIMUM_EXTERNAL_REPOSITORIES);
-  // Every qualified repository is still task-free, so the minimum is met on environment evidence
-  // alone. That is the difference the two counters exist to keep visible.
-  assert.equal(report.external_repository_coverage.with_tasks, 0);
+  // Three repositories are qualified but only one carries a task, so `qualified` is met while
+  // `with_tasks` stays well below it. That gap is the difference the two counters exist to keep visible.
+  assert.equal(report.external_repository_coverage.with_tasks, 1);
   assert.equal(report.external_repository_coverage.satisfied, true);
   assert.equal(report.conclusion.blockers.includes("external_repositories_below_minimum"), false);
   assert.deepEqual(
     report.external_repository_coverage.repositories.map(({ fixture_id: fixtureId, identity, tasks }) => [fixtureId, identity, tasks]),
     [
-      ["external-pino", "pinojs/pino", 0],
+      ["external-pino", "pinojs/pino", 1],
       ["external-yargs", "yargs/yargs", 0],
       ["external-zustand", "pmndrs/zustand", 0],
     ],

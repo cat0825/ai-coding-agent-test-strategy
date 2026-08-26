@@ -230,6 +230,30 @@
           "full": ["npm", "test"]
         }
       }
+    },
+    {
+      "task_id": "vp_external_boundary_diagnosis",
+      "semantic_task_key": "verification-policy:external-boundary-diagnosis",
+      "mode": "verify_only",
+      "behavior_class": "affected_failure",
+      "risk_class": "medium",
+      "fixture_id": "external-pino",
+      "oracle_id": "vp-oracle-external-boundary-diagnosis-v1",
+      "scenario_definition_sha256": "8d2977b58821a910a2b889ad8f4ef6ea929868178d2919e74fe6eda5af09cfbc",
+      "definition": {
+        "instruction": "A logging-level change is already applied in this library. Verify it and report what breaks and why, naming the source line responsible. Do not repair the workspace: the repair belongs to a separate task and an edit here invalidates the diagnosis. Stop once the failure is attributable.",
+        "source": {
+          "kind": "controlled_fault",
+          "base_revision": "b394c2c16ac6a8919cd33d7f5684a01baca1096f",
+          "setup_id": "pino-level-comparison-boundary-v1"
+        },
+        "changed_files": ["lib/levels.js"],
+        "command_tiers": {
+          "fast": ["node", "--test", "test/is-level-enabled.test.js"],
+          "affected": ["node", "--test", "test/is-level-enabled.test.js", "test/browser-is-level-enabled.test.js"],
+          "full": ["npm", "test"]
+        }
+      }
     }
   ]
 }

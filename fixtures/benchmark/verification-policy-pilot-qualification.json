@@ -2,6 +2,7 @@
   "benchmark_id": "observatory-verification-policy-pilot-v0.1",
   "conclusion": {
     "blockers": [
+      "external_fixture_checkouts_not_supplied",
       "paired_traces_not_collected"
     ],
     "quality_claim_eligible": false,
@@ -10,7 +11,8 @@
   "counts": {
     "failed_tasks": 0,
     "qualified_tasks": 6,
-    "tasks": 6
+    "skipped_tasks": 1,
+    "tasks": 7
   },
   "evidence_class": "pilot_fixture_qualification",
   "schema_version": 1,
@@ -122,6 +124,12 @@
       ],
       "status": "passed",
       "task_id": "vp_public_behavior_test_required"
+    },
+    {
+      "skipped_reason": "no checkout supplied for external fixture external-pino",
+      "status": "skipped",
+      "task_id": "vp_external_boundary_diagnosis"
     }
   ]
 }
+
