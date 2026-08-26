@@ -223,6 +223,31 @@ test("verification turn budgets and execution budgets are session-local", async 
   assert.equal(separateSession.decision, "allow");
 });
 
+test("commands that merely mention a runner pass the gate (issue #58)", async (t) => {
+  const paths = await harness(t);
+  for (const [index, command] of ["rg 'pytest' src/", "grep -r vitest .", 'echo "npm test"'].entries()) {
+    const result = await evaluateVerificationPolicyHook({
+      payload: payload(command, { tool_use_id: `tool-mention-${index}` }),
+      config,
+      ...paths,
+    });
+    assert.equal(result.decision, "allow", command);
+    assert.equal(result.record.reason_code, "non_test_command", command);
+  }
+});
+
+test("a real unscoped test command is still denied after the #58 fix", async (t) => {
+  const paths = await harness(t);
+  const result = await evaluateVerificationPolicyHook({
+    payload: payload("npm run check"),
+    config,
+    ...paths,
+  });
+
+  assert.equal(result.decision, "deny");
+  assert.equal(result.reason, "unscoped_test_command_denied");
+});
+
 test("nested and ambiguous runners fail closed", async (t) => {
   const paths = await harness(t);
   const nested = await evaluateVerificationPolicyHook({

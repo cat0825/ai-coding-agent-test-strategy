@@ -223,6 +223,8 @@ L2 改写档也第一次进了真实配对采集（上一节只是单臂手工�
 
    这次不改。fail-closed 的方向是对的：分不清就别放行。但闸门用整串正则、判定按段分解，两者尺度不一致，才让一条 grep 模式里的 `pytest` 变成拒绝理由。真要修是让闸门也按段走，只有某一段本身像 runner 才进入分析——那是改判定路径，得先有单元测试和真机确认，不该塞进这批采集里顺手改。目前记为**已知代价**：candidate 臂在这题上白丢 5 次调用，效率对比不能拿这题说话。
 
+   **2026-08-26 已修（#58）。** 整串正则闸门（`TEST_RUNNER_RULES` / `normalizeTestRunnerCommand`）已删除，`analyzeTestRunnerCommand` 与 `isTestRunnerCommand` 现在共用同一条段分解路径：只有某一段的可执行词本身是 runner 才算测试命令，`rg 'pytest' src/`、`grep -r vitest .`、`echo "npm test"` 一律按非测试命令放行；无法解析的 shell 仍然 fail-closed。回归测试在 `test/test-command.test.mjs` 与 `test/verification-policy-hook.test.mjs`。**可比性边界：修复前的 candidate 臂命令数与耗时（含本批 12 条 trace）不能与修复后的运行直接比**，白丢的调用全部来自这个缺陷；修复后需重采六题配对，重采结果落地前，本节的耗时数字只作采集链校准证据。
+
 4. **审计读了别的运行的 ledger**。失败运行改名留档后，`run.json` 里记的绝对路径仍指向老名字，而老名字现在被新运行占着。`candidate-v0.3-bypass-observed` 因此报出和 v0.4 运行一模一样的 pre=3/post=2，与已知的 14 条决策矛盾。现在证据一律在运行目录内部解析，绝不读 `run.json` 记的绝对路径。`--rebuild-trace` 也踩到同一个坑的更深一层 —— `task.json` 里的 workspace 路径同样是绝对的 —— materialize 出来的目录名每次随机，所以陈路径不会悄悄解析到别的运行，只会失败；仅当记录路径确实不存在时才在运行目录内重找，且 `task.json` 原样不动：这次运行到底在哪跑的，不能为了让重建成功而改。
 
 5. **trace 把改写信息丢干净了**。写上面那四条改写观测时才发现，trace 的 `policy_decision` 事件只留了 `decision: "rewrite"` 和 reason code，`applied`、`to_tier`、`declined_reason` 全丢，`tool_use_id` 也没留 —— pre 和 post 在 trace 里根本配不上对。也就是说：改写档是整套策略里唯一"Agent 要的命令和真跑的命令不是同一条"的路径，而发布出去的证据恰好证明不了这件事，上面四条当时全靠 `/tmp` 里的 ledger。字段现在补进 trace，逐个挑而不是整块展开 —— ledger 是 hook 写的，将来它多写一个原始命令串，不能就这么进已发布的 trace。补完用 `--rebuild-trace` 把 14 份重推、重审、重发布；也正是因为重推，才看见 `vp_local_correct_stop` 那条 `script_body_not_inspectable` 撤回，在此之前它在发布证据里等于不存在。

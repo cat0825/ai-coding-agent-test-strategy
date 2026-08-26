@@ -1,8 +1,25 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { analyzeTestRunnerCommand, decomposeShellCommand } from "../src/test-command.mjs";
+import { analyzeTestRunnerCommand, decomposeShellCommand, isTestRunnerCommand } from "../src/test-command.mjs";
 
 const cwdSha256 = "c".repeat(64);
+
+// Issue #58: a runner name inside an argument is not an invocation. The gate and the decision
+// share one segment decomposition, so these pass the gate instead of being denied fail-closed.
+test("runner names in search patterns and strings are not test commands", () => {
+  for (const command of ["rg 'pytest' src/", "grep -r vitest .", 'echo "npm test"']) {
+    assert.equal(analyzeTestRunnerCommand(command, { cwdSha256 }), null, command);
+    assert.equal(isTestRunnerCommand(command), false, command);
+  }
+});
+
+test("unparseable shell still fails closed instead of passing as non-test", () => {
+  const analysis = analyzeTestRunnerCommand("npm test 'unbalanced", { cwdSha256 });
+
+  assert.equal(analysis.semantics.complete, false);
+  assert.equal(analysis.semantics.reason, "unparseable_shell_command");
+  assert.equal(isTestRunnerCommand("npm test 'unbalanced"), true);
+});
 
 test("semantic command identity preserves environment, target, and cwd differences", () => {
   const plain = analyzeTestRunnerCommand("pytest", { cwdSha256 });
