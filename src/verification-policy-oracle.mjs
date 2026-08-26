@@ -65,17 +65,35 @@ function expectedResult(task, oracle, executionResults) {
   return pattern && matchRequiredFailureSignatures(oracle.required_failure_signatures, executionResults);
 }
 
-function agentEditAssessment(task, changedFiles, initialFiles) {
+// `forbidden` means the agent must not touch that class of file, `required` means it must, `allowed`
+// leaves it open. Validation already restricts the policies to those three values.
+function satisfiesEditPolicy(policy, editCount) {
+  if (policy === "forbidden") return editCount === 0;
+  if (policy === "required") return editCount > 0;
+  return true;
+}
+
+// Read from the oracle's declared policies rather than inferred from `task.mode`. Deriving them from the
+// mode made two of the three policy values unreachable: every non-`verify_only` task was judged as if it
+// declared `production_edits: forbidden` and `test_edits: required`, so an oracle declaring
+// `production_edits: required` -- a task that asks for a real repair -- would be failed for making it,
+// and passed for faking it with a test edit instead.
+function agentEditAssessment(task, oracle, changedFiles, initialFiles) {
   const edits = changedFiles.filter((file) => !initialFiles.has(file));
   const declaredChanged = new Set(task.definition.changed_files);
   for (const file of declaredChanged) if (changedFiles.includes(file)) edits.push(file);
   const unique = [...new Set(edits)].sort();
   const productionEdits = unique.filter((file) => !/(^|\/)(test|tests|__tests__)(\/|$)|(?:\.test|\.spec)\./i.test(file));
   const testEdits = unique.filter((file) => !productionEdits.includes(file));
-  const allowed = task.mode === "verify_only"
-    ? unique.length === 0
-    : productionEdits.length === 0 && testEdits.length > 0;
+  const allowed = satisfiesEditPolicy(oracle.production_edits, productionEdits.length)
+    && satisfiesEditPolicy(oracle.test_edits, testEdits.length);
   return { changed_files: unique, production_edits: productionEdits, test_edits: testEdits, allowed };
+}
+
+// Exported for the regression test: the assessment is a pure function of the declared policies and the
+// observed file set, and testing it directly is much cheaper than materializing a workspace per case.
+export function assessAgentEdits({ task, oracle, changedFiles, initialFiles = [] }) {
+  return agentEditAssessment(task, oracle, changedFiles, new Set(initialFiles));
 }
 
 export async function runVerificationPolicyOracle({ plan, oracles, taskManifest, sourceRepository, timeoutMs = 120_000, fixtureRepositories = null }) {
@@ -99,7 +117,7 @@ export async function runVerificationPolicyOracle({ plan, oracles, taskManifest,
   for (const file of taskManifest.changed_files) {
     if (finalFileSha256[file] !== taskManifest.changed_file_sha256[file]) observedAgentFiles.add(file);
   }
-  const edits = agentEditAssessment(task, [...observedAgentFiles].sort(), initialFiles);
+  const edits = agentEditAssessment(task, oracle, [...observedAgentFiles].sort(), initialFiles);
   const executionResults = [];
   const execute = async (phase) => {
     const result = await executionOnCopy(workspace, task.definition.command_tiers[phase], timeoutMs);

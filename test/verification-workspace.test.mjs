@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { verifyCollectorProvenance } from "../src/collector-provenance.mjs";
-import { runVerificationPolicyOracle } from "../src/verification-policy-oracle.mjs";
+import { assessAgentEdits, runVerificationPolicyOracle } from "../src/verification-policy-oracle.mjs";
 import {
   matchRequiredFailureSignatures,
   materializeVerificationTask,
@@ -707,4 +707,36 @@ test("every qualified fixture records a green upstream build and justifies each 
   for (const fixture of plan.fixtures.filter(({ origin }) => origin.kind === "external_clone")) {
     assert.ok(qualified.has(fixture.origin.qualification.fixture_id));
   }
+});
+
+// #71: the assessment used to derive the policies from `task.mode`, which made `required` unreachable and
+// inverted the judgement for any task asking for a real repair.
+test("edit assessment reads the declared policies instead of inferring them from the mode", () => {
+  const assess = (mode, productionEdits, testEdits, changedFiles) => assessAgentEdits({
+    task: { mode, definition: { changed_files: ["src/subject.mjs"] } },
+    oracle: { production_edits: productionEdits, test_edits: testEdits },
+    changedFiles,
+  });
+
+  // A repair task: the production edit is what the oracle asks for, and a test edit instead of it is the
+  // masking behaviour the task exists to catch. The old mode-derived logic judged both backwards.
+  assert.equal(assess("end_to_end", "required", "forbidden", ["src/subject.mjs"]).allowed, true);
+  assert.equal(assess("end_to_end", "required", "forbidden", ["test/subject.test.mjs"]).allowed, false);
+  assert.equal(assess("end_to_end", "required", "forbidden", []).allowed, false);
+
+  // `allowed` constrains nothing on its own side.
+  assert.equal(assess("end_to_end", "allowed", "forbidden", ["src/subject.mjs"]).allowed, true);
+  assert.equal(assess("end_to_end", "allowed", "forbidden", ["test/subject.test.mjs"]).allowed, false);
+
+  // The two combinations the pilot already uses keep their previous verdicts, so no frozen pair moves.
+  assert.equal(assess("verify_only", "forbidden", "forbidden", []).allowed, true);
+  assert.equal(assess("verify_only", "forbidden", "forbidden", ["src/subject.mjs"]).allowed, false);
+  assert.equal(assess("test_decision", "forbidden", "required", ["test/subject.test.mjs"]).allowed, true);
+  assert.equal(assess("test_decision", "forbidden", "required", ["src/subject.mjs"]).allowed, false);
+
+  // Classification itself is unchanged: a path is a test edit by shape, not by policy.
+  const mixed = assess("end_to_end", "required", "allowed", ["src/subject.mjs", "test/subject.test.mjs"]);
+  assert.deepEqual(mixed.production_edits, ["src/subject.mjs"]);
+  assert.deepEqual(mixed.test_edits, ["test/subject.test.mjs"]);
+  assert.equal(mixed.allowed, true);
 });
